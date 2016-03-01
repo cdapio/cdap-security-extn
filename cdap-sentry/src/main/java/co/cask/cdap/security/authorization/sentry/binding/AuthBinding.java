@@ -17,9 +17,16 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
+import co.cask.cdap.proto.id.EntityId;
+import co.cask.cdap.proto.security.Action;
+import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf.AuthzConfVars;
 import co.cask.cdap.security.authorization.sentry.model.ActionFactory;
+import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.sentry.core.common.ActiveRoleSet;
+import org.apache.sentry.core.common.Authorizable;
+import org.apache.sentry.core.common.Subject;
 import org.apache.sentry.policy.common.PolicyEngine;
 import org.apache.sentry.provider.common.AuthorizationProvider;
 import org.apache.sentry.provider.common.ProviderBackend;
@@ -28,6 +35,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Created by rsinha on 2/29/16.
@@ -109,12 +118,12 @@ public class AuthBinding {
       policyEngine});
   }
 
-//  /**
-//   * Authorize access to a Kafka privilege
-//   */
-//  public boolean authorize(RequestChannel.Session session, Operation operation, Resource resource) {
-//    List<Authorizable> authorizables = ConvertUtil.convertResourceToAuthorizable(session.clientAddress().getHostAddress(), resource);
-//    Set<KafkaAction> actions = Sets.newHashSet(actionFactory.getActionByName(operation.name()));
-//    return authProvider.hasAccess(new Subject(getName(session)), authorizables, actions, ActiveRoleSet.ALL);
-//  }
+  /**
+   * Authorize access to a Kafka privilege
+   */
+  public boolean authorize(EntityId entityId, Principal principal, Action action) {
+    List<Authorizable> authorizables = EntityToAuthMapper.convertResourceToAuthorizable(entityId);
+    Set<ActionFactory.Action> actions = Sets.newHashSet(actionFactory.getActionByName(action.name()));
+    return authProvider.hasAccess(new Subject(principal.getName()), authorizables, actions, ActiveRoleSet.ALL);
+  }
 }

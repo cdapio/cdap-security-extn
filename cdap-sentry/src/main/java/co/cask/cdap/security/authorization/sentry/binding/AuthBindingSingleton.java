@@ -33,36 +33,36 @@ public class AuthBindingSingleton {
 
   // Lazy init holder class idiom to avoid DCL
   private static class KafkaAuthBindingSingletonHolder {
-    static final AuthBindingSingleton instance = new AuthBindingSingleton();
+    static final AuthBindingSingleton INSTANCE = new AuthBindingSingleton();
   }
 
-  private static AuthConf AuthConf = null;
+  private static AuthConf authConf = null;
 
   private AuthBinding binding;
 
   private AuthBindingSingleton() {
   }
 
-  private AuthConf loadAuthzConf(String sentry_site) {
-    if (Strings.isNullOrEmpty(sentry_site)) {
-      throw new IllegalArgumentException("Configuration key " + AuthConf.SENTRY_SITE_URL
-                                           + " value '" + sentry_site + "' is invalid.");
+  private AuthConf loadAuthzConf(String sentrySite) {
+    if (Strings.isNullOrEmpty(sentrySite)) {
+      throw new IllegalArgumentException("Configuration key " + authConf.SENTRY_SITE_URL
+                                           + " value '" + sentrySite + "' is invalid.");
     }
 
-    AuthConf AuthConf = null;
+    AuthConf authConf = null;
     try {
-      AuthConf = new AuthConf(new URL(sentry_site));
+      authConf = new AuthConf(new URL(sentrySite));
     } catch (MalformedURLException e) {
-      throw new IllegalArgumentException("Configuration key " + AuthConf.SENTRY_SITE_URL
-                                           + " specifies a malformed URL '" + sentry_site + "'", e);
+      throw new IllegalArgumentException("Configuration key " + authConf.SENTRY_SITE_URL
+                                           + " specifies a malformed URL '" + sentrySite + "'", e);
     }
-    return AuthConf;
+    return authConf;
   }
 
-  public void configure(String sentry_site) {
+  public void configure(String sentrySite) {
     try {
-      AuthConf = loadAuthzConf(sentry_site);
-      binding = new AuthBinding(AuthConf);
+      authConf = loadAuthzConf(sentrySite);
+      binding = new AuthBinding(authConf);
       log.info("AuthBinding created successfully");
     } catch (Exception ex) {
       throw new RuntimeException("Unable to create AuthBinding: " + ex.getMessage(), ex);
@@ -70,7 +70,7 @@ public class AuthBindingSingleton {
   }
 
   public static AuthBindingSingleton getInstance() {
-    return KafkaAuthBindingSingletonHolder.instance;
+    return KafkaAuthBindingSingletonHolder.INSTANCE;
   }
 
   public AuthBinding getAuthBinding() {
@@ -84,7 +84,7 @@ public class AuthBindingSingleton {
     if (binding == null) {
       throw new RuntimeException("AuthBindingSingleton not configured yet.");
     }
-    return AuthConf;
+    return authConf;
   }
 }
 

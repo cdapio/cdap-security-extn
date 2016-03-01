@@ -18,15 +18,17 @@
 package co.cask.cdap.security.authorization.sentry.binding;
 
 import co.cask.cdap.common.UnauthorizedException;
+import co.cask.cdap.common.conf.CConfiguration;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.security.authorization.Authorizer;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
+import com.google.common.base.Preconditions;
+import com.google.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -34,15 +36,26 @@ import java.util.Set;
  */
 public class SentryAuthorizer implements Authorizer {
 
-  private static Logger LOG = LoggerFactory.getLogger(SentryAuthorizer.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SentryAuthorizer.class);
 
   AuthBinding binding;
   AuthConf authConf;
 
-  String sentry_site = null;
+  String sentrySite = null;
 //  List<KafkaPrincipal> super_users = null;
 
-  public SentryAuthorizer() {
+  @Inject
+  public SentryAuthorizer(CConfiguration cConf) {
+    final String sentrySiteUrlConfig = cConf.get(AuthConf.SENTRY_SITE_URL);
+
+    Preconditions.checkNotNull(sentrySiteUrlConfig, "sentry-site.xml path is null in cdap-site.xml");
+
+    this.sentrySite = sentrySiteUrlConfig;
+    LOG.info("Configuring Sentry Authorizer: " + sentrySite);
+    final AuthBindingSingleton instance = AuthBindingSingleton.getInstance();
+    instance.configure(sentrySite);
+    this.binding = instance.getAuthBinding();
+    this.authConf = instance.getAuthConf();
   }
 
   @Override
@@ -72,6 +85,9 @@ public class SentryAuthorizer implements Authorizer {
 
   @Override
   public void enforce(EntityId entityId, Principal principal, Action action) throws UnauthorizedException {
-    throw new UnsupportedOperationException("Please use Sentry CLI to perform this action.");
+    if (!binding.authorize(entityId, principal, action)) {
+      throw new UnauthorizedException(String.format("User {} is unauthorized to perform action {} on entitiy {}",
+                                                    principal.getName(), action.name(), entityId.toString()));
+    }
   }
 }
