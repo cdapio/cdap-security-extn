@@ -63,18 +63,9 @@ public class SentryAuthorizer implements Authorizer {
     throw new UnsupportedOperationException("Please use Sentry CLI to perform this action.");
   }
 
-  @Override
-  public void grant(EntityId entityId, Principal principal) {
-    throw new UnsupportedOperationException("Please use Sentry CLI to perform this action.");
-  }
 
   @Override
   public void revoke(EntityId entityId, Principal principal, Set<Action> set) {
-    throw new UnsupportedOperationException("Please use Sentry CLI to perform this action.");
-  }
-
-  @Override
-  public void revoke(EntityId entityId, Principal principal) {
     throw new UnsupportedOperationException("Please use Sentry CLI to perform this action.");
   }
 

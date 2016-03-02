@@ -81,11 +81,6 @@ public class WildcardPrivilege implements Privilege {
         return true;
       } else {
         KeyValue part = parts.get(index);
-//        // Support for action inheritance from parent to child
-//        if (part.getKey().equalsIgnoreCase(ActionConstant.NAME)
-//          && !(otherPart.getKey().equalsIgnoreCase(ActionConstant.NAME))) {
-//          continue;
-//        }
         // are the keys even equal
         if (!part.getKey().equalsIgnoreCase(otherPart.getKey())) {
           return false;

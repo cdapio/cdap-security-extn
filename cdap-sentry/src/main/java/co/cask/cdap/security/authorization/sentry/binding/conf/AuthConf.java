@@ -17,6 +17,7 @@
 
 package co.cask.cdap.security.authorization.sentry.binding.conf;
 
+import co.cask.cdap.security.authorization.sentry.policy.SimplePolicyEngine;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.provider.common.HadoopGroupResourceAuthorizationProvider;
 import org.apache.sentry.provider.db.generic.SentryGenericProviderBackend;
@@ -42,8 +43,7 @@ public class AuthConf extends Configuration {
     AUTHZ_PROVIDER_RESOURCE("sentry.cdap.provider.resource", ""),
     AUTHZ_PROVIDER_BACKEND("sentry.cdap.provider.backend",
                            SentryGenericProviderBackend.class.getName()),
-    // TODO (rohit): put the right policy engine here
-    AUTHZ_POLICY_ENGINE("sentry.kafka.policy.engine", "org.apache.sentry.policy.db.SimpleDBPolicyEngine"),
+    AUTHZ_POLICY_ENGINE("sentry.kafka.policy.engine", SimplePolicyEngine.class.getName()),
     AUTHZ_INSTANCE_NAME("sentry.cdap.name", "");
 
     private final String varName;
