@@ -33,6 +33,8 @@ public class AuthConf extends Configuration {
    */
   public static final String SENTRY_SITE_URL = "sentry.cdap.site.url";
   public static final String SENTRY_SITE_FILENAME = "sentry-site.xml";
+  public static final String SERVICE_INSTANCE_NAME = "sentry.cdap.service.instance";
+  public static final String SERVICE_USER_NAME = "sentry.cdap.service.user.name";
 
   /**
    * Config setting definitions
@@ -44,7 +46,8 @@ public class AuthConf extends Configuration {
     AUTHZ_PROVIDER_BACKEND("sentry.cdap.provider.backend",
                            SentryGenericProviderBackend.class.getName()),
     AUTHZ_POLICY_ENGINE("sentry.kafka.policy.engine", SimplePolicyEngine.class.getName()),
-    AUTHZ_INSTANCE_NAME("sentry.cdap.name", "");
+    AUTHZ_INSTANCE_NAME(SERVICE_INSTANCE_NAME, "cdap"),
+    AUTHZ_SERVICE_USER_NAME(SERVICE_USER_NAME, "cdap");
 
     private final String varName;
     private final String defaultVal;

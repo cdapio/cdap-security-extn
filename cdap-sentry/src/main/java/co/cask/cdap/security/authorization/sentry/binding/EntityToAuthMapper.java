@@ -20,6 +20,7 @@ package co.cask.cdap.security.authorization.sentry.binding;
 import co.cask.cdap.proto.element.EntityType;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.id.NamespaceId;
+import co.cask.cdap.security.authorization.sentry.model.Instance;
 import com.google.common.collect.Lists;
 import org.apache.sentry.core.common.Authorizable;
 
@@ -32,7 +33,7 @@ public class EntityToAuthMapper {
   public static List<Authorizable> convertResourceToAuthorizable(final EntityId entityId) {
     List<Authorizable> authorizables = Lists.newArrayList();
 
-
+    authorizables.add(new Instance("cdapInstance"));
     authorizables.add(new Authorizable() {
       @Override
       public String getTypeName() {

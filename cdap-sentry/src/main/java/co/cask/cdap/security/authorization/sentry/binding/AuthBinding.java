@@ -22,8 +22,10 @@ import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf.AuthzConfVars;
 import co.cask.cdap.security.authorization.sentry.model.ActionFactory;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.sentry.SentryUserException;
 import org.apache.sentry.core.common.ActiveRoleSet;
 import org.apache.sentry.core.common.Authorizable;
 import org.apache.sentry.core.common.Subject;
@@ -31,10 +33,17 @@ import org.apache.sentry.policy.common.PolicyEngine;
 import org.apache.sentry.provider.common.AuthorizationProvider;
 import org.apache.sentry.provider.common.ProviderBackend;
 import org.apache.sentry.provider.db.generic.SentryGenericProviderBackend;
+import org.apache.sentry.provider.db.generic.service.thrift.SentryGenericServiceClient;
+import org.apache.sentry.provider.db.generic.service.thrift.SentryGenericServiceClientFactory;
+import org.apache.sentry.provider.db.generic.service.thrift.TAuthorizable;
+import org.apache.sentry.provider.db.generic.service.thrift.TSentryPrivilege;
+import org.apache.sentry.provider.db.generic.service.thrift.TSentryRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -48,12 +57,16 @@ public class AuthBinding {
   private final Configuration authConf;
   private final AuthorizationProvider authProvider;
   private ProviderBackend providerBackend;
+  private String instanceName;
+  private String requestorName;
 
   private final ActionFactory actionFactory = ActionFactory.getInstance();
 
-  public AuthBinding(Configuration authConf) throws Exception {
+  public AuthBinding(Configuration authConf, String instanceName, String requestorName) throws Exception {
     this.authConf = authConf;
     this.authProvider = createAuthProvider();
+    this.instanceName = instanceName;
+    this.requestorName = requestorName;
   }
 
   /**
@@ -78,7 +91,6 @@ public class AuthBinding {
     String policyEngineName =
       authConf.get(AuthzConfVars.AUTHZ_POLICY_ENGINE.getVar(),
                    AuthzConfVars.AUTHZ_POLICY_ENGINE.getDefault());
-    String instanceName = authConf.get(AuthzConfVars.AUTHZ_INSTANCE_NAME.getVar());
     if (resourceName != null && resourceName.startsWith("classpath:")) {
       String resourceFileName = resourceName.substring("classpath:".length());
       resourceName = AuthorizationProvider.class.getClassLoader().getResource(resourceFileName).getPath();
@@ -99,7 +111,7 @@ public class AuthBinding {
         resourceName});
     if (providerBackend instanceof SentryGenericProviderBackend) {
       ((SentryGenericProviderBackend) providerBackend).setComponentType(COMPONENT_TYPE);
-      ((SentryGenericProviderBackend) providerBackend).setServiceName("kafka" + instanceName);
+      ((SentryGenericProviderBackend) providerBackend).setServiceName(instanceName);
     }
 
     // Instantiate the configured policyEngine
@@ -118,12 +130,100 @@ public class AuthBinding {
       policyEngine});
   }
 
+  public void grant(final EntityId entityId, Principal principal, Set<Action> set) {
+    Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.ROLE, "Actions can only granted to a" +
+      " role. Please add the user/group to an existing/new role and grant action to the role.");
+    final String role = principal.getName();
+    if (!roleExists(role)) {
+      throw new IllegalArgumentException("Can give action for non-existent Role: " + role);
+    }
+    Iterator<Action> iterator = set.iterator();
+    while (iterator.hasNext()) {
+      final Action action = iterator.next();
+      execute(new Command<Void>() {
+        @Override
+        public Void run(SentryGenericServiceClient client) throws Exception {
+          client.grantPrivilege(
+            requestorName, role, COMPONENT_TYPE, toTSentryPrivilege(action, entityId));
+          return null;
+        }
+      });
+    }
+  }
+
+  private TSentryPrivilege toTSentryPrivilege(Action action, EntityId entityId) {
+    final List<Authorizable> authorizables = EntityToAuthMapper.convertResourceToAuthorizable(entityId);
+    final List<TAuthorizable> tAuthorizables = new ArrayList<>();
+    for (Authorizable authorizable : authorizables) {
+      tAuthorizables.add(new TAuthorizable(authorizable.getTypeName(), authorizable.getName()));
+    }
+    TSentryPrivilege tSentryPrivilege = new TSentryPrivilege(COMPONENT_TYPE, instanceName, tAuthorizables,
+                                                             action.name());
+    return tSentryPrivilege;
+  }
+
+  private SentryGenericServiceClient getClient() throws Exception {
+    return SentryGenericServiceClientFactory.create(this.authConf);
+  }
+
+  /**
+   * A Command is a closure used to pass a block of code from individual
+   * functions to execute, which centralizes connection error
+   * handling. Command is parameterized on the return type of the function.
+   */
+  private interface Command<T> {
+    T run(SentryGenericServiceClient client) throws Exception;
+  }
+
+  private <T> T execute(Command<T> cmd) throws RuntimeException {
+    SentryGenericServiceClient client = null;
+    try {
+      client = getClient();
+      return cmd.run(client);
+    } catch (SentryUserException ex) {
+      String msg = "Unable to excute command on sentry server: " + ex.getMessage();
+      LOG.error(msg, ex);
+      throw new RuntimeException(msg, ex);
+    } catch (Exception ex) {
+      String msg = "Unable to obtain client:" + ex.getMessage();
+      LOG.error(msg, ex);
+      throw new RuntimeException(msg, ex);
+    } finally {
+      if (client != null) {
+        client.close();
+      }
+    }
+  }
+
+  private boolean roleExists(String role) {
+    return getAllRoles().contains(role);
+  }
+
+  private List<String> getAllRoles() {
+    final List<String> roles = new ArrayList<>();
+    execute(new Command<Void>() {
+      @Override
+      public Void run(SentryGenericServiceClient client) throws Exception {
+        for (TSentryRole tSentryRole : client.listAllRoles(requestorName, COMPONENT_TYPE)) {
+          roles.add(tSentryRole.getRoleName());
+        }
+        return null;
+      }
+    });
+
+    return roles;
+  }
+
   /**
    * Authorize access to a Kafka privilege
    */
   public boolean authorize(EntityId entityId, Principal principal, Action action) {
     List<Authorizable> authorizables = EntityToAuthMapper.convertResourceToAuthorizable(entityId);
     Set<ActionFactory.Action> actions = Sets.newHashSet(actionFactory.getActionByName(action.name()));
-    return authProvider.hasAccess(new Subject(principal.getName()), authorizables, actions, ActiveRoleSet.ALL);
+    LOG.info("### Trying to talk to AuthProvider from AuthBinding to get permission");
+    boolean hasAccess = authProvider.hasAccess(new Subject(principal.getName()),
+                                               authorizables, actions, ActiveRoleSet.ALL);
+    LOG.info("### hasAccess in the AuthBinding returned with {}", hasAccess);
+    return hasAccess;
   }
 }

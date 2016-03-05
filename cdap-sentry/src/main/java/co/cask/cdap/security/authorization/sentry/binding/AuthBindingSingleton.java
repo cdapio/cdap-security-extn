@@ -59,10 +59,10 @@ public class AuthBindingSingleton {
     return authConf;
   }
 
-  public void configure(String sentrySite) {
+  public void configure(String instanceName, String requestorName, String sentrySite) {
     try {
       authConf = loadAuthzConf(sentrySite);
-      binding = new AuthBinding(authConf);
+      binding = new AuthBinding(authConf, instanceName, requestorName);
       log.info("AuthBinding created successfully");
     } catch (Exception ex) {
       throw new RuntimeException("Unable to create AuthBinding: " + ex.getMessage(), ex);

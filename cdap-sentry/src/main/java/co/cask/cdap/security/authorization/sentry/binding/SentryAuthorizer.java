@@ -17,8 +17,10 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
+import co.cask.cdap.common.NotFoundException;
 import co.cask.cdap.common.UnauthorizedException;
 import co.cask.cdap.common.conf.CConfiguration;
+import co.cask.cdap.common.http.SecurityRequestContext;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
@@ -41,6 +43,9 @@ public class SentryAuthorizer implements Authorizer {
   AuthBinding binding;
   AuthConf authConf;
 
+  private String requestorName;
+  private String serviceInstanceName;
+
   String sentrySite = null;
 //  List<KafkaPrincipal> super_users = null;
 
@@ -51,16 +56,25 @@ public class SentryAuthorizer implements Authorizer {
     Preconditions.checkNotNull(sentrySiteUrlConfig, "sentry-site.xml path is null in cdap-site.xml");
 
     this.sentrySite = sentrySiteUrlConfig;
-    LOG.info("Configuring Sentry Authorizer: " + sentrySite);
+
+
+    serviceInstanceName = cConf.get(AuthConf.SERVICE_INSTANCE_NAME) != null ?
+      cConf.get(AuthConf.SERVICE_INSTANCE_NAME) : AuthConf.AuthzConfVars.getDefault(AuthConf.SERVICE_INSTANCE_NAME);
+
+    requestorName = cConf.get(AuthConf.SERVICE_USER_NAME) != null ? cConf.get(AuthConf.SERVICE_USER_NAME) :
+      AuthConf.AuthzConfVars.getDefault(AuthConf.SERVICE_INSTANCE_NAME);
+
+    LOG.info("Configuring Sentry KafkaAuthorizer: " + sentrySite);
     final AuthBindingSingleton instance = AuthBindingSingleton.getInstance();
-    instance.configure(sentrySite);
+
+    instance.configure(serviceInstanceName, requestorName, sentrySite);
     this.binding = instance.getAuthBinding();
     this.authConf = instance.getAuthConf();
   }
 
   @Override
   public void grant(EntityId entityId, Principal principal, Set<Action> set) {
-    throw new UnsupportedOperationException("Please use Sentry CLI to perform this action.");
+    binding.grant(entityId, principal, set);
   }
 
 
@@ -76,9 +90,19 @@ public class SentryAuthorizer implements Authorizer {
 
   @Override
   public void enforce(EntityId entityId, Principal principal, Action action) throws UnauthorizedException {
-    if (!binding.authorize(entityId, principal, action)) {
+    boolean authorize = binding.authorize(entityId, principal, action);
+    LOG.info("### the SentryAuthorized got the access permission as {}", authorize);
+    if (!authorize) {
       throw new UnauthorizedException(String.format("User {} is unauthorized to perform action {} on entitiy {}",
                                                     principal.getName(), action.name(), entityId.toString()));
+    }
+  }
+
+  private String getRequestingUser() throws NotFoundException {
+    if (SecurityRequestContext.getUserId().isPresent()) {
+      throw new NotFoundException("No authenticated user found");
+    } else {
+      return SecurityRequestContext.getUserId().get();
     }
   }
 }
