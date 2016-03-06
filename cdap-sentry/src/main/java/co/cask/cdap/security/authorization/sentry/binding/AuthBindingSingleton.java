@@ -32,7 +32,7 @@ public class AuthBindingSingleton {
   private static Logger log = LoggerFactory.getLogger(AuthBindingSingleton.class);
 
   // Lazy init holder class idiom to avoid DCL
-  private static class KafkaAuthBindingSingletonHolder {
+  private static class AuthBindingSingletonHolder {
     static final AuthBindingSingleton INSTANCE = new AuthBindingSingleton();
   }
 
@@ -45,15 +45,15 @@ public class AuthBindingSingleton {
 
   private AuthConf loadAuthzConf(String sentrySite) {
     if (Strings.isNullOrEmpty(sentrySite)) {
-      throw new IllegalArgumentException("Configuration key " + authConf.SENTRY_SITE_URL
+      throw new IllegalArgumentException("Configuration key " + AuthConf.SENTRY_SITE_URL
                                            + " value '" + sentrySite + "' is invalid.");
     }
 
-    AuthConf authConf = null;
+    AuthConf authConf;
     try {
       authConf = new AuthConf(new URL(sentrySite));
     } catch (MalformedURLException e) {
-      throw new IllegalArgumentException("Configuration key " + authConf.SENTRY_SITE_URL
+      throw new IllegalArgumentException("Configuration key " + AuthConf.SENTRY_SITE_URL
                                            + " specifies a malformed URL '" + sentrySite + "'", e);
     }
     return authConf;
@@ -70,7 +70,7 @@ public class AuthBindingSingleton {
   }
 
   public static AuthBindingSingleton getInstance() {
-    return KafkaAuthBindingSingletonHolder.INSTANCE;
+    return AuthBindingSingletonHolder.INSTANCE;
   }
 
   public AuthBinding getAuthBinding() {

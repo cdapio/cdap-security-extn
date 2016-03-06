@@ -20,11 +20,11 @@ package co.cask.cdap.security.authorization.sentry.model;
  * Action supported on {@link Authorizable}
  */
 public class ActionConstant {
-  public static final String ALL = "ALL";
+  public static final String ALL = "*";
   public static final String READ = "read";
   public static final String WRITE = "write";
   public static final String EXECUTE = "execute";
-  public static final String ADMIN = "admin"; // this action include administrative operations such as create delete
-  // and update
-  public static final String ACTION_NAME = "action";
+  public static final String ADMIN = "admin";
+  public static final String ALL_NAME = "all";
+  public static final String ACTION_NAME = "Action";
 }

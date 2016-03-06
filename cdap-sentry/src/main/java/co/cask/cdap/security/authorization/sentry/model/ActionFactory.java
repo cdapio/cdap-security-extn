@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Factory for creating actions supported by Kafka.
+ * Factory for creating actions supported by CDAP.
  */
 public class ActionFactory extends BitFieldActionFactory {
   private static ActionFactory instance;
@@ -35,7 +35,7 @@ public class ActionFactory extends BitFieldActionFactory {
   /**
    * Get instance of {@link ActionFactory}, which is a singleton.
    *
-   * @return Instance of KafkaActionFactory.
+   * @return Instance of {@link ActionFactory}.
    */
   public static ActionFactory getInstance() {
     if (instance == null) {
@@ -88,21 +88,6 @@ public class ActionFactory extends BitFieldActionFactory {
     }
 
     /**
-     * Check if {@link ActionType} with the given name exists.
-     *
-     * @param name String representation of a valid action type.
-     * @return true if {@link ActionType} with the given name exists.
-     */
-    static boolean hasActionType(String name) {
-      for (ActionType action : ActionType.values()) {
-        if (action.name.equalsIgnoreCase(name)) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    /**
      * Create {@link ActionType} for the given action
      *
      * @param name String representation of the action
@@ -114,7 +99,7 @@ public class ActionFactory extends BitFieldActionFactory {
           return action;
         }
       }
-      return null; // Can't get ActionType of provided action
+      throw new RuntimeException("Can't get CDAP action by name:" + name);
     }
 
     /**
@@ -186,6 +171,9 @@ public class ActionFactory extends BitFieldActionFactory {
    */
   @Override
   public Action getActionByName(String name) {
-    return ActionType.hasActionType(name) ? new Action(name) : null;
+    if (ActionConstant.ALL_NAME.equalsIgnoreCase(name)) {
+      return new Action(ActionType.ALL);
+    }
+    return new Action(name);
   }
 }

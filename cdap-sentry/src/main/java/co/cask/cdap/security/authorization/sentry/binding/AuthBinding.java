@@ -22,6 +22,7 @@ import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf.AuthzConfVars;
 import co.cask.cdap.security.authorization.sentry.model.ActionFactory;
+import co.cask.cdap.security.authorization.sentry.model.Instance;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
@@ -43,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -57,16 +57,16 @@ public class AuthBinding {
   private final Configuration authConf;
   private final AuthorizationProvider authProvider;
   private ProviderBackend providerBackend;
-  private String instanceName;
-  private String requestorName;
+  private final String instanceName;
+  private final String requestorName;
 
   private final ActionFactory actionFactory = ActionFactory.getInstance();
 
   public AuthBinding(Configuration authConf, String instanceName, String requestorName) throws Exception {
     this.authConf = authConf;
-    this.authProvider = createAuthProvider();
     this.instanceName = instanceName;
     this.requestorName = requestorName;
+    this.authProvider = createAuthProvider();
   }
 
   /**
@@ -107,8 +107,7 @@ public class AuthBinding {
         .getDeclaredConstructor(Configuration.class, String.class);
     providerBackendConstructor.setAccessible(true);
     providerBackend =
-      (ProviderBackend) providerBackendConstructor.newInstance(new Object[]{authConf,
-        resourceName});
+      (ProviderBackend) providerBackendConstructor.newInstance(authConf, resourceName);
     if (providerBackend instanceof SentryGenericProviderBackend) {
       ((SentryGenericProviderBackend) providerBackend).setComponentType(COMPONENT_TYPE);
       ((SentryGenericProviderBackend) providerBackend).setServiceName(instanceName);
@@ -119,15 +118,14 @@ public class AuthBinding {
       Class.forName(policyEngineName).getDeclaredConstructor(ProviderBackend.class);
     policyConstructor.setAccessible(true);
     PolicyEngine policyEngine =
-      (PolicyEngine) policyConstructor.newInstance(new Object[]{providerBackend});
+      (PolicyEngine) policyConstructor.newInstance(providerBackend);
 
     // Instantiate the configured authProvider
     Constructor<?> constructor =
       Class.forName(authProviderName).getDeclaredConstructor(Configuration.class, String.class,
                                                              PolicyEngine.class);
     constructor.setAccessible(true);
-    return (AuthorizationProvider) constructor.newInstance(new Object[]{authConf, resourceName,
-      policyEngine});
+    return (AuthorizationProvider) constructor.newInstance(authConf, resourceName, policyEngine);
   }
 
   public void grant(final EntityId entityId, Principal principal, Set<Action> set) {
@@ -137,9 +135,7 @@ public class AuthBinding {
     if (!roleExists(role)) {
       throw new IllegalArgumentException("Can give action for non-existent Role: " + role);
     }
-    Iterator<Action> iterator = set.iterator();
-    while (iterator.hasNext()) {
-      final Action action = iterator.next();
+    for (final Action action : set) {
       execute(new Command<Void>() {
         @Override
         public Void run(SentryGenericServiceClient client) throws Exception {
@@ -157,9 +153,8 @@ public class AuthBinding {
     for (Authorizable authorizable : authorizables) {
       tAuthorizables.add(new TAuthorizable(authorizable.getTypeName(), authorizable.getName()));
     }
-    TSentryPrivilege tSentryPrivilege = new TSentryPrivilege(COMPONENT_TYPE, instanceName, tAuthorizables,
-                                                             action.name());
-    return tSentryPrivilege;
+    return new TSentryPrivilege(COMPONENT_TYPE, instanceName, tAuthorizables,
+                                action.name());
   }
 
   private SentryGenericServiceClient getClient() throws Exception {
@@ -215,12 +210,16 @@ public class AuthBinding {
   }
 
   /**
-   * Authorize access to a Kafka privilege
+   * Authorize access to a CDAP entity
    */
   public boolean authorize(EntityId entityId, Principal principal, Action action) {
     List<Authorizable> authorizables = EntityToAuthMapper.convertResourceToAuthorizable(entityId);
     Set<ActionFactory.Action> actions = Sets.newHashSet(actionFactory.getActionByName(action.name()));
     LOG.info("### Trying to talk to AuthProvider from AuthBinding to get permission");
+    Instance instance = new Instance(instanceName);
+    if (!authorizables.contains(instance)) {
+      authorizables.add(0, instance);
+    }
     boolean hasAccess = authProvider.hasAccess(new Subject(principal.getName()),
                                                authorizables, actions, ActiveRoleSet.ALL);
     LOG.info("### hasAccess in the AuthBinding returned with {}", hasAccess);
