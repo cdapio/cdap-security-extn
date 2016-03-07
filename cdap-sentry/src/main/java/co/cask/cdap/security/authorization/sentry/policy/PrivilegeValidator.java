@@ -1,5 +1,4 @@
 /*
- *
  * Copyright © 2016 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -19,13 +18,14 @@ package co.cask.cdap.security.authorization.sentry.policy;
 
 import co.cask.cdap.security.authorization.sentry.model.ActionFactory;
 import co.cask.cdap.security.authorization.sentry.model.Authorizable;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.apache.sentry.policy.common.PolicyConstants;
 import org.apache.sentry.policy.common.PrivilegeValidatorContext;
 import org.apache.shiro.config.ConfigurationException;
 
-import java.util.List;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -38,88 +38,77 @@ public class PrivilegeValidator implements org.apache.sentry.policy.common.Privi
   @Override
   public void validate(PrivilegeValidatorContext context) throws ConfigurationException {
 
-    List<String> splits = Lists.newArrayList();
-    for (String section : PolicyConstants.AUTHORIZABLE_SPLITTER.split(context.getPrivilege().trim())) {
-      splits.add(section);
-    }
+    Deque<String> privileges = Lists.newLinkedList(PolicyConstants.AUTHORIZABLE_SPLITTER.split(context.getPrivilege()));
 
-    // Check privilege splits length is at least 2 and no more than 5: the smallest and longest privilege possible with
-    // action
-    if (splits.size() < 2 || splits.size() > 5) {
-      throw new ConfigurationException("Invalid Privilege Exception: Privilege can be given to a CDAP instance" +
-                                         "or instance -> namespace or instance -> namespace (artifact|application)" +
-                                         "or instance -> namespace -> (application|stream|dataset) or instance " +
-                                         "-> namespace -> application -> program");
+    // Check privilege splits length is at least 2 the smallest privilege possible with action. Example:
+    // smallest privilege of size 2 : instance=instance1->action=read
+    if (privileges.size() < 2) {
+      throw new ConfigurationException("Invalid Privilege Exception: Privilege can be given to an " +
+                                         "instance or " +
+                                         "instance -> namespace or " +
+                                         "instance -> namespace -> (artifact|applications|stream|dataset) or " +
+                                         "instance -> namespace -> application -> program");
     }
-
-    // last part should always be action so remove it to validate and also validate auth types
-    String lastPart = splits.remove(splits.size() - 1);
 
     // Check the last part is a valid action
-    if (!isAction(lastPart)) {
+    if (!isAction(privileges.removeLast())) {
       throw new ConfigurationException("CDAP privilege must end with a valid action.\n");
     }
 
-    // validate privilege string and also that it starts with instance
-    validatePrivilege(splits, 0, ImmutableSet.of(Authorizable.AuthorizableType.INSTANCE));
+    // the first valid authorizable type is instance since all privilege string should start with it
+    Set<Authorizable.AuthorizableType> validTypes = Sets.newHashSet(Authorizable.AuthorizableType.INSTANCE);
+    while (!privileges.isEmpty()) {
+      Authorizable authorizable = ModelAuthorizables.from(privileges.removeFirst());
+      // if we were expecting no validTypes for this authorizable type that means the privilege string has more
+      // authorizable when we were expecting it to end
+      if (validTypes.isEmpty()) {
+        throw new ConfigurationException(String.format("Was expecting end of Authorizables. Found unexpected " +
+                                                         "authorizable %s of type %s",
+                                                       authorizable, authorizable.getAuthzType()));
+      }
+      validTypes = validatePrivilege(authorizable.getAuthzType(), validTypes);
+    }
   }
 
   /**
-   * Recursively validates the Privilege splits.
+   * Validates that the given authorizable type exists in the validTypes and updates the validTypes depending on the
+   * current authorizable type.
    *
-   * @param splits the privilege splits
-   * @param curPosition current position which needs to be verified
-   * @param validTypes the valid {@link Authorizable.AuthorizableType} for the current position
+   * @param authzType the current authorizable type
+   * @param validTypes expected authorizable types
+   * @return updates {@link Set} of {@link Authorizable.AuthorizableType} which are expected for the given
+   * authorizable type
    */
-  private void validatePrivilege(List<String> splits, int curPosition, Set<Authorizable.AuthorizableType> validTypes) {
-
-    // base case: if we reach the end then break as its a valid privilege
-    if (curPosition >= splits.size()) {
-      return;
-    }
-
-    Authorizable authorizable = ModelAuthorizables.from(splits.get(curPosition));
-    if (authorizable == null) {
-      throw new ConfigurationException("No CDAP authorizable found for " + splits.get(curPosition) + "\n");
-    }
-    // Make sure that this authorizable type was expected after the one before
-    Authorizable.AuthorizableType authzType = authorizable.getAuthzType();
+  private Set<Authorizable.AuthorizableType> validatePrivilege(Authorizable.AuthorizableType authzType,
+                                                               Set<Authorizable.AuthorizableType> validTypes) {
     if (!validTypes.contains(authzType)) {
-      throw new ConfigurationException("Expecting authorizable types " + validTypes.toString() + "after " + splits
-        .get(curPosition - 1) + "but found " + authzType);
+      throw new ConfigurationException(String.format("Expecting authorizable types %s but found %s",
+                                                     validTypes.toString(), authzType));
     }
     switch (authzType) {
       case INSTANCE:
-        // instance can be followed namespace
-        validatePrivilege(splits, curPosition + 1, ImmutableSet.of(Authorizable.AuthorizableType.NAMESPACE));
+        validTypes = Sets.newHashSet(Authorizable.AuthorizableType.NAMESPACE);
         break;
       case NAMESPACE:
-        // namespace can be followed by application, artifact, stream or dataset
-        validatePrivilege(splits, curPosition + 1, ImmutableSet.of(Authorizable.AuthorizableType.APPLICATION,
-                                                                   Authorizable.AuthorizableType.ARTIFACT,
-                                                                   Authorizable.AuthorizableType.STREAM,
-                                                                   Authorizable.AuthorizableType.DATASET));
+        validTypes = Sets.newHashSet(Authorizable.AuthorizableType.APPLICATION,
+                                     Authorizable.AuthorizableType.ARTIFACT,
+                                     Authorizable.AuthorizableType.STREAM,
+                                     Authorizable.AuthorizableType.DATASET);
         break;
       case APPLICATION:
-        // application can be followed by program
-        validatePrivilege(splits, curPosition + 1, ImmutableSet.of(Authorizable.AuthorizableType.PROGRAM));
+        validTypes = Sets.newHashSet(Authorizable.AuthorizableType.PROGRAM);
         break;
-      // these are terminating authorization types i.e. we don't expect any other authorizable type following them
       case ARTIFACT:
       case STREAM:
       case DATASET:
       case PROGRAM:
-        // this should be the last authz type
-        if (splits.size() - 1 != curPosition) {
-          throw new ConfigurationException(String.format("Authorizable type %s should be the last Authorizable type",
-                                                         splits.get(curPosition)));
-        }
+        validTypes = new HashSet<>(); // we don't expect any other authorizable after this
     }
+    return validTypes;
   }
 
   private boolean isAction(String privilegePart) {
-    final String privilege = privilegePart.toLowerCase();
-    final String[] action = privilege.split(PolicyConstants.KV_SEPARATOR);
+    String[] action = privilegePart.toLowerCase().split(PolicyConstants.KV_SEPARATOR);
     return (action.length == 2 && action[0].equalsIgnoreCase(PolicyConstants.PRIVILEGE_NAME) &&
       actionFactory.getActionByName(action[1]) != null);
   }

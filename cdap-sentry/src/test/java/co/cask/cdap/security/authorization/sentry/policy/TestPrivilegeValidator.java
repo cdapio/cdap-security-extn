@@ -1,5 +1,4 @@
 /*
- *
  * Copyright © 2016 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -34,10 +33,9 @@ public class TestPrivilegeValidator {
     testInvalidPrivileges("instance=instance1");
   }
 
-
   @Test
   public void testWithoutInstance() {
-    testInvalidPrivileges("namespace=namespace1");
+    testInvalidPrivileges("namespace=namespace1->action=read");
     testInvalidPrivileges("namespace=namespace1->application=application1");
     // test action as the first part
     testInvalidPrivileges("action=read");
@@ -45,7 +43,6 @@ public class TestPrivilegeValidator {
 
   @Test
   public void testValidPrivileges() throws Exception {
-
     // instance
     testValidPrivilege("instance=instance1->action=admin");
 
@@ -72,7 +69,6 @@ public class TestPrivilegeValidator {
 
   @Test
   public void testInvalidAuthorizables() throws Exception {
-
     // instance
     testInvalidPrivileges("inNstance=instance1->action=admin");
 
@@ -116,12 +112,11 @@ public class TestPrivilegeValidator {
     testInvalidPrivileges("instance=instance1->instance=instance2->namespace=namespace1");
   }
 
-
   private void testValidPrivilege(String privilegeString) {
     try {
       privilegeValidator.validate(new PrivilegeValidatorContext(privilegeString));
     } catch (ConfigurationException ce) {
-      Assert.fail("Failed to validate a valid privilege");
+      Assert.fail(String.format("Failed to validate a valid privilege %s", privilegeString));
     }
   }
 

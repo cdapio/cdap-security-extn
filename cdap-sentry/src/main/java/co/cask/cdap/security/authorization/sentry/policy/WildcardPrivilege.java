@@ -1,5 +1,4 @@
 /*
- *
  * Copyright © 2016 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -20,13 +19,13 @@ package co.cask.cdap.security.authorization.sentry.policy;
 import co.cask.cdap.security.authorization.sentry.model.ActionConstant;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import org.apache.sentry.policy.common.KeyValue;
 import org.apache.sentry.policy.common.PolicyConstants;
 import org.apache.sentry.policy.common.Privilege;
 import org.apache.sentry.policy.common.PrivilegeFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -34,43 +33,43 @@ import java.util.List;
  */
 public class WildcardPrivilege implements Privilege {
 
-  private final ImmutableList<KeyValue> parts;
+  private final List<KeyValue> privilegeParts;
 
   public WildcardPrivilege(String permission) {
     if (Strings.isNullOrEmpty(permission)) {
       throw new IllegalArgumentException("Permission string cannot be null or empty.");
     }
-    List<KeyValue> parts = Lists.newArrayList();
+    List<KeyValue> parts = new ArrayList<>();
     for (String authorizable : PolicyConstants.AUTHORIZABLE_SPLITTER.trimResults().split(permission.trim())) {
       if (authorizable.isEmpty()) {
         throw new IllegalArgumentException("Privilege '" + permission + "' has an empty section");
       }
       parts.add(new KeyValue(authorizable));
     }
-    if (parts.isEmpty()) {
-      throw new AssertionError("Should never occur: " + permission);
-    }
-    this.parts = ImmutableList.copyOf(parts);
+    Preconditions.checkState(!parts.isEmpty(), String.format("Failed to split the permission string %s into a list of" +
+                                                               " Authorizables separated by %s", permission,
+                                                             PolicyConstants.AUTHORIZABLE_SPLITTER));
+    this.privilegeParts = Collections.unmodifiableList(parts);
   }
 
   @Override
   public boolean implies(Privilege otherPrivilege) {
+    if (this == otherPrivilege) {
+      return true;
+    }
     if (!(otherPrivilege instanceof WildcardPrivilege)) {
       return false;
     }
     WildcardPrivilege wp = (WildcardPrivilege) otherPrivilege;
-    List<KeyValue> otherParts = wp.parts;
-    if (equals(wp)) {
-      return true;
-    }
+    List<KeyValue> otherParts = wp.privilegeParts;
     int index = 0;
     for (KeyValue otherPart : otherParts) {
       // If this privilege has less parts than the other privilege, everything after the number of parts contained
       // in this privilege is automatically implied, so return true
-      if (parts.size() - 1 < index) {
+      if (privilegeParts.size() - 1 < index) {
         return true;
       } else {
-        KeyValue part = parts.get(index);
+        KeyValue part = privilegeParts.get(index);
         if (!part.getKey().equalsIgnoreCase(otherPart.getKey()) || !impliesKeyValue(part, otherPart)) {
           return false;
         }
@@ -79,8 +78,8 @@ public class WildcardPrivilege implements Privilege {
     }
     // If this privilege has more parts than the other parts (otherPrivilege), only imply it if all of the other
     // parts are "*" or "ALL"
-    for (; index < parts.size(); index++) {
-      KeyValue part = parts.get(index);
+    for (; index < privilegeParts.size(); index++) {
+      KeyValue part = privilegeParts.get(index);
       if (!part.getValue().equals(ActionConstant.ALL)) {
         return false;
       }
@@ -90,7 +89,8 @@ public class WildcardPrivilege implements Privilege {
 
   private boolean impliesKeyValue(KeyValue policyPart, KeyValue requestPart) {
     Preconditions.checkState(policyPart.getKey().equalsIgnoreCase(requestPart.getKey()),
-                             "Privilege Key Mismatch: this method should not be called with two different keys");
+                             String.format("Privilege Key Mismatch: Key %s and %s does not match.", policyPart.getKey
+                               (), requestPart.getKey()));
     if (policyPart.getValue().equalsIgnoreCase(ActionConstant.ALL) || policyPart.equals(requestPart)) {
       return true;
     } else if (!ActionConstant.ACTION_NAME.equalsIgnoreCase(policyPart.getKey()) &&
