@@ -22,7 +22,6 @@ import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf.AuthzConfVars;
 import co.cask.cdap.security.authorization.sentry.model.ActionFactory;
-import co.cask.cdap.security.authorization.sentry.model.Instance;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
@@ -148,7 +147,7 @@ public class AuthBinding {
   }
 
   private TSentryPrivilege toTSentryPrivilege(Action action, EntityId entityId) {
-    final List<Authorizable> authorizables = EntityToAuthMapper.convertResourceToAuthorizable(entityId);
+    final List<Authorizable> authorizables = EntityToAuthMapper.convertResourceToAuthorizable(instanceName, entityId);
     final List<TAuthorizable> tAuthorizables = new ArrayList<>();
     for (Authorizable authorizable : authorizables) {
       tAuthorizables.add(new TAuthorizable(authorizable.getTypeName(), authorizable.getName()));
@@ -213,16 +212,10 @@ public class AuthBinding {
    * Authorize access to a CDAP entity
    */
   public boolean authorize(EntityId entityId, Principal principal, Action action) {
-    List<Authorizable> authorizables = EntityToAuthMapper.convertResourceToAuthorizable(entityId);
+    List<Authorizable> authorizables = EntityToAuthMapper.convertResourceToAuthorizable(instanceName, entityId);
     Set<ActionFactory.Action> actions = Sets.newHashSet(actionFactory.getActionByName(action.name()));
-    LOG.info("### Trying to talk to AuthProvider from AuthBinding to get permission");
-    Instance instance = new Instance(instanceName);
-    if (!authorizables.contains(instance)) {
-      authorizables.add(0, instance);
-    }
     boolean hasAccess = authProvider.hasAccess(new Subject(principal.getName()),
                                                authorizables, actions, ActiveRoleSet.ALL);
-    LOG.info("### hasAccess in the AuthBinding returned with {}", hasAccess);
     return hasAccess;
   }
 }

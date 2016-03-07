@@ -91,7 +91,6 @@ public class SentryAuthorizer implements Authorizer {
   @Override
   public void enforce(EntityId entityId, Principal principal, Action action) throws UnauthorizedException {
     boolean authorize = binding.authorize(entityId, principal, action);
-    LOG.info("### the SentryAuthorized got the access permission as {}", authorize);
     if (!authorize) {
       throw new UnauthorizedException(String.format("User {} is unauthorized to perform action {} on entitiy {}",
                                                     principal.getName(), action.name(), entityId.toString()));

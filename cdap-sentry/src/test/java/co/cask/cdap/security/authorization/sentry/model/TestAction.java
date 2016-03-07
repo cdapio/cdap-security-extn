@@ -102,9 +102,9 @@ public class TestAction {
                         factory.getActionsByCode(allAction.getActionCode()));
   }
 
-  @Test
+  @Test(expected = RuntimeException.class)
   public void testGetActionForInvalidName() {
-    Assert.assertNull(factory.getActionByName("INVALID"));
+    factory.getActionByName("INVALID");
   }
 
   @Test

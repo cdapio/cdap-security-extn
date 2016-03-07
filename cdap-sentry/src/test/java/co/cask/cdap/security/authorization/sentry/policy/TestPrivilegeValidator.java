@@ -131,7 +131,7 @@ public class TestPrivilegeValidator {
       privilegeValidator.validate(new PrivilegeValidatorContext(privilege));
       Assert.fail("Should throw an exception");
     } catch (Exception e) {
-      Assert.assertTrue(e instanceof ConfigurationException);
+      Assert.assertTrue(e instanceof RuntimeException);
     }
   }
 }

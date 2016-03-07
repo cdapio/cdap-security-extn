@@ -30,10 +30,11 @@ import java.util.List;
  * Created by rsinha on 2/29/16.
  */
 public class EntityToAuthMapper {
-  public static List<Authorizable> convertResourceToAuthorizable(final EntityId entityId) {
+  public static List<Authorizable> convertResourceToAuthorizable(final String instanceName,
+                                                                 final EntityId entityId) {
     List<Authorizable> authorizables = Lists.newArrayList();
 
-    authorizables.add(new Instance("cdapInstance"));
+    authorizables.add(new Instance(instanceName));
     authorizables.add(new Authorizable() {
       @Override
       public String getTypeName() {
