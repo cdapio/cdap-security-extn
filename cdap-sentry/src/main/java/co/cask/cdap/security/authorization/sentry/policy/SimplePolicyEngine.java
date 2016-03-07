@@ -1,5 +1,4 @@
 /*
- *
  * Copyright © 2016 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -47,7 +46,11 @@ public class SimplePolicyEngine implements PolicyEngine {
     // Set all the validator to be used to validate the privileges here
     context.setValidators(ImmutableList.<org.apache.sentry.policy.common.PrivilegeValidator>of(
       new PrivilegeValidator()));
-    this.providerBackend.initialize(context);
+    try {
+      this.providerBackend.initialize(context);
+    } catch (Exception e) {
+      close();
+    }
   }
 
   @Override
@@ -64,21 +67,16 @@ public class SimplePolicyEngine implements PolicyEngine {
   @Override
   public ImmutableSet<String> getPrivileges(Set<String> set, ActiveRoleSet activeRoleSet,
                                             Authorizable... authorizables) throws SentryConfigurationException {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Getting permissions for {}", set);
-    }
+
+    LOG.debug("Getting permissions for {}", set);
     ImmutableSet<String> result = providerBackend.getPrivileges(set, activeRoleSet);
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("result = " + result);
-    }
+    LOG.debug("result = {}", result);
     return result;
   }
 
   @Override
   public void close() {
-    if (providerBackend != null) {
-      providerBackend.close();
-    }
+    providerBackend.close();
   }
 
   @Override

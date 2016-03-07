@@ -1,5 +1,4 @@
 /*
- *
  * Copyright © 2016 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -28,10 +27,27 @@ import co.cask.cdap.security.authorization.sentry.model.Program;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
 import org.apache.sentry.policy.common.KeyValue;
 
+import java.util.NoSuchElementException;
+
 /**
  * Class to create {@link Authorizable} from {@link AuthorizableType} and name
  */
-public class ModelAuthorizables {
+public final class ModelAuthorizables {
+
+  private ModelAuthorizables() {
+  }
+
+  /**
+   * Gets a {@link Authorizable} from the given {@link KeyValue}
+   *
+   * @param keyValue {@link KeyValue} containing the {@link AuthorizableType} and name of the {@link Authorizable}
+   * to be crearted
+   * @return the created {@link Authorizable} with the given name if {@link AuthorizableType} given was valid
+   * @throws NoSuchElementException if the given {@link AuthorizableType} was not valid
+   */
+  public static Authorizable from(String keyValue) {
+    return from(new KeyValue(keyValue));
+  }
 
   private static Authorizable from(KeyValue keyValue) {
     String prefix = keyValue.getKey().toLowerCase();
@@ -41,19 +57,7 @@ public class ModelAuthorizables {
         return from(type, name);
       }
     }
-    return null;
-  }
-
-  /**
-   * Gets a {@link Authorizable} from the given {@link KeyValue}
-   *
-   * @param keyValue {@link KeyValue} containing the {@link AuthorizableType} and name of the {@link Authorizable}
-   * to be crearted
-   * @return the created {@link Authorizable} with the given name if {@link AuthorizableType} given was valid else
-   * null
-   */
-  public static Authorizable from(String keyValue) {
-    return from(new KeyValue(keyValue));
+    throw new NoSuchElementException(String.format("Given AuthorizableType %s does not exists.", prefix));
   }
 
   private static Authorizable from(AuthorizableType type, String name) {
@@ -73,7 +77,7 @@ public class ModelAuthorizables {
       case DATASET:
         return new Dataset(name);
       default:
-        return null;
+        throw new NoSuchElementException(String.format("Given AuthorizableType %s does not exists.", type));
     }
   }
 }

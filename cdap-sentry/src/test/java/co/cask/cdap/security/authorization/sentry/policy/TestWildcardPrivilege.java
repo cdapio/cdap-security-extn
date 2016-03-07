@@ -1,5 +1,4 @@
 /*
- *
  * Copyright © 2016 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -259,33 +258,37 @@ public class TestWildcardPrivilege {
 
   @Test(expected = IllegalArgumentException.class)
   public void testNullString() throws Exception {
-    System.out.println(create((String) null));
+    create((String) null);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testEmptyString() throws Exception {
-    System.out.println(create(""));
+    create("");
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testEmptyKey() throws Exception {
-    System.out.println(create(PolicyConstants.KV_JOINER.join("", "EmptyKey")));
+    create(PolicyConstants.KV_JOINER.join("", "EmptyKey"));
+  }
+
+  @Test
+  public void testDifferentAuthorizables() throws Exception {
+    assertFalse(STREAM1_ALL.implies(PROGRAM1_READ));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testEmptyValue() throws Exception {
-    System.out.println(create(PolicyConstants.KV_JOINER.join("EmptyValue", "")));
+    create(PolicyConstants.KV_JOINER.join("EmptyValue", ""));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testEmptyPart() throws Exception {
-    System.out.println(create(PolicyConstants.AUTHORIZABLE_JOINER.
-      join(PolicyConstants.KV_JOINER.join("INSTANCE", "instance1"), "")));
+    create(PolicyConstants.AUTHORIZABLE_JOINER.join(PolicyConstants.KV_JOINER.join("INSTANCE", "instance1"), ""));
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testOnlySeparators() throws Exception {
-    System.out.println(create(PolicyConstants.AUTHORIZABLE_JOINER.
-      join(PolicyConstants.KV_SEPARATOR, PolicyConstants.KV_SEPARATOR, PolicyConstants.KV_SEPARATOR)));
+    create(PolicyConstants.AUTHORIZABLE_JOINER.join(PolicyConstants.KV_SEPARATOR, PolicyConstants.KV_SEPARATOR,
+                                                    PolicyConstants.KV_SEPARATOR));
   }
 }

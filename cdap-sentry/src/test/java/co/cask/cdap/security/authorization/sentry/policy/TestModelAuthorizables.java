@@ -1,5 +1,4 @@
 /*
- *
  * Copyright © 2016 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -21,6 +20,8 @@ import co.cask.cdap.security.authorization.sentry.model.Instance;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.NoSuchElementException;
+
 /**
  * Test for {@link ModelAuthorizables}
  */
@@ -32,27 +33,23 @@ public class TestModelAuthorizables {
     Assert.assertEquals("cdap1", instance.getName());
   }
 
-  @Test
+  @Test(expected = NoSuchElementException.class)
   public void testInvalidAuthorizable() throws Exception {
-    Assert.assertNull(ModelAuthorizables.from("hello=world"));
+    ModelAuthorizables.from("hello=world");
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testNoKV() throws Exception {
-    testFailure("noKey");
+    ModelAuthorizables.from("noKey");
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testEmptyKey() throws Exception {
-    testFailure("=emptyKey");
+    ModelAuthorizables.from("=emptyKey");
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testEmptyValue() throws Exception {
-    testFailure("emptyValue=");
-  }
-
-  private void testFailure(String modelAuthorizables) throws Exception {
-    ModelAuthorizables.from(modelAuthorizables);
+    ModelAuthorizables.from("emptyValue=");
   }
 }
