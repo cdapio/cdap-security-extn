@@ -22,10 +22,10 @@ import com.google.common.base.Strings;
 import org.apache.sentry.policy.common.KeyValue;
 import org.apache.sentry.policy.common.PolicyConstants;
 import org.apache.sentry.policy.common.Privilege;
-import org.apache.sentry.policy.common.PrivilegeFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -40,15 +40,14 @@ public class WildcardPrivilege implements Privilege {
       throw new IllegalArgumentException("Permission string cannot be null or empty.");
     }
     List<KeyValue> parts = new ArrayList<>();
-    for (String authorizable : PolicyConstants.AUTHORIZABLE_SPLITTER.trimResults().split(permission.trim())) {
+    for (String authorizable : PolicyConstants.AUTHORIZABLE_SPLITTER.trimResults().split(permission)) {
       if (authorizable.isEmpty()) {
         throw new IllegalArgumentException("Privilege '" + permission + "' has an empty section");
       }
       parts.add(new KeyValue(authorizable));
     }
-    Preconditions.checkState(!parts.isEmpty(), String.format("Failed to split the permission string %s into a list of" +
-                                                               " Authorizables separated by %s", permission,
-                                                             PolicyConstants.AUTHORIZABLE_SPLITTER));
+    Preconditions.checkState(!parts.isEmpty(), "Failed to split the permission string %s into a list of Authorizables" +
+      " separated by %s", permission, PolicyConstants.AUTHORIZABLE_SPLITTER);
     this.privilegeParts = Collections.unmodifiableList(parts);
   }
 
@@ -61,26 +60,24 @@ public class WildcardPrivilege implements Privilege {
       return false;
     }
     WildcardPrivilege wp = (WildcardPrivilege) otherPrivilege;
-    List<KeyValue> otherParts = wp.privilegeParts;
-    int index = 0;
-    for (KeyValue otherPart : otherParts) {
+
+    Iterator<KeyValue> thisParts = privilegeParts.iterator();
+    for (KeyValue otherPart : wp.privilegeParts) {
       // If this privilege has less parts than the other privilege, everything after the number of parts contained
       // in this privilege is automatically implied, so return true
-      if (privilegeParts.size() - 1 < index) {
+      if (!thisParts.hasNext()) {
         return true;
-      } else {
-        KeyValue part = privilegeParts.get(index);
-        if (!part.getKey().equalsIgnoreCase(otherPart.getKey()) || !impliesKeyValue(part, otherPart)) {
-          return false;
-        }
-        index++;
+      }
+
+      KeyValue thisPart = thisParts.next();
+      if (!thisPart.getKey().equalsIgnoreCase(otherPart.getKey()) || !impliesKeyValue(thisPart, otherPart)) {
+        return false;
       }
     }
     // If this privilege has more parts than the other parts (otherPrivilege), only imply it if all of the other
     // parts are "*" or "ALL"
-    for (; index < privilegeParts.size(); index++) {
-      KeyValue part = privilegeParts.get(index);
-      if (!part.getValue().equals(ActionConstant.ALL)) {
+    while (thisParts.hasNext()) {
+      if (!thisParts.next().getValue().equals(ActionConstant.ALL)) {
         return false;
       }
     }
@@ -91,23 +88,9 @@ public class WildcardPrivilege implements Privilege {
     Preconditions.checkState(policyPart.getKey().equalsIgnoreCase(requestPart.getKey()),
                              String.format("Privilege Key Mismatch: Key %s and %s does not match.", policyPart.getKey
                                (), requestPart.getKey()));
-    if (policyPart.getValue().equalsIgnoreCase(ActionConstant.ALL) || policyPart.equals(requestPart)) {
-      return true;
-    } else if (!ActionConstant.ACTION_NAME.equalsIgnoreCase(policyPart.getKey()) &&
-      ActionConstant.ALL.equalsIgnoreCase(requestPart.getValue())) {
-      /* privilege request is to match with any object of given type */
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * Wildcard privilege factory
-   */
-  public static class Factory implements PrivilegeFactory {
-    @Override
-    public Privilege createPrivilege(String permission) {
-      return new WildcardPrivilege(permission);
-    }
+    return policyPart.getValue().equalsIgnoreCase(ActionConstant.ALL) ||
+      policyPart.equals(requestPart) ||
+      (!ActionConstant.ACTION_NAME.equalsIgnoreCase(policyPart.getKey())
+        && ActionConstant.ALL.equalsIgnoreCase(requestPart.getValue()));
   }
 }
