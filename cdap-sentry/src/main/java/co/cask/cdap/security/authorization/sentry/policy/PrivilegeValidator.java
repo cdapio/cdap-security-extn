@@ -19,12 +19,12 @@ package co.cask.cdap.security.authorization.sentry.policy;
 import co.cask.cdap.security.authorization.sentry.model.ActionFactory;
 import co.cask.cdap.security.authorization.sentry.model.Authorizable;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import org.apache.sentry.policy.common.PolicyConstants;
 import org.apache.sentry.policy.common.PrivilegeValidatorContext;
 import org.apache.shiro.config.ConfigurationException;
 
 import java.util.Deque;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -56,7 +56,7 @@ public class PrivilegeValidator implements org.apache.sentry.policy.common.Privi
     }
 
     // the first valid authorizable type is instance since all privilege string should start with it
-    Set<Authorizable.AuthorizableType> validTypes = Sets.newHashSet(Authorizable.AuthorizableType.INSTANCE);
+    Set<Authorizable.AuthorizableType> validTypes = EnumSet.of(Authorizable.AuthorizableType.INSTANCE);
     while (!privileges.isEmpty()) {
       Authorizable authorizable = ModelAuthorizables.from(privileges.removeFirst());
       // if we were expecting no validTypes for this authorizable type that means the privilege string has more
@@ -87,16 +87,16 @@ public class PrivilegeValidator implements org.apache.sentry.policy.common.Privi
     }
     switch (authzType) {
       case INSTANCE:
-        validTypes = Sets.newHashSet(Authorizable.AuthorizableType.NAMESPACE);
+        validTypes = EnumSet.of(Authorizable.AuthorizableType.NAMESPACE);
         break;
       case NAMESPACE:
-        validTypes = Sets.newHashSet(Authorizable.AuthorizableType.APPLICATION,
-                                     Authorizable.AuthorizableType.ARTIFACT,
-                                     Authorizable.AuthorizableType.STREAM,
-                                     Authorizable.AuthorizableType.DATASET);
+        validTypes = EnumSet.of(Authorizable.AuthorizableType.APPLICATION,
+                                Authorizable.AuthorizableType.ARTIFACT,
+                                Authorizable.AuthorizableType.STREAM,
+                                Authorizable.AuthorizableType.DATASET);
         break;
       case APPLICATION:
-        validTypes = Sets.newHashSet(Authorizable.AuthorizableType.PROGRAM);
+        validTypes = EnumSet.of(Authorizable.AuthorizableType.PROGRAM);
         break;
       case ARTIFACT:
       case STREAM:

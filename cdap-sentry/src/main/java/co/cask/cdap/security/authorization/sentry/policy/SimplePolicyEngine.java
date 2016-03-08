@@ -22,6 +22,7 @@ import org.apache.sentry.core.common.ActiveRoleSet;
 import org.apache.sentry.core.common.Authorizable;
 import org.apache.sentry.core.common.SentryConfigurationException;
 import org.apache.sentry.policy.common.PolicyEngine;
+import org.apache.sentry.policy.common.Privilege;
 import org.apache.sentry.policy.common.PrivilegeFactory;
 import org.apache.sentry.provider.common.ProviderBackend;
 import org.apache.sentry.provider.common.ProviderBackendContext;
@@ -50,12 +51,18 @@ public class SimplePolicyEngine implements PolicyEngine {
       this.providerBackend.initialize(context);
     } catch (Exception e) {
       close();
+      throw e;
     }
   }
 
   @Override
   public PrivilegeFactory getPrivilegeFactory() {
-    return new WildcardPrivilege.Factory();
+    return new PrivilegeFactory() {
+      @Override
+      public Privilege createPrivilege(String permission) {
+        return new WildcardPrivilege(permission);
+      }
+    };
   }
 
   @Override
