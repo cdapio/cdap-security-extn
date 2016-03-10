@@ -32,13 +32,35 @@
 
   <dependencies>
     <dependency>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-common</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.apache.sentry</groupId>
-      <artifactId>sentry-provider-common</artifactId>
+      <artifactId>sentry-provider-db</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-sentry-model</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-sentry-policy</artifactId>
+      <version>${project.version}</version>
     </dependency>
   </dependencies>
 

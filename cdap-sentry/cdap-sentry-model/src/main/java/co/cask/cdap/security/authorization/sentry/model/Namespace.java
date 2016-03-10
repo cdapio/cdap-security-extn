@@ -60,4 +60,21 @@ public class Namespace implements Authorizable {
   public String getTypeName() {
     return getAuthzType().name();
   }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Namespace namespace = (Namespace) o;
+    return name != null ? name.equals(namespace.name) : namespace.name == null;
+  }
+
+  @Override
+  public int hashCode() {
+    return name != null ? name.hashCode() : 0;
+  }
 }

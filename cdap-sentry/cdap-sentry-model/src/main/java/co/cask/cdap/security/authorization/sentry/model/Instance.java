@@ -60,4 +60,21 @@ public class Instance implements Authorizable {
   public String getTypeName() {
     return getAuthzType().name();
   }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Instance instance = (Instance) o;
+    return name != null ? name.equals(instance.name) : instance.name == null;
+  }
+
+  @Override
+  public int hashCode() {
+    return name != null ? name.hashCode() : 0;
+  }
 }

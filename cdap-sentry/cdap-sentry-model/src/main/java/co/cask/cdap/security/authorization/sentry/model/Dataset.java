@@ -60,4 +60,21 @@ public class Dataset implements Authorizable {
   public String getTypeName() {
     return getAuthzType().name();
   }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Dataset dataset = (Dataset) o;
+    return name != null ? name.equals(dataset.name) : dataset.name == null;
+  }
+
+  @Override
+  public int hashCode() {
+    return name != null ? name.hashCode() : 0;
+  }
 }
