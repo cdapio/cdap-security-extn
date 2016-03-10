@@ -29,7 +29,15 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * A simple PrivilegeValidator which validates the privileges to be consistent with the order in which we expect them
+ * <p> A simple PrivilegeValidator which validates the privileges to be consistent with the order in which we expect
+ * them. The ordering of expected privileges as of now is: <p/>
+ * Namespace  : instance->instanceName->namespace=namespaceName->action=someValidAction
+ * Artifact   : instance->instanceName->namespace=namespaceName->artifact->artifactName->action=someValidAction
+ * Stream     : instance->instanceName->namespace=namespaceName->stream->streamName->action=someValidAction
+ * Dataset    : instance->instanceName->namespace=namespaceName->dataset->datasetName->action=someValidAction
+ * Application: instance->instanceName->namespace=namespaceName->application->applicationName->action=someValidAction
+ * Program    : instance->instanceName->namespace=namespaceName->application->applicationName->program=programName->
+ * action=someValidAction
  */
 public class PrivilegeValidator implements org.apache.sentry.policy.common.PrivilegeValidator {
 

@@ -75,9 +75,9 @@ public class AuthConf extends Configuration {
     }
   }
 
-  public AuthConf(URL kafkaAuthzSiteURL) {
+  public AuthConf(URL sentrySiteURL) {
     super(true);
-    addResource(kafkaAuthzSiteURL);
+    addResource(sentrySiteURL);
   }
 
   @Override

@@ -16,12 +16,27 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
+import co.cask.cdap.proto.element.EntityType;
+import co.cask.cdap.proto.id.ApplicationId;
+import co.cask.cdap.proto.id.DatasetId;
 import co.cask.cdap.proto.id.EntityId;
+import co.cask.cdap.proto.id.NamespaceId;
+import co.cask.cdap.proto.id.NamespacedArtifactId;
+import co.cask.cdap.proto.id.ProgramId;
+import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf.AuthzConfVars;
 import co.cask.cdap.security.authorization.sentry.model.ActionFactory;
+import co.cask.cdap.security.authorization.sentry.model.Application;
+import co.cask.cdap.security.authorization.sentry.model.Artifact;
+import co.cask.cdap.security.authorization.sentry.model.Dataset;
+import co.cask.cdap.security.authorization.sentry.model.Instance;
+import co.cask.cdap.security.authorization.sentry.model.Namespace;
+import co.cask.cdap.security.authorization.sentry.model.Program;
+import co.cask.cdap.security.authorization.sentry.model.Stream;
+import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -46,6 +61,7 @@ import java.lang.reflect.Constructor;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -55,8 +71,7 @@ import java.util.Set;
  */
 class AuthBinding {
   private static final Logger LOG = LoggerFactory.getLogger(AuthBinding.class);
-  //TODO: This should not be here. Change this when SENTRY-1119 is fixed and merged
-  private static final String COMPONENT_TYPE = "cdap";
+  private static final String COMPONENT_NAME = "cdap";
   private final AuthConf authConf;
   private final AuthorizationProvider authProvider;
   private final String instanceName;
@@ -69,21 +84,24 @@ class AuthBinding {
     //TODO: When we start working with Kerberos requestorName should be the the user logged in cdap.
     this.requestorName = requestorName;
     this.authProvider = createAuthProvider();
-    actionFactory = new ActionFactory();
+    this.actionFactory = new ActionFactory();
   }
 
   private AuthConf initAuthzConf(String sentrySite) {
     if (Strings.isNullOrEmpty(sentrySite)) {
       throw new IllegalArgumentException(String.format("The value for %s is null or empty. Please configure it to " +
-                                                         "the path of sentry-site.xml in cdap-site.xml",
+                                                         "the absolute path of sentry-site.xml in cdap-site.xml",
                                                        AuthConf.SENTRY_SITE_URL));
     }
     AuthConf authConf;
     try {
-      authConf = new AuthConf(new URL(sentrySite));
+      authConf = sentrySite.startsWith("file://") ? new AuthConf(new URL(sentrySite)) :
+        new AuthConf(new URL("file://" + sentrySite));
     } catch (MalformedURLException e) {
       throw new IllegalArgumentException(String.format("The path provided for sentry-site.xml in property %s is " +
-                                                         "invalid.", AuthConf.SENTRY_SITE_URL), e);
+                                                         "invalid. Please configure it to the absolute path of " +
+                                                         "sentry-site.xml in cdap-site.xml",
+                                                       AuthConf.SENTRY_SITE_URL), e);
     }
     return authConf;
   }
@@ -106,18 +124,20 @@ class AuthBinding {
 
     String resourceName = authConf.get(AuthzConfVars.AUTHZ_PROVIDER_RESOURCE.getVar(),
                                        AuthzConfVars.AUTHZ_PROVIDER_RESOURCE.getDefault());
-    if (resourceName != null && resourceName.startsWith("classpath:")) {
-      String resourceFileName = resourceName.substring("classpath:".length());
-      resourceName = getClass().getClassLoader().getResource(resourceFileName).getPath();
-    }
 
-    LOG.debug("Trying to instantiate authorization provider {}, with provider backend {} and policy engine {}",
-              authProviderName, providerBackendName, policyEngineName);
+    LOG.debug("Trying to instantiate authorization provider {}, with provider backend {}, policy engine {} and " +
+                "resource {}",
+              authProviderName, providerBackendName, policyEngineName, resourceName);
 
     // Instantiate the configured providerBackend
     try {
       // get the current context classloader
       ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+
+      if (resourceName != null && resourceName.startsWith("classpath:")) {
+        String resourceFileName = resourceName.substring("classpath:".length());
+        resourceName = classLoader.getResource(resourceFileName).getPath();
+      }
 
       // instantiate the configured provider backend
       Constructor<?> providerBackendConstructor = classLoader.loadClass(providerBackendName)
@@ -126,7 +146,7 @@ class AuthBinding {
       ProviderBackend providerBackend = (ProviderBackend) providerBackendConstructor.newInstance(authConf,
                                                                                                  resourceName);
       if (providerBackend instanceof SentryGenericProviderBackend) {
-        ((SentryGenericProviderBackend) providerBackend).setComponentType(COMPONENT_TYPE);
+        ((SentryGenericProviderBackend) providerBackend).setComponentType(COMPONENT_NAME);
         ((SentryGenericProviderBackend) providerBackend).setServiceName(instanceName);
       }
 
@@ -136,12 +156,11 @@ class AuthBinding {
       policyConstructor.setAccessible(true);
       PolicyEngine policyEngine = (PolicyEngine) policyConstructor.newInstance(providerBackend);
 
-      // Instantiate the configured authz provder
-      Constructor<?> constructor =
-        classLoader.loadClass(authProviderName).getDeclaredConstructor(Configuration.class, String.class,
-                                                                       PolicyEngine.class);
-      constructor.setAccessible(true);
-      return (AuthorizationProvider) constructor.newInstance(authConf, resourceName, policyEngine);
+      // Instantiate the configured authz provider
+      Constructor<?> authzProviderConstructor = classLoader.loadClass(authProviderName).getDeclaredConstructor(
+        Configuration.class, String.class, PolicyEngine.class);
+      authzProviderConstructor.setAccessible(true);
+      return (AuthorizationProvider) authzProviderConstructor.newInstance(authConf, resourceName, policyEngine);
     } catch (Exception e) {
       throw Throwables.propagate(e);
     }
@@ -168,7 +187,7 @@ class AuthBinding {
       execute(new Command<Void>() {
         @Override
         public Void run(SentryGenericServiceClient client) throws Exception {
-          client.grantPrivilege(requestorName, role, COMPONENT_TYPE, toTSentryPrivilege(entityId, action));
+          client.grantPrivilege(requestorName, role, COMPONENT_NAME, toTSentryPrivilege(entityId, action));
           return null;
         }
       });
@@ -207,7 +226,7 @@ class AuthBinding {
         for (TSentryPrivilege curPrivileges : allPrivileges) {
           if (tAuthorizables.equals(curPrivileges.getAuthorizables())) {
             // if the privilege is on same authorizables then drop it
-            client.dropPrivilege(requestorName, COMPONENT_TYPE, curPrivileges);
+            client.dropPrivilege(requestorName, COMPONENT_NAME, curPrivileges);
           }
         }
         return null;
@@ -216,17 +235,16 @@ class AuthBinding {
   }
 
   private List<TSentryPrivilege> getAllPrivileges(final List<String> roles) {
-    final List<TSentryPrivilege> tSentryPrivileges = new ArrayList<>();
-    execute(new Command<Void>() {
+    return execute(new Command<List<TSentryPrivilege>>() {
       @Override
-      public Void run(SentryGenericServiceClient client) throws Exception {
+      public List<TSentryPrivilege> run(SentryGenericServiceClient client) throws Exception {
+        final List<TSentryPrivilege> tSentryPrivileges = new ArrayList<>();
         for (String role : roles) {
-          tSentryPrivileges.addAll(client.listPrivilegesByRoleName(requestorName, role, COMPONENT_TYPE, instanceName));
+          tSentryPrivileges.addAll(client.listPrivilegesByRoleName(requestorName, role, COMPONENT_NAME, instanceName));
         }
-        return null;
+        return tSentryPrivileges;
       }
     });
-    return tSentryPrivileges;
   }
 
   /**
@@ -239,7 +257,10 @@ class AuthBinding {
    * else false
    */
   public boolean authorize(EntityId entityId, Principal principal, Action action) {
-    List<Authorizable> authorizables = EntityToAuthMapper.convertEntityToAuthorizable(instanceName, entityId);
+    Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.USER || principal.getType() ==
+      Principal.PrincipalType.GROUP, "The given principal {} is of type {}. Authorization checks can only be " +
+                                  "performed on user/groups.", principal, principal.getType());
+    List<Authorizable> authorizables = convertEntityToAuthorizables(instanceName, entityId);
     Set<ActionFactory.Action> actions = Sets.newHashSet(actionFactory.getActionByName(action.name()));
     return authProvider.hasAccess(new Subject(principal.getName()), authorizables, actions, ActiveRoleSet.ALL);
   }
@@ -249,43 +270,41 @@ class AuthBinding {
   }
 
   private List<String> getAllRoles() {
-    final List<String> roles = new ArrayList<>();
-    execute(new Command<Void>() {
+    return execute(new Command<List<String>>() {
       @Override
-      public Void run(SentryGenericServiceClient client) throws Exception {
-        for (TSentryRole tSentryRole : client.listAllRoles(requestorName, COMPONENT_TYPE)) {
+      public List<String> run(SentryGenericServiceClient client) throws Exception {
+        final List<String> roles = new ArrayList<>();
+        for (TSentryRole tSentryRole : client.listAllRoles(requestorName, COMPONENT_NAME)) {
           roles.add(tSentryRole.getRoleName());
         }
-        return null;
+        return roles;
       }
     });
-    return roles;
   }
 
   private TSentryPrivilege toTSentryPrivilege(EntityId entityId, Action action) {
-    List<Authorizable> authorizables = EntityToAuthMapper.convertEntityToAuthorizable(instanceName, entityId);
+    List<Authorizable> authorizables = convertEntityToAuthorizables(instanceName, entityId);
     List<TAuthorizable> tAuthorizables = new ArrayList<>();
     for (Authorizable authorizable : authorizables) {
       tAuthorizables.add(new TAuthorizable(authorizable.getTypeName(), authorizable.getName()));
     }
-    return new TSentryPrivilege(COMPONENT_TYPE, instanceName, tAuthorizables, action.name());
+    return new TSentryPrivilege(COMPONENT_NAME, instanceName, tAuthorizables, action.name());
   }
 
   private List<TAuthorizable> toTAuthorizable(EntityId entityId) {
     return toTSentryPrivilege(entityId, Action.ALL).getAuthorizables();
   }
 
-  private <T> T execute(Command<T> cmd) throws RuntimeException {
-    SentryGenericServiceClient client = null;
+  private <T> T execute(Command<T> cmd) {
     try {
-      client = getClient();
-      return cmd.run(client);
-    } catch (Exception ex) {
-      throw Throwables.propagate(ex);
-    } finally {
-      if (client != null) {
+      SentryGenericServiceClient client = getClient();
+      try {
+        return cmd.run(client);
+      } finally {
         client.close();
       }
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
     }
   }
 
@@ -298,6 +317,69 @@ class AuthBinding {
   }
 
   private SentryGenericServiceClient getClient() throws Exception {
-    return SentryGenericServiceClientFactory.create(this.authConf);
+    return SentryGenericServiceClientFactory.create(authConf);
+  }
+
+  /**
+   * Maps the given {@link EntityId} to {@link Authorizable}. To see a valid set of {@link Authorizable}
+   * please see {@link PrivilegeValidator} which is responsible for validating these authorizables positions and action.
+   *
+   * @param instanceName the name of the cdap instance
+   * @param entityId the {@link EntityId} which needs to be mapped to list of {@link Authorizable}
+   * @return a {@link List} of {@link Authorizable} which represents the given {@link EntityId}
+   */
+  public static List<org.apache.sentry.core.common.Authorizable> convertEntityToAuthorizables(
+    final String instanceName, final EntityId entityId) {
+    List<org.apache.sentry.core.common.Authorizable> authorizables = new LinkedList<>();
+    // cdap instance is not a concept in cdap entities. In sentry integration we need to grant privileges on the
+    // instance so that users can create namespace inside the instance etc.
+    authorizables.add(new Instance(instanceName));
+    getAuthorizable(entityId, authorizables);
+    return authorizables;
+  }
+
+  /**
+   * Maps {@link EntityId} to a {@link List} of {@link co.cask.cdap.security.authorization.sentry.model.Authorizable}
+   * by recursively working its way from a given entity.
+   *
+   * @param entityId {@link EntityId} the entity which needs to be mapped to a list of authorizables
+   * @param authorizables {@link List} of {@link co.cask.cdap.security.authorization.sentry.model.Authorizable} to
+   * add authorizables to
+   */
+  private static void getAuthorizable(EntityId entityId,
+                                      List<org.apache.sentry.core.common.Authorizable> authorizables) {
+    EntityType entityType = entityId.getEntity();
+    switch (entityType) {
+      case NAMESPACE:
+        authorizables.add(new Namespace(((NamespaceId) entityId).getNamespace()));
+        break;
+      case ARTIFACT:
+        NamespacedArtifactId artifactId = (NamespacedArtifactId) entityId;
+        getAuthorizable(artifactId.getParent(), authorizables);
+        authorizables.add(new Artifact((artifactId).getArtifact()));
+        break;
+      case APPLICATION:
+        ApplicationId applicationId = (ApplicationId) entityId;
+        getAuthorizable(applicationId.getParent(), authorizables);
+        authorizables.add(new Application((applicationId).getApplication()));
+        break;
+      case DATASET:
+        DatasetId dataset = (DatasetId) entityId;
+        getAuthorizable(dataset.getParent(), authorizables);
+        authorizables.add(new Dataset((dataset).getDataset()));
+        break;
+      case STREAM:
+        StreamId streamId = (StreamId) entityId;
+        getAuthorizable(streamId.getParent(), authorizables);
+        authorizables.add(new Stream((streamId).getStream()));
+        break;
+      case PROGRAM:
+        ProgramId programId = (ProgramId) entityId;
+        getAuthorizable(programId.getParent(), authorizables);
+        authorizables.add(new Program(programId.getProgram()));
+        break;
+      default:
+        throw new IllegalArgumentException(String.format("The entity %s is of unknown type %s", entityId, entityType));
+    }
   }
 }

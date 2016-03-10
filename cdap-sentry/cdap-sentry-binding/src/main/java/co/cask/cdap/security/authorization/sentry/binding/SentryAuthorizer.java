@@ -40,17 +40,17 @@ public class SentryAuthorizer implements Authorizer {
   private final AuthBinding binding;
 
   @Inject
-  public SentryAuthorizer(CConfiguration cConf) {
+  SentryAuthorizer(CConfiguration cConf) {
     final String sentrySiteUrl = cConf.get(AuthConf.SENTRY_SITE_URL);
 
     Preconditions.checkNotNull(sentrySiteUrl, String.format("sentry-site.xml path is null in cdap-site.xml. " +
                                                               "Please provide the path to sentry-site.xml in cdap " +
                                                               "with property name %s", AuthConf.SENTRY_SITE_URL));
 
-    String serviceInstanceName = cConf.get(AuthConf.SERVICE_INSTANCE_NAME) != null ?
-      cConf.get(AuthConf.SERVICE_INSTANCE_NAME) : AuthConf.AuthzConfVars.getDefault(AuthConf.SERVICE_INSTANCE_NAME);
-    String requestorName = cConf.get(AuthConf.SERVICE_USER_NAME) != null ? cConf.get(AuthConf.SERVICE_USER_NAME) :
-      AuthConf.AuthzConfVars.getDefault(AuthConf.SERVICE_INSTANCE_NAME);
+    String serviceInstanceName = cConf.get(AuthConf.SERVICE_INSTANCE_NAME,
+                                           AuthConf.AuthzConfVars.getDefault(AuthConf.SERVICE_INSTANCE_NAME));
+    String requestorName = cConf.get(AuthConf.SERVICE_USER_NAME,
+                                     AuthConf.AuthzConfVars.getDefault(AuthConf.SERVICE_USER_NAME));
 
     LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {} requestor name {} and cdap instance name {}" +
                sentrySiteUrl, requestorName, serviceInstanceName);
@@ -77,8 +77,7 @@ public class SentryAuthorizer implements Authorizer {
   public void enforce(EntityId entityId, Principal principal, Action action) throws UnauthorizedException {
     boolean authorize = binding.authorize(entityId, principal, action);
     if (!authorize) {
-      throw new UnauthorizedException(String.format("Principal %s is unauthorized to perform action %s on entitiy %s",
-                                                    principal.getName(), action.name(), entityId.toString()));
+      throw new UnauthorizedException(principal, action, entityId);
     }
   }
 }

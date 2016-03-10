@@ -26,6 +26,7 @@ import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.security.authorization.sentry.model.Application;
 import co.cask.cdap.security.authorization.sentry.model.Artifact;
+import co.cask.cdap.security.authorization.sentry.model.Authorizable.AuthorizableType;
 import co.cask.cdap.security.authorization.sentry.model.Dataset;
 import co.cask.cdap.security.authorization.sentry.model.Instance;
 import co.cask.cdap.security.authorization.sentry.model.Namespace;
@@ -39,9 +40,10 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Test for {@link EntityToAuthMapper}
+ * Test for {@link AuthBinding#convertEntityToAuthorizables(String, EntityId)}. For others please see
+ * {@link SentryAuthorizerTest} since {@link SentryAuthorizer} delegates to {@link AuthBinding}
  */
-public class EntityToAuthMapperTest {
+public class AuthBindingEntityToAuthMapperTest {
 
   private static final String INSTANCE = "cdap";
   private static final String NAMESPACE = "n1";
@@ -57,51 +59,44 @@ public class EntityToAuthMapperTest {
   public void testValidEntities() {
     // namespace
     EntityId entityId = new NamespaceId(NAMESPACE);
-    List<Authorizable> authorizables = EntityToAuthMapper.convertEntityToAuthorizable(INSTANCE, entityId);
-    Assert.assertEquals(getAuthorizablesList(co.cask.cdap.security.authorization.sentry.model.Authorizable
-                                               .AuthorizableType.NAMESPACE), authorizables);
+    List<Authorizable> authorizables = AuthBinding.convertEntityToAuthorizables(INSTANCE, entityId);
+    Assert.assertEquals(getAuthorizablesList(AuthorizableType.NAMESPACE), authorizables);
 
     // artifact
     entityId = new NamespacedArtifactId(NAMESPACE, ARTIFACT, ARTIFACT_VERSION);
-    authorizables = EntityToAuthMapper.convertEntityToAuthorizable(INSTANCE, entityId);
-    Assert.assertEquals(getAuthorizablesList(co.cask.cdap.security.authorization.sentry.model.Authorizable
-                                               .AuthorizableType.ARTIFACT), authorizables);
+    authorizables = AuthBinding.convertEntityToAuthorizables(INSTANCE, entityId);
+    Assert.assertEquals(getAuthorizablesList(AuthorizableType.ARTIFACT), authorizables);
 
     // stream
     entityId = new StreamId(NAMESPACE, STREAM);
-    authorizables = EntityToAuthMapper.convertEntityToAuthorizable(INSTANCE, entityId);
-    Assert.assertEquals(getAuthorizablesList(co.cask.cdap.security.authorization.sentry.model.Authorizable
-                                               .AuthorizableType.STREAM), authorizables);
+    authorizables = AuthBinding.convertEntityToAuthorizables(INSTANCE, entityId);
+    Assert.assertEquals(getAuthorizablesList(AuthorizableType.STREAM), authorizables);
 
     // dataset
     entityId = new DatasetId(NAMESPACE, DATASET);
-    authorizables = EntityToAuthMapper.convertEntityToAuthorizable(INSTANCE, entityId);
-    Assert.assertEquals(getAuthorizablesList(co.cask.cdap.security.authorization.sentry.model.Authorizable
-                                               .AuthorizableType.DATASET), authorizables);
+    authorizables = AuthBinding.convertEntityToAuthorizables(INSTANCE, entityId);
+    Assert.assertEquals(getAuthorizablesList(AuthorizableType.DATASET), authorizables);
 
     // application
     entityId = new ApplicationId(NAMESPACE, APPLICATION);
-    authorizables = EntityToAuthMapper.convertEntityToAuthorizable(INSTANCE, entityId);
-    Assert.assertEquals(getAuthorizablesList(co.cask.cdap.security.authorization.sentry.model.Authorizable
-                                               .AuthorizableType.APPLICATION), authorizables);
+    authorizables = AuthBinding.convertEntityToAuthorizables(INSTANCE, entityId);
+    Assert.assertEquals(getAuthorizablesList(AuthorizableType.APPLICATION), authorizables);
 
     // program
     entityId = new ProgramId(NAMESPACE, APPLICATION, ProgramType.FLOW, PROGRAM);
-    authorizables = EntityToAuthMapper.convertEntityToAuthorizable(INSTANCE, entityId);
-    Assert.assertEquals(getAuthorizablesList(co.cask.cdap.security.authorization.sentry.model.Authorizable
-                                               .AuthorizableType.PROGRAM), authorizables);
+    authorizables = AuthBinding.convertEntityToAuthorizables(INSTANCE, entityId);
+    Assert.assertEquals(getAuthorizablesList(AuthorizableType.PROGRAM), authorizables);
   }
 
   private List<co.cask.cdap.security.authorization.sentry.model.Authorizable> getAuthorizablesList(
-    co.cask.cdap.security.authorization.sentry.model.Authorizable.AuthorizableType authzType) {
+    AuthorizableType authzType) {
     List<co.cask.cdap.security.authorization.sentry.model.Authorizable> authzList = new LinkedList<>();
     getAuthorizablesList(authzType, authzList);
     return authzList;
   }
 
   private void getAuthorizablesList(
-    co.cask.cdap.security.authorization.sentry.model.Authorizable.AuthorizableType authzType, List<co.cask.cdap.security
-    .authorization.sentry.model.Authorizable> authorizableList) {
+    AuthorizableType authzType, List<co.cask.cdap.security.authorization.sentry.model.Authorizable> authorizableList) {
     switch (authzType) {
       case NAMESPACE:
         authorizableList.clear();
@@ -109,28 +104,23 @@ public class EntityToAuthMapperTest {
         authorizableList.add(new Namespace(NAMESPACE));
         break;
       case ARTIFACT:
-        getAuthorizablesList(co.cask.cdap.security.authorization.sentry.model.Authorizable.AuthorizableType
-                               .NAMESPACE, authorizableList);
+        getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
         authorizableList.add(new Artifact(ARTIFACT));
         break;
       case APPLICATION:
-        getAuthorizablesList(co.cask.cdap.security.authorization.sentry.model.Authorizable.AuthorizableType
-                               .NAMESPACE, authorizableList);
+        getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
         authorizableList.add(new Application(APPLICATION));
         break;
       case STREAM:
-        getAuthorizablesList(co.cask.cdap.security.authorization.sentry.model.Authorizable.AuthorizableType
-                               .NAMESPACE, authorizableList);
+        getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
         authorizableList.add(new Stream(STREAM));
         break;
       case DATASET:
-        getAuthorizablesList(co.cask.cdap.security.authorization.sentry.model.Authorizable.AuthorizableType
-                               .NAMESPACE, authorizableList);
+        getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
         authorizableList.add(new Dataset(DATASET));
         break;
       case PROGRAM:
-        getAuthorizablesList(co.cask.cdap.security.authorization.sentry.model.Authorizable.AuthorizableType
-                               .APPLICATION, authorizableList);
+        getAuthorizablesList(AuthorizableType.APPLICATION, authorizableList);
         authorizableList.add(new Program(PROGRAM));
         break;
       default:
