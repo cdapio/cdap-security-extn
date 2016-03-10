@@ -58,19 +58,19 @@ public class SentryAuthorizer implements Authorizer {
   }
 
   @Override
-  public void grant(EntityId entityId, Principal principal, Set<Action> set) {
-    binding.grant(entityId, principal, set);
+  public void grant(EntityId entityId, Principal principal, Set<Action> actions) {
+    binding.grant(entityId, principal, actions);
   }
 
 
   @Override
-  public void revoke(EntityId entityId, Principal principal, Set<Action> set) {
-    throw new UnsupportedOperationException("Please use Sentry CLI to perform this action.");
+  public void revoke(EntityId entityId, Principal principal, Set<Action> actions) {
+    binding.revoke(entityId, principal, actions);
   }
 
   @Override
   public void revoke(EntityId entityId) {
-    throw new UnsupportedOperationException("Please use Sentry CLI to perform this action.");
+    binding.revoke(entityId);
   }
 
   @Override

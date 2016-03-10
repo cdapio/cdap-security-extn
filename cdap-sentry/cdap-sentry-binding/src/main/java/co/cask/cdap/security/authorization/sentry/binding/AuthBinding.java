@@ -27,7 +27,6 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.sentry.SentryUserException;
 import org.apache.sentry.core.common.ActiveRoleSet;
 import org.apache.sentry.core.common.Authorizable;
 import org.apache.sentry.core.common.Subject;
@@ -163,15 +162,71 @@ class AuthBinding {
     if (!roleExists(role)) {
       throw new IllegalArgumentException(String.format("Failed to perform grant. Role %s does not exists.", role));
     }
+    LOG.info("Granting actions {} on entity {} from principal {} on request of {}", actions, entityId, principal,
+             requestorName);
     for (final Action action : actions) {
       execute(new Command<Void>() {
         @Override
         public Void run(SentryGenericServiceClient client) throws Exception {
-          client.grantPrivilege(requestorName, role, COMPONENT_TYPE, toTSentryPrivilege(action, entityId));
+          client.grantPrivilege(requestorName, role, COMPONENT_TYPE, toTSentryPrivilege(entityId, action));
           return null;
         }
       });
     }
+  }
+
+  public void revoke(final EntityId entityId, Principal principal, Set<Action> actions) {
+    Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.ROLE, "The given principal {} is of " +
+                                  "type {}. In Sentry revoke can only be done on roles.", principal,
+                                principal.getType(), principal.getType(), principal.getName());
+    final String role = principal.getName();
+    if (!roleExists(role)) {
+      throw new IllegalArgumentException(String.format("Failed to perform revoke. Role %s does not exists.", role));
+    }
+    LOG.info("Revoking actions {} on entity {} from principal {} on request of {}", actions, entityId, principal,
+             requestorName);
+    for (final Action action : actions) {
+      execute(new Command<Void>() {
+        @Override
+        public Void run(SentryGenericServiceClient client) throws Exception {
+          client.dropPrivilege(requestorName, role, toTSentryPrivilege(entityId, action));
+          return null;
+        }
+      });
+    }
+  }
+
+  public void revoke(EntityId entityId) {
+    List<String> allRoles = getAllRoles();
+    final List<TSentryPrivilege> allPrivileges = getAllPrivileges(allRoles);
+    final List<TAuthorizable> tAuthorizables = toTAuthorizable(entityId);
+    LOG.info("Revoking all actions for all users from entity {} on request of {}", entityId, requestorName);
+    execute(new Command<Void>() {
+      @Override
+      public Void run(SentryGenericServiceClient client) throws Exception {
+        for (TSentryPrivilege curPrivileges : allPrivileges) {
+          if (tAuthorizables.equals(curPrivileges.getAuthorizables())) {
+            // if the privilege is on same authorizables then drop it
+            client.dropPrivilege(requestorName, COMPONENT_TYPE, curPrivileges);
+          }
+        }
+        return null;
+      }
+    });
+  }
+
+  private List<TSentryPrivilege> getAllPrivileges(final List<String> roles) {
+    final List<TSentryPrivilege> tSentryPrivileges = new ArrayList<>();
+    execute(new Command<Void>() {
+      @Override
+      public Void run(SentryGenericServiceClient client) throws Exception {
+        for (String role : roles) {
+          tSentryPrivileges.addAll(client.listPrivilegesByRoleName(requestorName, role, COMPONENT_TYPE, instanceName));
+        }
+        return null;
+      }
+    });
+    return tSentryPrivileges;
   }
 
   /**
@@ -207,7 +262,7 @@ class AuthBinding {
     return roles;
   }
 
-  private TSentryPrivilege toTSentryPrivilege(Action action, EntityId entityId) {
+  private TSentryPrivilege toTSentryPrivilege(EntityId entityId, Action action) {
     List<Authorizable> authorizables = EntityToAuthMapper.convertEntityToAuthorizable(instanceName, entityId);
     List<TAuthorizable> tAuthorizables = new ArrayList<>();
     for (Authorizable authorizable : authorizables) {
@@ -216,19 +271,17 @@ class AuthBinding {
     return new TSentryPrivilege(COMPONENT_TYPE, instanceName, tAuthorizables, action.name());
   }
 
+  private List<TAuthorizable> toTAuthorizable(EntityId entityId) {
+    return toTSentryPrivilege(entityId, Action.ALL).getAuthorizables();
+  }
+
   private <T> T execute(Command<T> cmd) throws RuntimeException {
     SentryGenericServiceClient client = null;
     try {
       client = getClient();
       return cmd.run(client);
-    } catch (SentryUserException ex) {
-      String msg = "Unable to execute command on sentry server: " + ex.getMessage();
-      LOG.error(msg, ex);
-      throw new RuntimeException(msg, ex);
     } catch (Exception ex) {
-      String msg = "Unable to obtain client:" + ex.getMessage();
-      LOG.error(msg, ex);
-      throw new RuntimeException(msg, ex);
+      throw Throwables.propagate(ex);
     } finally {
       if (client != null) {
         client.close();
