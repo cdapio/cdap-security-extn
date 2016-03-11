@@ -67,7 +67,8 @@ import java.util.Set;
 
 /**
  * This class instantiate the {@link AuthorizationProvider} configured in {@link AuthConf} and is responsible for
- * performing different authorization operation on it.
+ * performing different authorization operation on CDAP entities by mapping them to authorizables
+ * {@link #convertEntityToAuthorizables(String, EntityId)}
  */
 class AuthBinding {
   private static final Logger LOG = LoggerFactory.getLogger(AuthBinding.class);
@@ -194,6 +195,14 @@ class AuthBinding {
     }
   }
 
+  /**
+   * Revokes a {@link Principal principal's} authorization to perform a set of {@link Action actions} on
+   * an {@link EntityId}.
+   *
+   * @param entityId the {@link EntityId} whose {@link Action actions} are to be revoked
+   * @param principal the {@link Principal} that performs the actions. This could be a user, group or a role
+   * @param actions the set of {@link Action actions} to revoke
+   */
   public void revoke(final EntityId entityId, Principal principal, Set<Action> actions) {
     Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.ROLE, "The given principal {} is of " +
                                   "type {}. In Sentry revoke can only be done on roles.", principal,
@@ -215,6 +224,12 @@ class AuthBinding {
     }
   }
 
+  /**
+   * Revokes all {@link Principal principals'} authorization to perform any {@link Action} on the given
+   * {@link EntityId}.
+   *
+   * @param entityId the {@link EntityId} on which all {@link Action actions} are to be revoked
+   */
   public void revoke(EntityId entityId) {
     List<String> allRoles = getAllRoles();
     final List<TSentryPrivilege> allPrivileges = getAllPrivileges(allRoles);
@@ -248,7 +263,7 @@ class AuthBinding {
   }
 
   /**
-   * Check if the given {@link Principal} is allowed to perfom the given {@link Action} on the {@link EntityId}
+   * Check if the given {@link Principal} is allowed to perform the given {@link Action} on the {@link EntityId}
    *
    * @param entityId {@link EntityId} of the entity on which the action is being performed
    * @param principal the {@link Principal} who needs to perform this action
