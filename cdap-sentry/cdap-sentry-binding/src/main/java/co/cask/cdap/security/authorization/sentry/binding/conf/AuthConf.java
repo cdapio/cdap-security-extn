@@ -22,6 +22,7 @@ import org.apache.sentry.provider.common.HadoopGroupResourceAuthorizationProvide
 import org.apache.sentry.provider.db.generic.SentryGenericProviderBackend;
 
 import java.net.URL;
+import javax.annotation.Nullable;
 
 /**
  * Authorization Configurations used for Sentry binding
@@ -65,12 +66,14 @@ public class AuthConf extends Configuration {
       return defaultVal;
     }
 
+    @Nullable
     public static String getDefault(String varName) {
       for (AuthzConfVars oneVar : AuthzConfVars.values()) {
         if (oneVar.getVar().equalsIgnoreCase(varName)) {
           return oneVar.getDefault();
         }
       }
+      // do not throw exception as the configuration expects null of not present
       return null;
     }
   }
