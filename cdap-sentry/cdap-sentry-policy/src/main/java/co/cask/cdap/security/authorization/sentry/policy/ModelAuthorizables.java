@@ -32,7 +32,7 @@ import java.util.NoSuchElementException;
 /**
  * Class to create {@link Authorizable} from {@link AuthorizableType} and name
  */
-public final class ModelAuthorizables {
+final class ModelAuthorizables {
 
   private ModelAuthorizables() {
   }
