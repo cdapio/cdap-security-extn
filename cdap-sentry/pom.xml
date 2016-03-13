@@ -68,7 +68,6 @@
     <cdap.version>3.4.0-SNAPSHOT</cdap.version>
     <sentry.version>1.7.0-incubating-SNAPSHOT</sentry.version>
     <junit.version>4.11</junit.version>
-    <hadoop.version>2.3.0</hadoop.version>
   </properties>
 
   <repositories>
@@ -94,12 +93,6 @@
         <groupId>co.cask.cdap</groupId>
         <artifactId>cdap-security</artifactId>
         <version>${cdap.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-common</artifactId>
-        <version>${hadoop.version}</version>
         <scope>provided</scope>
       </dependency>
       <dependency>
@@ -137,97 +130,6 @@
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>*</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.sentry</groupId>
-        <artifactId>sentry-provider-db</artifactId>
-        <version>${sentry.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>commons-lang</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.shiro</groupId>
-            <artifactId>shiro-core</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>commons-cli</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.slf4j</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hive</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.jolbox</groupId>
-            <artifactId>bonecp</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.derby</groupId>
-            <artifactId>derby</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-pool2</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>ant-contrib</groupId>
-            <artifactId>ant-contrib</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>javax.jdo</groupId>
-            <artifactId>jdo-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.datanucleus</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.dropwizard.metrics</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.curator</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.sentry</groupId>
-            <artifactId>sentry-core-model-search</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.sentry</groupId>
-            <artifactId>sentry-core-model-sqoop</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.sentry</groupId>
-            <artifactId>sentry-core-model-kafka</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.sentry</groupId>
-            <artifactId>sentry-core-model-kafka</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
