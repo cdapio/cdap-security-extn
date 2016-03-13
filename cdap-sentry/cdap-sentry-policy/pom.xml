@@ -34,7 +34,7 @@
     <dependency>
       <groupId>co.cask.cdap</groupId>
       <artifactId>cdap-sentry-model</artifactId>
-      <version>1.0-SNAPSHOT</version>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.sentry</groupId>
