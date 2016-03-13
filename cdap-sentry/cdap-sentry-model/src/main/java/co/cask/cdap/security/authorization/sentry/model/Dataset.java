@@ -16,6 +16,8 @@
 
 package co.cask.cdap.security.authorization.sentry.model;
 
+import java.util.Objects;
+
 /**
  * Represents the {@link Authorizable.AuthorizableType#DATASET} authorizable in CDAP
  */
@@ -69,12 +71,12 @@ public class Dataset implements Authorizable {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    Dataset dataset = (Dataset) o;
-    return name != null ? name.equals(dataset.name) : dataset.name == null;
+    Dataset that = (Dataset) o;
+    return Objects.equals(name, that.name);
   }
 
   @Override
   public int hashCode() {
-    return name != null ? name.hashCode() : 0;
+    return Objects.hash(name);
   }
 }

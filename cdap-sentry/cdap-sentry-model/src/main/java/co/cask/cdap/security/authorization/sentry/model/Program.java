@@ -16,6 +16,8 @@
 
 package co.cask.cdap.security.authorization.sentry.model;
 
+import java.util.Objects;
+
 /**
  * Represents the {@link Authorizable.AuthorizableType#PROGRAM} authorizable in CDAP
  */
@@ -69,12 +71,12 @@ public class Program implements Authorizable {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    Program program = (Program) o;
-    return name != null ? name.equals(program.name) : program.name == null;
+    Program that = (Program) o;
+    return Objects.equals(name, that.name);
   }
 
   @Override
   public int hashCode() {
-    return name != null ? name.hashCode() : 0;
+    return Objects.hash(name);
   }
 }

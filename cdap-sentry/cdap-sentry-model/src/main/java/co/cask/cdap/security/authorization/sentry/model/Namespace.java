@@ -16,6 +16,8 @@
 
 package co.cask.cdap.security.authorization.sentry.model;
 
+import java.util.Objects;
+
 /**
  * Represents the {@link Authorizable.AuthorizableType#NAMESPACE} authorizable in CDAP
  */
@@ -69,12 +71,12 @@ public class Namespace implements Authorizable {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    Namespace namespace = (Namespace) o;
-    return name != null ? name.equals(namespace.name) : namespace.name == null;
+    Namespace that = (Namespace) o;
+    return Objects.equals(name, that.name);
   }
 
   @Override
   public int hashCode() {
-    return name != null ? name.hashCode() : 0;
+    return Objects.hash(name);
   }
 }

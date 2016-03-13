@@ -37,6 +37,7 @@ import co.cask.cdap.security.authorization.sentry.model.Namespace;
 import co.cask.cdap.security.authorization.sentry.model.Program;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
 import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -86,85 +87,6 @@ class AuthBinding {
     this.requestorName = requestorName;
     this.authProvider = createAuthProvider();
     this.actionFactory = new ActionFactory();
-  }
-
-  private AuthConf initAuthzConf(String sentrySite) {
-    if (Strings.isNullOrEmpty(sentrySite)) {
-      throw new IllegalArgumentException(String.format("The value for %s is null or empty. Please configure it to " +
-                                                         "the absolute path of sentry-site.xml in cdap-site.xml",
-                                                       AuthConf.SENTRY_SITE_URL));
-    }
-    AuthConf authConf;
-    try {
-      authConf = sentrySite.startsWith("file://") ? new AuthConf(new URL(sentrySite)) :
-        new AuthConf(new URL("file://" + sentrySite));
-    } catch (MalformedURLException e) {
-      throw new IllegalArgumentException(String.format("The path provided for sentry-site.xml in property %s is " +
-                                                         "invalid. Please configure it to the absolute path of " +
-                                                         "sentry-site.xml in cdap-site.xml",
-                                                       AuthConf.SENTRY_SITE_URL), e);
-    }
-    return authConf;
-  }
-
-  /**
-   * Instantiate the configured {@link AuthorizationProvider}
-   *
-   * @return {@link AuthorizationProvider} configured in {@link AuthConf}
-   */
-  private AuthorizationProvider createAuthProvider() {
-
-    String authProviderName = authConf.get(AuthzConfVars.AUTHZ_PROVIDER.getVar(),
-                                           AuthzConfVars.AUTHZ_PROVIDER.getDefault());
-
-    String providerBackendName = authConf.get(AuthzConfVars.AUTHZ_PROVIDER_BACKEND.getVar(),
-                                              AuthzConfVars.AUTHZ_PROVIDER_BACKEND.getDefault());
-
-    String policyEngineName = authConf.get(AuthzConfVars.AUTHZ_POLICY_ENGINE.getVar(),
-                                           AuthzConfVars.AUTHZ_POLICY_ENGINE.getDefault());
-
-    String resourceName = authConf.get(AuthzConfVars.AUTHZ_PROVIDER_RESOURCE.getVar(),
-                                       AuthzConfVars.AUTHZ_PROVIDER_RESOURCE.getDefault());
-
-    LOG.debug("Trying to instantiate authorization provider {}, with provider backend {}, policy engine {} and " +
-                "resource {}",
-              authProviderName, providerBackendName, policyEngineName, resourceName);
-
-    // Instantiate the configured providerBackend
-    try {
-      // get the current context classloader
-      ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-
-      if (resourceName != null && resourceName.startsWith("classpath:")) {
-        String resourceFileName = resourceName.substring("classpath:".length());
-        resourceName = classLoader.getResource(resourceFileName).getPath();
-      }
-
-      // instantiate the configured provider backend
-      Constructor<?> providerBackendConstructor = classLoader.loadClass(providerBackendName)
-        .getDeclaredConstructor(Configuration.class, String.class);
-      providerBackendConstructor.setAccessible(true);
-      ProviderBackend providerBackend = (ProviderBackend) providerBackendConstructor.newInstance(authConf,
-                                                                                                 resourceName);
-      if (providerBackend instanceof SentryGenericProviderBackend) {
-        ((SentryGenericProviderBackend) providerBackend).setComponentType(COMPONENT_NAME);
-        ((SentryGenericProviderBackend) providerBackend).setServiceName(instanceName);
-      }
-
-      // instantiate the configured policy engine
-      Constructor<?> policyConstructor = classLoader.loadClass(policyEngineName)
-        .getDeclaredConstructor(ProviderBackend.class);
-      policyConstructor.setAccessible(true);
-      PolicyEngine policyEngine = (PolicyEngine) policyConstructor.newInstance(providerBackend);
-
-      // Instantiate the configured authz provider
-      Constructor<?> authzProviderConstructor = classLoader.loadClass(authProviderName).getDeclaredConstructor(
-        Configuration.class, String.class, PolicyEngine.class);
-      authzProviderConstructor.setAccessible(true);
-      return (AuthorizationProvider) authzProviderConstructor.newInstance(authConf, resourceName, policyEngine);
-    } catch (Exception e) {
-      throw Throwables.propagate(e);
-    }
   }
 
   /**
@@ -249,19 +171,6 @@ class AuthBinding {
     });
   }
 
-  private List<TSentryPrivilege> getAllPrivileges(final List<String> roles) {
-    return execute(new Command<List<TSentryPrivilege>>() {
-      @Override
-      public List<TSentryPrivilege> run(SentryGenericServiceClient client) throws Exception {
-        final List<TSentryPrivilege> tSentryPrivileges = new ArrayList<>();
-        for (String role : roles) {
-          tSentryPrivileges.addAll(client.listPrivilegesByRoleName(requestorName, role, COMPONENT_NAME, instanceName));
-        }
-        return tSentryPrivileges;
-      }
-    });
-  }
-
   /**
    * Check if the given {@link Principal} is allowed to perform the given {@link Action} on the {@link EntityId}
    *
@@ -278,6 +187,117 @@ class AuthBinding {
     List<Authorizable> authorizables = convertEntityToAuthorizables(instanceName, entityId);
     Set<ActionFactory.Action> actions = Sets.newHashSet(actionFactory.getActionByName(action.name()));
     return authProvider.hasAccess(new Subject(principal.getName()), authorizables, actions, ActiveRoleSet.ALL);
+  }
+
+  /**
+   * Maps the given {@link EntityId} to {@link Authorizable}. To see a valid set of {@link Authorizable}
+   * please see {@link PrivilegeValidator} which is responsible for validating these authorizables positions and action.
+   *
+   * @param instanceName the name of the cdap instance
+   * @param entityId the {@link EntityId} which needs to be mapped to list of {@link Authorizable}
+   * @return a {@link List} of {@link Authorizable} which represents the given {@link EntityId}
+   */
+  @VisibleForTesting
+  static List<org.apache.sentry.core.common.Authorizable> convertEntityToAuthorizables(
+    final String instanceName, final EntityId entityId) {
+    List<org.apache.sentry.core.common.Authorizable> authorizables = new LinkedList<>();
+    // cdap instance is not a concept in cdap entities. In sentry integration we need to grant privileges on the
+    // instance so that users can create namespace inside the instance etc.
+    authorizables.add(new Instance(instanceName));
+    getAuthorizable(entityId, authorizables);
+    return authorizables;
+  }
+
+  private AuthConf initAuthzConf(String sentrySite) {
+    if (Strings.isNullOrEmpty(sentrySite)) {
+      throw new IllegalArgumentException(String.format("The value for %s is null or empty. Please configure it to " +
+                                                         "the absolute path of sentry-site.xml in cdap-site.xml",
+                                                       AuthConf.SENTRY_SITE_URL));
+    }
+    AuthConf authConf;
+    try {
+      authConf = sentrySite.startsWith("file://") ? new AuthConf(new URL(sentrySite)) :
+        new AuthConf(new URL("file://" + sentrySite));
+    } catch (MalformedURLException e) {
+      throw new IllegalArgumentException(String.format("The path provided for sentry-site.xml in property %s is " +
+                                                         "invalid. Please configure it to the absolute path of " +
+                                                         "sentry-site.xml in cdap-site.xml",
+                                                       AuthConf.SENTRY_SITE_URL), e);
+    }
+    return authConf;
+  }
+
+  /**
+   * Instantiate the configured {@link AuthorizationProvider}
+   *
+   * @return {@link AuthorizationProvider} configured in {@link AuthConf}
+   */
+  private AuthorizationProvider createAuthProvider() {
+
+    String authProviderName = authConf.get(AuthzConfVars.AUTHZ_PROVIDER.getVar(),
+                                           AuthzConfVars.AUTHZ_PROVIDER.getDefault());
+
+    String providerBackendName = authConf.get(AuthzConfVars.AUTHZ_PROVIDER_BACKEND.getVar(),
+                                              AuthzConfVars.AUTHZ_PROVIDER_BACKEND.getDefault());
+
+    String policyEngineName = authConf.get(AuthzConfVars.AUTHZ_POLICY_ENGINE.getVar(),
+                                           AuthzConfVars.AUTHZ_POLICY_ENGINE.getDefault());
+
+    String resourceName = authConf.get(AuthzConfVars.AUTHZ_PROVIDER_RESOURCE.getVar(),
+                                       AuthzConfVars.AUTHZ_PROVIDER_RESOURCE.getDefault());
+
+    LOG.debug("Trying to instantiate authorization provider {}, with provider backend {}, policy engine {} and " +
+                "resource {}",
+              authProviderName, providerBackendName, policyEngineName, resourceName);
+
+    // Instantiate the configured providerBackend
+    try {
+      // get the current context classloader
+      ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+
+      if (resourceName != null && resourceName.startsWith("classpath:")) {
+        String resourceFileName = resourceName.substring("classpath:".length());
+        resourceName = classLoader.getResource(resourceFileName).getPath();
+      }
+
+      // instantiate the configured provider backend
+      Constructor<?> providerBackendConstructor = classLoader.loadClass(providerBackendName)
+        .getDeclaredConstructor(Configuration.class, String.class);
+      providerBackendConstructor.setAccessible(true);
+      ProviderBackend providerBackend = (ProviderBackend) providerBackendConstructor.newInstance(authConf,
+                                                                                                 resourceName);
+      if (providerBackend instanceof SentryGenericProviderBackend) {
+        ((SentryGenericProviderBackend) providerBackend).setComponentType(COMPONENT_NAME);
+        ((SentryGenericProviderBackend) providerBackend).setServiceName(instanceName);
+      }
+
+      // instantiate the configured policy engine
+      Constructor<?> policyConstructor = classLoader.loadClass(policyEngineName)
+        .getDeclaredConstructor(ProviderBackend.class);
+      policyConstructor.setAccessible(true);
+      PolicyEngine policyEngine = (PolicyEngine) policyConstructor.newInstance(providerBackend);
+
+      // Instantiate the configured authz provider
+      Constructor<?> authzProviderConstructor = classLoader.loadClass(authProviderName).getDeclaredConstructor(
+        Configuration.class, String.class, PolicyEngine.class);
+      authzProviderConstructor.setAccessible(true);
+      return (AuthorizationProvider) authzProviderConstructor.newInstance(authConf, resourceName, policyEngine);
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  private List<TSentryPrivilege> getAllPrivileges(final List<String> roles) {
+    return execute(new Command<List<TSentryPrivilege>>() {
+      @Override
+      public List<TSentryPrivilege> run(SentryGenericServiceClient client) throws Exception {
+        final List<TSentryPrivilege> tSentryPrivileges = new ArrayList<>();
+        for (String role : roles) {
+          tSentryPrivileges.addAll(client.listPrivilegesByRoleName(requestorName, role, COMPONENT_NAME, instanceName));
+        }
+        return tSentryPrivileges;
+      }
+    });
   }
 
   private boolean roleExists(String role) {
@@ -333,24 +353,6 @@ class AuthBinding {
 
   private SentryGenericServiceClient getClient() throws Exception {
     return SentryGenericServiceClientFactory.create(authConf);
-  }
-
-  /**
-   * Maps the given {@link EntityId} to {@link Authorizable}. To see a valid set of {@link Authorizable}
-   * please see {@link PrivilegeValidator} which is responsible for validating these authorizables positions and action.
-   *
-   * @param instanceName the name of the cdap instance
-   * @param entityId the {@link EntityId} which needs to be mapped to list of {@link Authorizable}
-   * @return a {@link List} of {@link Authorizable} which represents the given {@link EntityId}
-   */
-  public static List<org.apache.sentry.core.common.Authorizable> convertEntityToAuthorizables(
-    final String instanceName, final EntityId entityId) {
-    List<org.apache.sentry.core.common.Authorizable> authorizables = new LinkedList<>();
-    // cdap instance is not a concept in cdap entities. In sentry integration we need to grant privileges on the
-    // instance so that users can create namespace inside the instance etc.
-    authorizables.add(new Instance(instanceName));
-    getAuthorizable(entityId, authorizables);
-    return authorizables;
   }
 
   /**

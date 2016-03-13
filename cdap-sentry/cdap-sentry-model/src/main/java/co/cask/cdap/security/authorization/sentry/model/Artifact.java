@@ -16,6 +16,8 @@
 
 package co.cask.cdap.security.authorization.sentry.model;
 
+import java.util.Objects;
+
 /**
  * Represents the {@link Authorizable.AuthorizableType#ARTIFACT} authorizable in CDAP
  */
@@ -69,12 +71,12 @@ public class Artifact implements Authorizable {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    Artifact artifact = (Artifact) o;
-    return name != null ? name.equals(artifact.name) : artifact.name == null;
+    Artifact that = (Artifact) o;
+    return Objects.equals(name, that.name);
   }
 
   @Override
   public int hashCode() {
-    return name != null ? name.hashCode() : 0;
+    return Objects.hash(name);
   }
 }
