@@ -16,13 +16,13 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
-import co.cask.cdap.common.UnauthorizedException;
 import co.cask.cdap.common.conf.CConfiguration;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
-import co.cask.cdap.security.authorization.Authorizer;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
+import co.cask.cdap.security.spi.authorization.Authorizer;
+import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
 import org.slf4j.Logger;
