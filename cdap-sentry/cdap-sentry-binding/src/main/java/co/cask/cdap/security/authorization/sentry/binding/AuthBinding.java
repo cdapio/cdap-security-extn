@@ -181,9 +181,6 @@ class AuthBinding {
    * else false
    */
   public boolean authorize(EntityId entityId, Principal principal, Action action) {
-    Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.USER || principal.getType() ==
-      Principal.PrincipalType.GROUP, "The given principal {} is of type {}. Authorization checks can only be " +
-                                  "performed on user/groups.", principal, principal.getType());
     List<Authorizable> authorizables = convertEntityToAuthorizables(instanceName, entityId);
     Set<ActionFactory.Action> actions = Sets.newHashSet(actionFactory.getActionByName(action.name()));
     return authProvider.hasAccess(new Subject(principal.getName()), authorizables, actions, ActiveRoleSet.ALL);
