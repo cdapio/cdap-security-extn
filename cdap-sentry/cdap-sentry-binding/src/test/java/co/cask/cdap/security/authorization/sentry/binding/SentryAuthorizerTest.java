@@ -16,7 +16,6 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
-import co.cask.cdap.common.conf.CConfiguration;
 import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.DatasetId;
@@ -33,6 +32,9 @@ import com.google.common.base.Joiner;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.net.URL;
+import java.util.Properties;
+
 /**
  * Test for {@link SentryAuthorizer}
  */
@@ -43,11 +45,13 @@ public class SentryAuthorizerTest {
   private static final String SUPERUSER_SPIDERMAN = "spiderman";
 
   public SentryAuthorizerTest() {
-    String sentrySitePath = getClass().getClassLoader().getResource(AuthConf.SENTRY_SITE_FILENAME).getPath();
-    CConfiguration cConf = CConfiguration.create();
-    // put the sentry site path in cConf
-    cConf.set(AuthConf.SENTRY_SITE_URL, sentrySitePath);
-    authorizer = new SentryAuthorizer(cConf);
+    URL resource = getClass().getClassLoader().getResource("sentry-site.xml");
+    Assert.assertNotNull(resource);
+    String sentrySitePath = resource.getPath();
+    Properties properties = new Properties();
+    properties.put(AuthConf.SENTRY_SITE_URL, sentrySitePath);
+    properties.put(AuthConf.SERVICE_SUPERUSERS, Joiner.on(",").join(SUPERUSER_HULK, SUPERUSER_SPIDERMAN));
+    this.authorizer = new SentryAuthorizer(properties);
   }
 
   @Test

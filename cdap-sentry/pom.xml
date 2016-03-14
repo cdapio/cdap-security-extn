@@ -66,9 +66,10 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <cdap.version>3.4.0-SNAPSHOT</cdap.version>
-    <sentry.version>1.7.0-incubating-SNAPSHOT</sentry.version>
-    <junit.version>4.11</junit.version>
     <hadoop.version>2.3.0</hadoop.version>
+    <sentry.version>1.7.0-incubating-SNAPSHOT</sentry.version>
+    <slf4j.version>1.7.5</slf4j.version>
+    <junit.version>4.11</junit.version>
   </properties>
 
   <repositories>
@@ -86,7 +87,7 @@
     <dependencies>
       <dependency>
         <groupId>co.cask.cdap</groupId>
-        <artifactId>cdap-security</artifactId>
+        <artifactId>cdap-security-spi</artifactId>
         <version>${cdap.version}</version>
         <scope>provided</scope>
       </dependency>
@@ -94,25 +95,22 @@
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-common</artifactId>
         <version>${hadoop.version}</version>
-        <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.sentry</groupId>
         <artifactId>sentry-core-common</artifactId>
         <version>${sentry.version}</version>
         <exclusions>
-          <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>commons-lang</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>commons-cli</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
           <exclusion>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
@@ -129,8 +127,12 @@
         <version>${sentry.version}</version>
         <exclusions>
           <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>*</artifactId>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -140,71 +142,19 @@
         <version>${sentry.version}</version>
         <exclusions>
           <exclusion>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>commons-lang</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.shiro</groupId>
-            <artifactId>shiro-core</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>commons-cli</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
             <groupId>org.slf4j</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.hive</groupId>
-            <artifactId>*</artifactId>
+            <artifactId>slf4j-log4j12</artifactId>
           </exclusion>
           <exclusion>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
           </exclusion>
           <exclusion>
-            <groupId>com.jolbox</groupId>
-            <artifactId>bonecp</artifactId>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-jobclient</artifactId>
           </exclusion>
           <exclusion>
-            <groupId>org.apache.derby</groupId>
-            <artifactId>derby</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-pool2</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>ant-contrib</groupId>
-            <artifactId>ant-contrib</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>javax.jdo</groupId>
-            <artifactId>jdo-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.datanucleus</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.dropwizard.metrics</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.curator</groupId>
+            <groupId>org.apache.hive</groupId>
             <artifactId>*</artifactId>
           </exclusion>
           <exclusion>
@@ -215,26 +165,17 @@
             <groupId>org.apache.sentry</groupId>
             <artifactId>sentry-core-model-sqoop</artifactId>
           </exclusion>
-          <exclusion>
-            <groupId>org.apache.sentry</groupId>
-            <artifactId>sentry-core-model-kafka</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.sentry</groupId>
-            <artifactId>sentry-core-model-kafka</artifactId>
-          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.sentry</groupId>
         <artifactId>sentry-policy-common</artifactId>
         <version>${sentry.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-          </exclusion>
-        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>${slf4j.version}</version>
       </dependency>
       <dependency>
         <groupId>junit</groupId>
@@ -281,27 +222,6 @@
           </executions>
         </plugin>
 
-        <plugin>
-          <groupId>org.apache.felix</groupId>
-          <artifactId>maven-bundle-plugin</artifactId>
-          <version>2.3.7</version>
-          <extensions>true</extensions>
-          <configuration>
-            <instructions>
-              <Embed-Dependency>*;inline=false;scope=compile</Embed-Dependency>
-              <Embed-Transitive>true</Embed-Transitive>
-              <Embed-Directory>lib</Embed-Directory>
-            </instructions>
-          </configuration>
-          <executions>
-            <execution>
-              <phase>package</phase>
-              <goals>
-                <goal>bundle</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
       </plugins>
     </pluginManagement>
 

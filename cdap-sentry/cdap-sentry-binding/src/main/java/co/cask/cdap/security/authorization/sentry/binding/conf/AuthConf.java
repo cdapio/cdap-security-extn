@@ -30,15 +30,13 @@ import javax.annotation.Nullable;
 public class AuthConf extends Configuration {
 
   // sentry-site.xml path
-  public static final String SENTRY_SITE_URL = "security.sentry.site.url";
-  // sentry site filename
-  public static final String SENTRY_SITE_FILENAME = "sentry-site.xml";
+  public static final String SENTRY_SITE_URL = "sentry.site.url";
   // cdap instance name to be used in sentry for example: cdap
-  public static final String SERVICE_INSTANCE_NAME = "security.cdap.instance.name";
+  public static final String SERVICE_INSTANCE_NAME = "cdap.instance.name";
   // cdap username to be used in sentry for example: cdap
-  public static final String SERVICE_USER_NAME = "security.cdap.user.name";
+  public static final String SERVICE_USER_NAME = "cdap.user.name";
   // a comma separated list of users who will be superusers
-  public static final String SERVICE_SUPERUSERS = "sentry.cdap.superusers";
+  public static final String SERVICE_SUPERUSERS = "cdap.superusers";
 
   /**
    * Config setting definitions
