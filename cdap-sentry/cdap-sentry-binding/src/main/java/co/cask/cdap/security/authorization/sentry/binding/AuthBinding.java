@@ -38,7 +38,6 @@ import co.cask.cdap.security.authorization.sentry.model.Program;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
 import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
@@ -97,9 +96,6 @@ class AuthBinding {
    * @param actions the actions which needs to be granted
    */
   public void grant(final EntityId entityId, Principal principal, Set<Action> actions) {
-    Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.ROLE, "The given principal {} is of " +
-      "type {}. In Sentry grants can only be done on roles. Please add the {}:{} to a role and perform grant on the " +
-      "role.", principal, principal.getType(), principal.getType(), principal.getName());
     final String role = principal.getName();
     if (!roleExists(role)) {
       throw new IllegalArgumentException(String.format("Failed to perform grant. Role %s does not exists.", role));
@@ -126,9 +122,6 @@ class AuthBinding {
    * @param actions the set of {@link Action actions} to revoke
    */
   public void revoke(final EntityId entityId, Principal principal, Set<Action> actions) {
-    Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.ROLE, "The given principal {} is of " +
-                                  "type {}. In Sentry revoke can only be done on roles.", principal,
-                                principal.getType(), principal.getType(), principal.getName());
     final String role = principal.getName();
     if (!roleExists(role)) {
       throw new IllegalArgumentException(String.format("Failed to perform revoke. Role %s does not exists.", role));

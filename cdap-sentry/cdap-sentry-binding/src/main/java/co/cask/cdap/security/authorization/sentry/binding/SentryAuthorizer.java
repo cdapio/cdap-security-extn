@@ -64,12 +64,18 @@ public class SentryAuthorizer implements Authorizer {
 
   @Override
   public void grant(EntityId entityId, Principal principal, Set<Action> actions) {
+    Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.ROLE, "The given principal {} is of " +
+      "type {}. In Sentry grants can only be done on roles. Please add the {}:{} to a role and perform grant on the " +
+      "role.", principal, principal.getType(), principal.getType(), principal.getName());
     binding.grant(entityId, principal, actions);
   }
 
 
   @Override
   public void revoke(EntityId entityId, Principal principal, Set<Action> actions) {
+    Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.ROLE, "The given principal {} is of " +
+                                  "type {}. In Sentry revoke can only be done on roles.", principal,
+                                principal.getType(), principal.getType(), principal.getName());
     binding.revoke(entityId, principal, actions);
   }
 
@@ -85,6 +91,8 @@ public class SentryAuthorizer implements Authorizer {
                                 principal.getType(), Principal.PrincipalType.USER);
     if (isSuperUser(principal)) {
       // superusers are allowed to perform any action on all entities so need to to authorize
+      LOG.debug("Authorizing superuser with principal {} for action {} on entity {}", principal,
+                action, entityId);
       return;
     }
     boolean authorize = binding.authorize(entityId, principal, action);
