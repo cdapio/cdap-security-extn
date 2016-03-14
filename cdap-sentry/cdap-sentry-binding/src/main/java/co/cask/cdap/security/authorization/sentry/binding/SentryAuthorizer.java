@@ -48,12 +48,9 @@ public class SentryAuthorizer implements Authorizer {
 
     String serviceInstanceName = cConf.get(AuthConf.SERVICE_INSTANCE_NAME,
                                            AuthConf.AuthzConfVars.getDefault(AuthConf.SERVICE_INSTANCE_NAME));
-    String requestorName = cConf.get(AuthConf.SERVICE_USER_NAME,
-                                     AuthConf.AuthzConfVars.getDefault(AuthConf.SERVICE_USER_NAME));
-
-    LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {} requestor name {} and cdap instance name {}" +
-               sentrySiteUrl, requestorName, serviceInstanceName);
-    binding = new AuthBinding(sentrySiteUrl, serviceInstanceName, requestorName);
+    LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {} and cdap instance name {}" +
+               sentrySiteUrl, serviceInstanceName);
+    binding = new AuthBinding(sentrySiteUrl, serviceInstanceName);
   }
 
   @Override

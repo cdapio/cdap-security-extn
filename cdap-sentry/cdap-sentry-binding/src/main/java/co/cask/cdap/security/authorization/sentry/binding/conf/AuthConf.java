@@ -49,9 +49,9 @@ public class AuthConf extends Configuration {
     AUTHZ_POLICY_ENGINE("sentry.cdap.policy.engine", SimplePolicyEngine.class.getName()),
     AUTHZ_PROVIDER_RESOURCE("sentry.cdap.provider.resource", ""),
     // if no instanceName or username is provided 'cdap' will be used
-    AUTHZ_INSTANCE_NAME(SERVICE_INSTANCE_NAME, "cdap"),
+    AUTHZ_SERVICE_INSTANCE_NAME(SERVICE_INSTANCE_NAME, "cdap"),
     AUTHZ_SERVICE_USER_NAME(SERVICE_USER_NAME, "cdap"),
-    AUTHZ_ADMINISTRATORS(SERVICE_SUPERUSERS, "");
+    AUTHZ_SERVICE_SUPERUSERS(SERVICE_SUPERUSERS, "");
 
     private final String varName;
     private final String defaultVal;
