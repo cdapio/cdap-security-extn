@@ -24,10 +24,15 @@ import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.Authorizer;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Set;
 
 /**
@@ -38,6 +43,7 @@ public class SentryAuthorizer implements Authorizer {
 
   private static final Logger LOG = LoggerFactory.getLogger(SentryAuthorizer.class);
   private final AuthBinding binding;
+  private Set<Principal> superUsers;
 
   @Inject
   SentryAuthorizer(CConfiguration cConf) {
@@ -47,13 +53,14 @@ public class SentryAuthorizer implements Authorizer {
                                                               "Please provide the path to sentry-site.xml in cdap " +
                                                               "with property name %s", AuthConf.SENTRY_SITE_URL));
 
-    String serviceInstanceName = cConf.get(AuthConf.SERVICE_INSTANCE_NAME,
-                                           AuthConf.AuthzConfVars.getDefault(AuthConf.SERVICE_INSTANCE_NAME));
+    String serviceInstanceName = cConf.get(AuthConf.SUPER_USERS,
+                                           AuthConf.AuthzConfVars.getDefault(AuthConf.SUPER_USERS));
     String requestorName = cConf.get(AuthConf.SERVICE_USER_NAME,
                                      AuthConf.AuthzConfVars.getDefault(AuthConf.SERVICE_USER_NAME));
 
     LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {} requestor name {} and cdap instance name {}" +
                sentrySiteUrl, requestorName, serviceInstanceName);
+//    superUsers = getSuperUsers(cConf.get(AuthConf.SUPER_USERS));
     binding = new AuthBinding(sentrySiteUrl, serviceInstanceName, requestorName);
   }
 
@@ -75,9 +82,32 @@ public class SentryAuthorizer implements Authorizer {
 
   @Override
   public void enforce(EntityId entityId, Principal principal, Action action) throws UnauthorizedException {
+//    if (superUsers.contains(principal)) {
+//      LOG.info("Authorizing principal {} for action {} on entity {} as it belongs to superusers", principal, action,
+//               entityId);
+//      return;
+//    }
     boolean authorize = binding.authorize(entityId, principal, action);
     if (!authorize) {
       throw new UnauthorizedException(principal, action, entityId);
     }
+  }
+
+  private Set<Principal> getSuperUsers(String superUsers) {
+    if (Strings.isNullOrEmpty(superUsers)) {
+      throw new RuntimeException(String.format("No superusers found in cdap-site.xml. Please provide a comma " +
+                                                 "separated list of user:superusersUsername or " +
+                                                 "group:superusersGroupame with property name %s. Example: user:user1" +
+                                                 ", group:group1, user:user2", AuthConf.SUPER_USERS));
+    }
+    Set<Principal> superUsersList = new HashSet<>();
+    for (String superUser : Splitter.on(",").trimResults().split(superUsers)) {
+      LinkedList<String> superUserRecord = Lists.newLinkedList(Splitter.on(":").trimResults().split(superUser));
+      Preconditions.checkArgument(superUserRecord.size() == 2, "Found {} which is invalid. A superuser should be " +
+        "specified as either user:username or group:groupname.", superUserRecord);
+      superUsersList.add(new Principal(superUserRecord.get(1), Principal.PrincipalType.valueOf(
+        superUserRecord.get(0).toUpperCase())));
+    }
+    return superUsersList;
   }
 }

@@ -37,6 +37,8 @@ public class AuthConf extends Configuration {
   public static final String SERVICE_INSTANCE_NAME = "security.cdap.instance.name";
   // cdap username to be used in sentry for example: cdap
   public static final String SERVICE_USER_NAME = "security.cdap.user.name";
+  // a comma separated list of cdap superusers
+  public static final String SUPER_USERS = "security.cdap.superusers";
 
   /**
    * Config setting definitions
@@ -48,7 +50,8 @@ public class AuthConf extends Configuration {
     AUTHZ_PROVIDER_RESOURCE("sentry.cdap.provider.resource", ""),
     // if no instanceName or username is provided 'cdap' will be used
     AUTHZ_INSTANCE_NAME(SERVICE_INSTANCE_NAME, "cdap"),
-    AUTHZ_SERVICE_USER_NAME(SERVICE_USER_NAME, "cdap");
+    AUTHZ_SERVICE_USER_NAME(SERVICE_USER_NAME, "cdap"),
+    AUTHZ_SUPER_USERS(SUPER_USERS, "");
 
     private final String varName;
     private final String defaultVal;
