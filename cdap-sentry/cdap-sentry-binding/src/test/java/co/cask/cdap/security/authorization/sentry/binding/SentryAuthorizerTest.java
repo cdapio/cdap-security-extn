@@ -29,6 +29,7 @@ import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
+import com.google.common.base.Joiner;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -38,6 +39,8 @@ import org.junit.Test;
 public class SentryAuthorizerTest {
 
   private final SentryAuthorizer authorizer;
+  private static final String SUPERUSER_HULK = "hulk";
+  private static final String SUPERUSER_SPIDERMAN = "spiderman";
 
   public SentryAuthorizerTest() {
     String sentrySitePath = getClass().getClassLoader().getResource(AuthConf.SENTRY_SITE_FILENAME).getPath();
@@ -84,6 +87,17 @@ public class SentryAuthorizerTest {
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.WRITE);
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.ALL);
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.EXECUTE);
+  }
+
+  @Test
+  public void testSuperUsers() {
+    // hulk being an superuser can do anything
+    assertAuthorized(new StreamId("ns2", "stream1"), getUser(SUPERUSER_HULK), Action.READ);
+    assertAuthorized(new ProgramId("ns1", "app1", ProgramType.MAPREDUCE, "prog1"), getUser(SUPERUSER_HULK),
+                     Action.EXECUTE);
+    // and so does spiderman
+    assertAuthorized(new StreamId("ns1", "stream1"), getUser(SUPERUSER_SPIDERMAN), Action.READ);
+    assertAuthorized(new StreamId("ns2", "stream1"), getUser(SUPERUSER_SPIDERMAN), Action.ADMIN);
   }
 
   private void testAuthorized(EntityId entityId) {

@@ -39,6 +39,7 @@ import co.cask.cdap.security.authorization.sentry.model.Stream;
 import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
@@ -62,6 +63,7 @@ import java.lang.reflect.Constructor;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -79,6 +81,7 @@ class AuthBinding {
   private final String instanceName;
   private final String requestorName;
   private final ActionFactory actionFactory;
+  private final Set<Principal> superUsers;
 
   public AuthBinding(String sentrySite, String instanceName, String requestorName) {
     this.authConf = initAuthzConf(sentrySite);
@@ -87,6 +90,7 @@ class AuthBinding {
     this.requestorName = requestorName;
     this.authProvider = createAuthProvider();
     this.actionFactory = new ActionFactory();
+    this.superUsers = getSuperUsers();
   }
 
   /**
@@ -97,9 +101,6 @@ class AuthBinding {
    * @param actions the actions which needs to be granted
    */
   public void grant(final EntityId entityId, Principal principal, Set<Action> actions) {
-    Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.ROLE, "The given principal {} is of " +
-      "type {}. In Sentry grants can only be done on roles. Please add the {}:{} to a role and perform grant on the " +
-      "role.", principal, principal.getType(), principal.getType(), principal.getName());
     final String role = principal.getName();
     if (!roleExists(role)) {
       throw new IllegalArgumentException(String.format("Failed to perform grant. Role %s does not exists.", role));
@@ -126,9 +127,6 @@ class AuthBinding {
    * @param actions the set of {@link Action actions} to revoke
    */
   public void revoke(final EntityId entityId, Principal principal, Set<Action> actions) {
-    Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.ROLE, "The given principal {} is of " +
-                                  "type {}. In Sentry revoke can only be done on roles.", principal,
-                                principal.getType(), principal.getType(), principal.getName());
     final String role = principal.getName();
     if (!roleExists(role)) {
       throw new IllegalArgumentException(String.format("Failed to perform revoke. Role %s does not exists.", role));
@@ -181,12 +179,33 @@ class AuthBinding {
    * else false
    */
   public boolean authorize(EntityId entityId, Principal principal, Action action) {
-    Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.USER || principal.getType() ==
-      Principal.PrincipalType.GROUP, "The given principal {} is of type {}. Authorization checks can only be " +
-                                  "performed on user/groups.", principal, principal.getType());
+    if (superUsers.contains(principal)) {
+      // superusers are allowed to perform any action on all entities so need to to authorize
+      LOG.debug("Authorizing superuser with principal {} for action {} on entity {}", principal,
+                action, entityId);
+      return true;
+    }
     List<Authorizable> authorizables = convertEntityToAuthorizables(instanceName, entityId);
     Set<ActionFactory.Action> actions = Sets.newHashSet(actionFactory.getActionByName(action.name()));
     return authProvider.hasAccess(new Subject(principal.getName()), authorizables, actions, ActiveRoleSet.ALL);
+  }
+
+  /**
+   * Gets a {@link Set} of {@link Principal} of superusers which is provided throug
+   * {@link AuthConf#SERVICE_SUPERUSERS}
+   *
+   * @return {@link Set} of {@link Principal} of superusers
+   */
+  public Set<Principal> getSuperUsers() {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(authConf.get(AuthConf.SERVICE_SUPERUSERS)),
+                                "No superUsers found in sentry-site.xml. Please provide a comma separated list of " +
+                                  "users who will be superusers with property name %s. Example: user1,user2",
+                                AuthConf.SERVICE_SUPERUSERS);
+    Set<Principal> superUsers = new HashSet<>();
+    for (String curUser : Splitter.on(",").trimResults().split(authConf.get(AuthConf.SERVICE_SUPERUSERS))) {
+      superUsers.add(new Principal(curUser, Principal.PrincipalType.USER));
+    }
+    return superUsers;
   }
 
   /**
