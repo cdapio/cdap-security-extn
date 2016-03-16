@@ -47,7 +47,6 @@ public class SentryAuthorizerTest {
     CConfiguration cConf = CConfiguration.create();
     // put the sentry site path in cConf
     cConf.set(AuthConf.SENTRY_SITE_URL, sentrySitePath);
-    cConf.set(AuthConf.SUPERUSERS, Joiner.on(",").join(SUPERUSER_HULK, SUPERUSER_SPIDERMAN));
     authorizer = new SentryAuthorizer(cConf);
   }
 

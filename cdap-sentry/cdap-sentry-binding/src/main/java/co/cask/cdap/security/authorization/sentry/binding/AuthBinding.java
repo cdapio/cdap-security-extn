@@ -38,6 +38,8 @@ import co.cask.cdap.security.authorization.sentry.model.Program;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
 import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
@@ -61,6 +63,7 @@ import java.lang.reflect.Constructor;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -78,6 +81,7 @@ class AuthBinding {
   private final String instanceName;
   private final String requestorName;
   private final ActionFactory actionFactory;
+  private final Set<Principal> superUsers;
 
   public AuthBinding(String sentrySite, String instanceName, String requestorName) {
     this.authConf = initAuthzConf(sentrySite);
@@ -86,6 +90,7 @@ class AuthBinding {
     this.requestorName = requestorName;
     this.authProvider = createAuthProvider();
     this.actionFactory = new ActionFactory();
+    this.superUsers = getSuperUsers();
   }
 
   /**
@@ -174,9 +179,33 @@ class AuthBinding {
    * else false
    */
   public boolean authorize(EntityId entityId, Principal principal, Action action) {
+    if (isSuperUser(principal)) {
+      // superusers are allowed to perform any action on all entities so need to to authorize
+      LOG.debug("Authorizing superuser with principal {} for action {} on entity {}", principal,
+                action, entityId);
+      return true;
+    }
     List<Authorizable> authorizables = convertEntityToAuthorizables(instanceName, entityId);
     Set<ActionFactory.Action> actions = Sets.newHashSet(actionFactory.getActionByName(action.name()));
     return authProvider.hasAccess(new Subject(principal.getName()), authorizables, actions, ActiveRoleSet.ALL);
+  }
+
+  /**
+   * Gets a {@link Set} of {@link Principal} of superusers which is provided throug
+   * {@link AuthConf#SUPERUSERS}
+   *
+   * @return {@link Set} of {@link Principal} of superusers
+   */
+  public Set<Principal> getSuperUsers() {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(authConf.get(AuthConf.SUPERUSERS)),
+                                "No superUsers found in sentry-site.xml. Please provide a comma separated list of " +
+                                  "users who will be superusers with property name %s. Example: user1,user2",
+                                AuthConf.SUPERUSERS);
+    Set<Principal> superUsersList = new HashSet<>();
+    for (String curUser : Splitter.on(",").trimResults().split(authConf.get(AuthConf.SUPERUSERS))) {
+      superUsersList.add(new Principal(curUser, Principal.PrincipalType.USER));
+    }
+    return superUsersList;
   }
 
   /**
@@ -196,6 +225,10 @@ class AuthBinding {
     authorizables.add(new Instance(instanceName));
     getAuthorizable(entityId, authorizables);
     return authorizables;
+  }
+
+  private boolean isSuperUser(Principal principal) {
+    return superUsers.contains(principal);
   }
 
   private AuthConf initAuthzConf(String sentrySite) {

@@ -38,7 +38,7 @@ public class AuthConf extends Configuration {
   // cdap username to be used in sentry for example: cdap
   public static final String SERVICE_USER_NAME = "security.cdap.user.name";
   // a comma separated list of users who will be superusers
-  public static final String SUPERUSERS = "security.cdap.superusers";
+  public static final String SUPERUSERS = "sentry.cdap.superusers";
 
   /**
    * Config setting definitions

@@ -37,5 +37,9 @@
     <name>sentry.cdap.provider.backend</name>
     <value>org.apache.sentry.provider.file.SimpleFileProviderBackend</value>
   </property>
+  <property>
+    <name>sentry.cdap.superusers</name>
+    <value>hulk,spiderman</value>
+  </property>
 </configuration>
 

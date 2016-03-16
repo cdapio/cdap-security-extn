@@ -24,13 +24,10 @@ import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.Authorizer;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -41,7 +38,6 @@ public class SentryAuthorizer implements Authorizer {
 
   private static final Logger LOG = LoggerFactory.getLogger(SentryAuthorizer.class);
   private final AuthBinding binding;
-  private final Set<Principal> superUsers;
 
   @Inject
   SentryAuthorizer(CConfiguration cConf) {
@@ -59,7 +55,6 @@ public class SentryAuthorizer implements Authorizer {
     LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {} requestor name {} and cdap instance name {}" +
                sentrySiteUrl, requestorName, serviceInstanceName);
     binding = new AuthBinding(sentrySiteUrl, serviceInstanceName, requestorName);
-    superUsers = getSuperUsers(cConf.get(AuthConf.SUPERUSERS));
   }
 
   @Override
@@ -89,30 +84,9 @@ public class SentryAuthorizer implements Authorizer {
     Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.USER, "The given principal {} is of " +
                                   "type {}. Authorization checks can only be performed on {}.", principal,
                                 principal.getType(), Principal.PrincipalType.USER);
-    if (isSuperUser(principal)) {
-      // superusers are allowed to perform any action on all entities so need to to authorize
-      LOG.debug("Authorizing superuser with principal {} for action {} on entity {}", principal,
-                action, entityId);
-      return;
-    }
     boolean authorize = binding.authorize(entityId, principal, action);
     if (!authorize) {
       throw new UnauthorizedException(principal, action, entityId);
     }
-  }
-
-  private boolean isSuperUser(Principal principal) {
-    return superUsers.contains(principal);
-  }
-
-  private Set<Principal> getSuperUsers(String superUsers) {
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(superUsers), "No superUsers found in cdap-site.xml. " +
-      "Please provide a comma separated list of users who will be superusers with property name %s. " +
-      "Example: user1,user2", AuthConf.SUPERUSERS);
-    Set<Principal> superUsersList = new HashSet<>();
-    for (String curUser : Splitter.on(",").trimResults().split(superUsers)) {
-      superUsersList.add(new Principal(curUser, Principal.PrincipalType.USER));
-    }
-    return superUsersList;
   }
 }
