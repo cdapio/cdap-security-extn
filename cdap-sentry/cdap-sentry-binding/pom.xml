@@ -36,10 +36,6 @@
       <artifactId>cdap-security</artifactId>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
-      <artifactId>cdap-common</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.apache.sentry</groupId>
       <artifactId>sentry-provider-db</artifactId>
     </dependency>

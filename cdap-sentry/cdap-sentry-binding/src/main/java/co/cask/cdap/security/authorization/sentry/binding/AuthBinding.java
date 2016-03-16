@@ -37,6 +37,7 @@ import co.cask.cdap.security.authorization.sentry.model.Namespace;
 import co.cask.cdap.security.authorization.sentry.model.Program;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
 import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
+import co.cask.cdap.security.spi.authentication.SecurityRequestContext;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -79,15 +80,12 @@ class AuthBinding {
   private final AuthConf authConf;
   private final AuthorizationProvider authProvider;
   private final String instanceName;
-  private final String requestorName;
   private final ActionFactory actionFactory;
   private final Set<Principal> superUsers;
 
-  public AuthBinding(String sentrySite, String instanceName, String requestorName) {
+  public AuthBinding(String sentrySite, String instanceName) {
     this.authConf = initAuthzConf(sentrySite);
     this.instanceName = instanceName;
-    //TODO: When we start working with Kerberos requestorName should be the the user logged in cdap.
-    this.requestorName = requestorName;
     this.authProvider = createAuthProvider();
     this.actionFactory = new ActionFactory();
     this.superUsers = getSuperUsers();
@@ -105,13 +103,14 @@ class AuthBinding {
     if (!roleExists(role)) {
       throw new IllegalArgumentException(String.format("Failed to perform grant. Role %s does not exists.", role));
     }
+    final String requestingUser = getRequestingUser();
     LOG.info("Granting actions {} on entity {} from principal {} on request of {}", actions, entityId, principal,
-             requestorName);
+             requestingUser);
     for (final Action action : actions) {
       execute(new Command<Void>() {
         @Override
         public Void run(SentryGenericServiceClient client) throws Exception {
-          client.grantPrivilege(requestorName, role, COMPONENT_NAME, toTSentryPrivilege(entityId, action));
+          client.grantPrivilege(requestingUser, role, COMPONENT_NAME, toTSentryPrivilege(entityId, action));
           return null;
         }
       });
@@ -131,13 +130,14 @@ class AuthBinding {
     if (!roleExists(role)) {
       throw new IllegalArgumentException(String.format("Failed to perform revoke. Role %s does not exists.", role));
     }
+    final String requestingUser = getRequestingUser();
     LOG.info("Revoking actions {} on entity {} from principal {} on request of {}", actions, entityId, principal,
-             requestorName);
+             requestingUser);
     for (final Action action : actions) {
       execute(new Command<Void>() {
         @Override
         public Void run(SentryGenericServiceClient client) throws Exception {
-          client.dropPrivilege(requestorName, role, toTSentryPrivilege(entityId, action));
+          client.dropPrivilege(requestingUser, role, toTSentryPrivilege(entityId, action));
           return null;
         }
       });
@@ -154,14 +154,15 @@ class AuthBinding {
     List<String> allRoles = getAllRoles();
     final List<TSentryPrivilege> allPrivileges = getAllPrivileges(allRoles);
     final List<TAuthorizable> tAuthorizables = toTAuthorizable(entityId);
-    LOG.info("Revoking all actions for all users from entity {} on request of {}", entityId, requestorName);
+    final String requestingUser = getRequestingUser();
+    LOG.info("Revoking all actions for all users from entity {} on request of {}", entityId, requestingUser);
     execute(new Command<Void>() {
       @Override
       public Void run(SentryGenericServiceClient client) throws Exception {
         for (TSentryPrivilege curPrivileges : allPrivileges) {
           if (tAuthorizables.equals(curPrivileges.getAuthorizables())) {
             // if the privilege is on same authorizables then drop it
-            client.dropPrivilege(requestorName, COMPONENT_NAME, curPrivileges);
+            client.dropPrivilege(requestingUser, COMPONENT_NAME, curPrivileges);
           }
         }
         return null;
@@ -312,7 +313,8 @@ class AuthBinding {
       public List<TSentryPrivilege> run(SentryGenericServiceClient client) throws Exception {
         final List<TSentryPrivilege> tSentryPrivileges = new ArrayList<>();
         for (String role : roles) {
-          tSentryPrivileges.addAll(client.listPrivilegesByRoleName(requestorName, role, COMPONENT_NAME, instanceName));
+          tSentryPrivileges.addAll(client.listPrivilegesByRoleName(getRequestingUser(), role, COMPONENT_NAME,
+                                                                   instanceName));
         }
         return tSentryPrivileges;
       }
@@ -328,7 +330,7 @@ class AuthBinding {
       @Override
       public List<String> run(SentryGenericServiceClient client) throws Exception {
         final List<String> roles = new ArrayList<>();
-        for (TSentryRole tSentryRole : client.listAllRoles(requestorName, COMPONENT_NAME)) {
+        for (TSentryRole tSentryRole : client.listAllRoles(getRequestingUser(), COMPONENT_NAME)) {
           roles.add(tSentryRole.getRoleName());
         }
         return roles;
@@ -417,5 +419,16 @@ class AuthBinding {
       default:
         throw new IllegalArgumentException(String.format("The entity %s is of unknown type %s", entityId, entityType));
     }
+  }
+
+  private String getRequestingUser() throws IllegalArgumentException {
+    // Preconditions.checkArgument(!SecurityRequestContext.getUserId().isPresent(), "No authenticated user found.");
+    // TODO Issues-15: To support testing on insecure clusters where we don't have security in cdap we will returning a
+    // dummy username. Once the development is almost finalized we should remove the below dummy username and
+    // uncomment the line above.
+    if (SecurityRequestContext.getUserId() == null) {
+      return "cdap";
+    }
+    return SecurityRequestContext.getUserId();
   }
 }
