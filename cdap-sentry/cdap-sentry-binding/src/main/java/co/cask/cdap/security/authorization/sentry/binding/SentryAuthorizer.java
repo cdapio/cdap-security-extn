@@ -43,9 +43,8 @@ public class SentryAuthorizer implements Authorizer {
   SentryAuthorizer(CConfiguration cConf) {
     final String sentrySiteUrl = cConf.get(AuthConf.SENTRY_SITE_URL);
 
-    Preconditions.checkNotNull(sentrySiteUrl, String.format("sentry-site.xml path is null in cdap-site.xml. " +
-                                                              "Please provide the path to sentry-site.xml in cdap " +
-                                                              "with property name %s", AuthConf.SENTRY_SITE_URL));
+    Preconditions.checkNotNull(sentrySiteUrl, "sentry-site.xml path is null in cdap-site.xml. Please provide the " +
+                                "path to sentry-site.xml in cdap with property name %s", AuthConf.SENTRY_SITE_URL);
 
     String serviceInstanceName = cConf.get(AuthConf.SERVICE_INSTANCE_NAME,
                                            AuthConf.AuthzConfVars.getDefault(AuthConf.SERVICE_INSTANCE_NAME));
@@ -60,8 +59,9 @@ public class SentryAuthorizer implements Authorizer {
   @Override
   public void grant(EntityId entityId, Principal principal, Set<Action> actions) {
     Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.ROLE, "The given principal {} is of " +
-      "type {}. In Sentry grants can only be done on roles. Please add the {}:{} to a role and perform grant on the " +
-      "role.", principal, principal.getType(), principal.getType(), principal.getName());
+                                  "type {}. In Sentry grants can only be done on roles. Please add the {}:{} to a " +
+                                  "role and perform grant on the role.", principal, principal.getType(),
+                                principal.getType(), principal.getName());
     binding.grant(entityId, principal, actions);
   }
 

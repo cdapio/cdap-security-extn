@@ -179,7 +179,7 @@ class AuthBinding {
    * else false
    */
   public boolean authorize(EntityId entityId, Principal principal, Action action) {
-    if (isSuperUser(principal)) {
+    if (superUsers.contains(principal)) {
       // superusers are allowed to perform any action on all entities so need to to authorize
       LOG.debug("Authorizing superuser with principal {} for action {} on entity {}", principal,
                 action, entityId);
@@ -192,20 +192,20 @@ class AuthBinding {
 
   /**
    * Gets a {@link Set} of {@link Principal} of superusers which is provided throug
-   * {@link AuthConf#SUPERUSERS}
+   * {@link AuthConf#SERVICE_SUPERUSERS}
    *
    * @return {@link Set} of {@link Principal} of superusers
    */
   public Set<Principal> getSuperUsers() {
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(authConf.get(AuthConf.SUPERUSERS)),
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(authConf.get(AuthConf.SERVICE_SUPERUSERS)),
                                 "No superUsers found in sentry-site.xml. Please provide a comma separated list of " +
                                   "users who will be superusers with property name %s. Example: user1,user2",
-                                AuthConf.SUPERUSERS);
-    Set<Principal> superUsersList = new HashSet<>();
-    for (String curUser : Splitter.on(",").trimResults().split(authConf.get(AuthConf.SUPERUSERS))) {
-      superUsersList.add(new Principal(curUser, Principal.PrincipalType.USER));
+                                AuthConf.SERVICE_SUPERUSERS);
+    Set<Principal> superUsers = new HashSet<>();
+    for (String curUser : Splitter.on(",").trimResults().split(authConf.get(AuthConf.SERVICE_SUPERUSERS))) {
+      superUsers.add(new Principal(curUser, Principal.PrincipalType.USER));
     }
-    return superUsersList;
+    return superUsers;
   }
 
   /**
@@ -225,10 +225,6 @@ class AuthBinding {
     authorizables.add(new Instance(instanceName));
     getAuthorizable(entityId, authorizables);
     return authorizables;
-  }
-
-  private boolean isSuperUser(Principal principal) {
-    return superUsers.contains(principal);
   }
 
   private AuthConf initAuthzConf(String sentrySite) {
