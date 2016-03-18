@@ -16,7 +16,6 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
-import co.cask.cdap.common.conf.CConfiguration;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
@@ -24,10 +23,11 @@ import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.Authorizer;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.base.Preconditions;
-import com.google.inject.Inject;
+import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Properties;
 import java.util.Set;
 
 /**
@@ -39,18 +39,24 @@ public class SentryAuthorizer implements Authorizer {
   private static final Logger LOG = LoggerFactory.getLogger(SentryAuthorizer.class);
   private final AuthBinding binding;
 
-  @Inject
-  SentryAuthorizer(CConfiguration cConf) {
-    final String sentrySiteUrl = cConf.get(AuthConf.SENTRY_SITE_URL);
+  public SentryAuthorizer(Properties properties) {
+    String sentrySiteUrl = properties.getProperty(AuthConf.SENTRY_SITE_URL);
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(AuthConf.SENTRY_SITE_URL),
+                                "Path to sentry-site.xml path is not specified in cdap-site.xml. Please provide the " +
+                                  "path to sentry-site.xml in cdap-site.xml with property name %s",
+                                AuthConf.SENTRY_SITE_URL);
+    String superUsers = properties.getProperty(AuthConf.SERVICE_SUPERUSERS);
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(superUsers),
+                                "No superUsers found in cdap-site.xml. Please provide a comma separated list of " +
+                                  "users who will be superusers with property name %s. Example: user1,user2",
+                                AuthConf.SERVICE_SUPERUSERS);
+    String serviceInstanceName = properties.containsKey(AuthConf.SERVICE_INSTANCE_NAME) ?
+      properties.getProperty(AuthConf.SERVICE_INSTANCE_NAME) :
+      AuthConf.AuthzConfVars.getDefault(AuthConf.SERVICE_INSTANCE_NAME);
 
-    Preconditions.checkNotNull(sentrySiteUrl, "sentry-site.xml path is null in cdap-site.xml. Please provide the " +
-                                "path to sentry-site.xml in cdap with property name %s", AuthConf.SENTRY_SITE_URL);
-
-    String serviceInstanceName = cConf.get(AuthConf.SERVICE_INSTANCE_NAME,
-                                           AuthConf.AuthzConfVars.getDefault(AuthConf.SERVICE_INSTANCE_NAME));
     LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {} and cdap instance name {}" +
                sentrySiteUrl, serviceInstanceName);
-    binding = new AuthBinding(sentrySiteUrl, serviceInstanceName);
+    this.binding = new AuthBinding(sentrySiteUrl, superUsers, serviceInstanceName);
   }
 
   @Override

@@ -8,7 +8,7 @@ Overview
 This project integrates CDAP with Apache Sentry to delegate authorization (both ACL Management and Enforcement) to
 Apache Sentry. It implements the CDAP
 `Authorizer <https://github.com/caskdata/cdap/blob/develop/cdap-security/src/main/java/co/cask/cdap/security/authorization/Authorizer.java>`_
-interface to achieve this integration.
+interface to achieve this integration. This project is implemented as a CDAP Authorizer extension.
 
 Code Organization
 =================
@@ -44,24 +44,15 @@ local maven repo. To do this, in the Apache Sentry source root directory please 
   mvn clean install -DskipTests
 
 
-``cdap-sentry`` is a Maven project with two basic profiles:
-
-``default``
------------
-
-Builds a basic ``cdap-sentry`` jar with no dependencies. To build this profile, run::
+To build the CDAP Sentry Extension and run tests, execute the following command from the ``cdap-sentry``
+root directory::
 
   mvn clean package
 
 
-``with-dependencies``
----------------------
+To skip tests, execute::
 
-Builds two jars - A jar with no dependencies, and a jar with first-level dependencies. This profile is only applicable
-to the CDAP Sentry Binding module. The jar with dependencies can be used by CDAP so all the required dependencies are
-available to the Sentry Client running in the CDAP Master. To build this profile, run::
-
-  mvn clean package -Pwith-dependencies
+   mvn clean package -DskipTests
 
 
 Deploying
@@ -69,11 +60,32 @@ Deploying
 
 The server side code only requires CDAP Sentry Policy and the CDAP Sentry Model classes. So, the
 ``cdap-sentry-policy/target/cdap-sentry-policy-*.jar`` and ``cdap-sentry-model/target/cdap-sentry-model-*.jar``
-should be deployed in the ``[SENTRY_HOME_DIR]/lib`` directory on the Sentry Service host.
+should be deployed in the ``[SENTRY_HOME_DIR]/lib`` directory on the Sentry Service host. After updating these
+jars, please restart the Sentry Service.
 
-The client side requires the CDAP Sentry Binding and the CDAP Sentry Model classes as well as their dependencies. So
-the ``cdap-sentry-binding/target/cdap-sentry-binding-*.jar``, which is a fat jar containing all the required
-dependencies should be deployed in the ``[CDAP_HOME]/lib`` directory on the CDAP Master host.
+The client side requires the CDAP Sentry Binding as well as its dependencies. To deploy the cdap-sentry
+authorization extension:
+
+- Install the ``cdap-sentry-binding/target/cdap-sentry-binding-*.jar`` at a known location on your CDAP Master host.
+- Set the following properties in in the ``cdap-site.xml`` that the Master uses:
+
+.. list-table::
+   :widths: 20 80
+   :header-rows: 1
+
+   * - Parameter
+     - Value
+   * - ``security.authorization.authorizer.extension.jar.path``
+     - Absolute path of the ``cdap-sentry-binding-*.jar`` on the local file system of the CDAP Master.
+   * - ``security.authorization.authorizer.extension.config.sentry.site.url``
+     - Absolute path of the client-side ``sentry-site.xml`` on the local file system of the CDAP Master.
+   * - ``security.authorization.authorizer.extension.config.cdap.superusers``
+     - Comma-separated list of super users. Super users are authorized to perform all operations on all entities.
+       They can also manage roles.
+   * - ``security.authorization.authorizer.extension.config.cdap.instance.name``
+     - String to use to identify the CDAP Instance. Defaults to 'cdap'.
+
+- Restart CDAP Master.
 
 After deploying the ``cdap-sentry`` jars, please restart the respective services (Apache Sentry Server and CDAP Master).
 

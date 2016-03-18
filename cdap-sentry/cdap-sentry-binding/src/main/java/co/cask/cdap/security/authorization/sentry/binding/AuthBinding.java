@@ -83,12 +83,12 @@ class AuthBinding {
   private final ActionFactory actionFactory;
   private final Set<Principal> superUsers;
 
-  public AuthBinding(String sentrySite, String instanceName) {
+  public AuthBinding(String sentrySite, String superUsers, String instanceName) {
     this.authConf = initAuthzConf(sentrySite);
     this.instanceName = instanceName;
     this.authProvider = createAuthProvider();
     this.actionFactory = new ActionFactory();
-    this.superUsers = getSuperUsers();
+    this.superUsers = getSuperUsers(superUsers);
   }
 
   /**
@@ -197,16 +197,12 @@ class AuthBinding {
    *
    * @return {@link Set} of {@link Principal} of superusers
    */
-  public Set<Principal> getSuperUsers() {
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(authConf.get(AuthConf.SERVICE_SUPERUSERS)),
-                                "No superUsers found in sentry-site.xml. Please provide a comma separated list of " +
-                                  "users who will be superusers with property name %s. Example: user1,user2",
-                                AuthConf.SERVICE_SUPERUSERS);
-    Set<Principal> superUsers = new HashSet<>();
-    for (String curUser : Splitter.on(",").trimResults().split(authConf.get(AuthConf.SERVICE_SUPERUSERS))) {
-      superUsers.add(new Principal(curUser, Principal.PrincipalType.USER));
+  private Set<Principal> getSuperUsers(String superUsers) {
+    Set<Principal> result = new HashSet<>();
+    for (String curUser : Splitter.on(",").trimResults().split(superUsers)) {
+      result.add(new Principal(curUser, Principal.PrincipalType.USER));
     }
-    return superUsers;
+    return result;
   }
 
   /**
@@ -277,7 +273,10 @@ class AuthBinding {
 
       if (resourceName != null && resourceName.startsWith("classpath:")) {
         String resourceFileName = resourceName.substring("classpath:".length());
-        resourceName = classLoader.getResource(resourceFileName).getPath();
+        URL resource = classLoader.getResource(resourceFileName);
+        Preconditions.checkState(resource != null, "Resource %s could not be loaded from authorizer classloader",
+                                 resourceFileName);
+        resourceName = resource.getPath();
       }
 
       // instantiate the configured provider backend
