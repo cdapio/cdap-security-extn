@@ -23,7 +23,6 @@ import co.cask.cdap.proto.security.Privilege;
 import co.cask.cdap.proto.security.Role;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.Authorizer;
-import co.cask.cdap.security.spi.authorization.InvalidPrincipalTypeException;
 import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
@@ -129,7 +128,7 @@ public class SentryAuthorizer implements Authorizer {
   }
 
   @Override
-  public Set<Role> listRoles(Principal principal) throws InvalidPrincipalTypeException {
+  public Set<Role> listRoles(Principal principal) {
     Preconditions.checkArgument(principal.getType() != Principal.PrincipalType.ROLE, "The given principal '%s' is of " +
                                 "type '%s'. In Sentry revoke roles can only be listed for '%s' and '%s'",
                                 principal.getName(), principal.getType(), Principal.PrincipalType.USER,

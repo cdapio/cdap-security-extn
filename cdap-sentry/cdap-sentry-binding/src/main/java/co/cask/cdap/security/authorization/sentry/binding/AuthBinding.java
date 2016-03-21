@@ -39,7 +39,6 @@ import co.cask.cdap.security.authorization.sentry.model.Program;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
 import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
 import co.cask.cdap.security.spi.authentication.SecurityRequestContext;
-import co.cask.cdap.security.spi.authorization.InvalidPrincipalTypeException;
 import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import com.google.common.annotations.VisibleForTesting;
@@ -244,7 +243,7 @@ class AuthBinding {
    * @param principal the principal for which roles need to be listed
    * @return {@link Set} of {@link Role} to which this principal belongs to
    */
-  Set<Role> listRolesForGroup(Principal principal) throws InvalidPrincipalTypeException {
+  Set<Role> listRolesForGroup(Principal principal) {
     return getRoles(principal);
   }
 
