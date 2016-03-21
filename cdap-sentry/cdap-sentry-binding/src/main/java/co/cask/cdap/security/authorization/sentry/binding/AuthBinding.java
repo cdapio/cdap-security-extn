@@ -26,6 +26,7 @@ import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
+import co.cask.cdap.proto.security.Role;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf.AuthzConfVars;
 import co.cask.cdap.security.authorization.sentry.model.ActionFactory;
@@ -38,11 +39,16 @@ import co.cask.cdap.security.authorization.sentry.model.Program;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
 import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
 import co.cask.cdap.security.spi.authentication.SecurityRequestContext;
+import co.cask.cdap.security.spi.authorization.InvalidPrincipalTypeException;
+import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
+import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.core.common.ActiveRoleSet;
@@ -68,6 +74,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 /**
  * This class instantiate the {@link AuthorizationProvider} configured in {@link AuthConf} and is responsible for
@@ -92,25 +99,24 @@ class AuthBinding {
   }
 
   /**
-   * Grants the given {@link Set} of {@link Action} on the given {@link EntityId} to the given {@link Principal}
+   * Grants the given {@link Set} of {@link Action} on the given {@link EntityId} to the given {@link Role}
    *
    * @param entityId on which the actions need to be granted
-   * @param principal to whom the actions needs to granted
+   * @param role to which the actions needs to granted
    * @param actions the actions which needs to be granted
+   * @throws RoleNotFoundException if the given principal does not exists as a role
    */
-  public void grant(final EntityId entityId, Principal principal, Set<Action> actions) {
-    final String role = principal.getName();
+  void grant(final EntityId entityId, final Role role, Set<Action> actions) throws RoleNotFoundException {
     if (!roleExists(role)) {
-      throw new IllegalArgumentException(String.format("Failed to perform grant. Role %s does not exists.", role));
+      throw new RoleNotFoundException(role);
     }
     final String requestingUser = getRequestingUser();
-    LOG.info("Granting actions {} on entity {} from principal {} on request of {}", actions, entityId, principal,
-             requestingUser);
+    LOG.info("Granting actions {} on entity {} for role {} on request of {}", actions, entityId, role, requestingUser);
     for (final Action action : actions) {
       execute(new Command<Void>() {
         @Override
         public Void run(SentryGenericServiceClient client) throws Exception {
-          client.grantPrivilege(requestingUser, role, COMPONENT_NAME, toTSentryPrivilege(entityId, action));
+          client.grantPrivilege(requestingUser, role.getName(), COMPONENT_NAME, toTSentryPrivilege(entityId, action));
           return null;
         }
       });
@@ -118,26 +124,25 @@ class AuthBinding {
   }
 
   /**
-   * Revokes a {@link Principal principal's} authorization to perform a set of {@link Action actions} on
+   * Revokes a {@link Role role's} authorization to perform a set of {@link Action actions} on
    * an {@link EntityId}.
    *
    * @param entityId the {@link EntityId} whose {@link Action actions} are to be revoked
-   * @param principal the {@link Principal} that performs the actions. This could be a user, group or a role
+   * @param role the {@link Role} from which the actions needs to be revoked
    * @param actions the set of {@link Action actions} to revoke
+   * @throws RoleNotFoundException if the given principal does not exists as a role
    */
-  public void revoke(final EntityId entityId, Principal principal, Set<Action> actions) {
-    final String role = principal.getName();
+  void revoke(final EntityId entityId, final Role role, Set<Action> actions) throws RoleNotFoundException {
     if (!roleExists(role)) {
-      throw new IllegalArgumentException(String.format("Failed to perform revoke. Role %s does not exists.", role));
+      throw new RoleNotFoundException(role);
     }
     final String requestingUser = getRequestingUser();
-    LOG.info("Revoking actions {} on entity {} from principal {} on request of {}", actions, entityId, principal,
-             requestingUser);
+    LOG.info("Revoking actions {} on entity {} from role {} on request of {}", actions, entityId, role, requestingUser);
     for (final Action action : actions) {
       execute(new Command<Void>() {
         @Override
         public Void run(SentryGenericServiceClient client) throws Exception {
-          client.dropPrivilege(requestingUser, role, toTSentryPrivilege(entityId, action));
+          client.dropPrivilege(requestingUser, role.getName(), toTSentryPrivilege(entityId, action));
           return null;
         }
       });
@@ -150,8 +155,8 @@ class AuthBinding {
    *
    * @param entityId the {@link EntityId} on which all {@link Action actions} are to be revoked
    */
-  public void revoke(EntityId entityId) {
-    List<String> allRoles = getAllRoles();
+  void revoke(EntityId entityId) {
+    Set<Role> allRoles = listAllRoles();
     final List<TSentryPrivilege> allPrivileges = getAllPrivileges(allRoles);
     final List<TAuthorizable> tAuthorizables = toTAuthorizable(entityId);
     final String requestingUser = getRequestingUser();
@@ -179,16 +184,139 @@ class AuthBinding {
    * @return true if the given {@link Principal} can perform the given {@link Action} on the given {@link EntityId}
    * else false
    */
-  public boolean authorize(EntityId entityId, Principal principal, Action action) {
+  boolean authorize(EntityId entityId, Principal principal, Action action) {
     if (superUsers.contains(principal)) {
       // superusers are allowed to perform any action on all entities so need to to authorize
-      LOG.debug("Authorizing superuser with principal {} for action {} on entity {}", principal,
-                action, entityId);
+      LOG.info("Authorizing superuser with principal {} for action {} on entity {}", principal,
+               action, entityId);
       return true;
     }
     List<Authorizable> authorizables = convertEntityToAuthorizables(instanceName, entityId);
     Set<ActionFactory.Action> actions = Sets.newHashSet(actionFactory.getActionByName(action.name()));
     return authProvider.hasAccess(new Subject(principal.getName()), authorizables, actions, ActiveRoleSet.ALL);
+  }
+
+  /**
+   * Creates the given role.
+   *
+   * @param role the role to be created
+   * @throws RoleAlreadyExistsException if the given role already exists
+   */
+  void createRole(final Role role) throws RoleAlreadyExistsException {
+    if (roleExists(role)) {
+      throw new RoleAlreadyExistsException(role);
+    }
+    final String requestingUser = getRequestingUser();
+    execute(new Command<Void>() {
+      @Override
+      public Void run(SentryGenericServiceClient client) throws Exception {
+        client.createRole(requestingUser, role.getName(), COMPONENT_NAME);
+        LOG.info("Created role {} on request of {}", role, requestingUser);
+        return null;
+      }
+    });
+  }
+
+  /**
+   * Drops the given role.
+   *
+   * @param role the role to dropped
+   * @throws RoleNotFoundException if the role to be dropped does not exists
+   */
+  void dropRole(final Role role) throws RoleNotFoundException {
+    if (!roleExists(role)) {
+      throw new RoleNotFoundException(role);
+    }
+    final String requestingUser = getRequestingUser();
+    execute(new Command<Void>() {
+      @Override
+      public Void run(SentryGenericServiceClient client) throws Exception {
+        client.dropRole(requestingUser, role.getName(), COMPONENT_NAME);
+        LOG.info("Dropped role {} on request of {}", role, requestingUser);
+        return null;
+      }
+    });
+  }
+
+  /**
+   * Lists roles for the given principal
+   *
+   * @param principal the principal for which roles need to be listed
+   * @return {@link Set} of {@link Role} to which this principal belongs to
+   */
+  Set<Role> listRolesForGroup(Principal principal) throws InvalidPrincipalTypeException {
+    return getRoles(principal);
+  }
+
+  /**
+   * Lists all roles
+   * @return {@link Set} of all {@link Role}
+   */
+  Set<Role> listAllRoles() {
+    return getRoles(null);
+  }
+
+  /**
+   * Add a role to group principal
+   *
+   * @param role the role which needs to be added to the group principal
+   * @param principal the group principal to which the role needs to be added
+   * @throws RoleNotFoundException if the role to be added does not exists
+   */
+  void addRoleToGroup(final Role role, final Principal principal) throws RoleNotFoundException {
+    if (!roleExists(role)) {
+      throw new RoleNotFoundException(role);
+    }
+    execute(new Command<Void>() {
+      @Override
+      public Void run(SentryGenericServiceClient client) throws Exception {
+        client.addRoleToGroups(getRequestingUser(), role.getName(), COMPONENT_NAME,
+                               ImmutableSet.of(principal.getName()));
+        return null;
+      }
+    });
+  }
+
+  /**
+   * Removed a role from group principal
+   *
+   * @param role the role which needs to be removed to the group principal
+   * @param principal the group principal to which the role needs to be removed
+   * @throws RoleNotFoundException if the role to be removed does not exists
+   */
+  void removeRoleFromGroup(final Role role, final Principal principal) throws RoleNotFoundException {
+    if (!roleExists(role)) {
+      throw new RoleNotFoundException(role);
+    }
+    execute(new Command<Void>() {
+      @Override
+      public Void run(SentryGenericServiceClient client) throws Exception {
+        client.deleteRoleToGroups(getRequestingUser(), role.getName(), COMPONENT_NAME,
+                                  ImmutableSet.of(principal.getName()));
+        return null;
+      }
+    });
+  }
+
+  private Set<Role> getRoles(@Nullable final Principal principal) {
+    Set<Role> roles = new HashSet<>();
+    final String requestingUser = getRequestingUser();
+    Set<TSentryRole> tSentryRoles = execute(new Command<Set<TSentryRole>>() {
+      @Override
+      public Set<TSentryRole> run(SentryGenericServiceClient client) throws Exception {
+        return principal == null ? client.listAllRoles(requestingUser, COMPONENT_NAME) :
+          client.listRolesByGroupName(requestingUser, principal.getName(), COMPONENT_NAME);
+      }
+    });
+    for (TSentryRole tSentryRole : tSentryRoles) {
+      roles.add(new Role(tSentryRole.getRoleName()));
+    }
+    if (principal == null) {
+      LOG.info("Listed all roles {} on request of {}", roles, requestingUser);
+    } else {
+      LOG.info("Listed roles {} for principal {} on request of {}", roles, principal, requestingUser);
+    }
+    return ImmutableSet.copyOf(roles);
   }
 
   /**
@@ -306,35 +434,22 @@ class AuthBinding {
     }
   }
 
-  private List<TSentryPrivilege> getAllPrivileges(final List<String> roles) {
+  private List<TSentryPrivilege> getAllPrivileges(final Set<Role> roles) {
     return execute(new Command<List<TSentryPrivilege>>() {
       @Override
       public List<TSentryPrivilege> run(SentryGenericServiceClient client) throws Exception {
         final List<TSentryPrivilege> tSentryPrivileges = new ArrayList<>();
-        for (String role : roles) {
-          tSentryPrivileges.addAll(client.listPrivilegesByRoleName(getRequestingUser(), role, COMPONENT_NAME,
-                                                                   instanceName));
+        for (Role role : roles) {
+          tSentryPrivileges.addAll(client.listPrivilegesByRoleName(getRequestingUser(), role.getName(),
+                                                                   COMPONENT_NAME, instanceName));
         }
-        return tSentryPrivileges;
+        return ImmutableList.copyOf(tSentryPrivileges);
       }
     });
   }
 
-  private boolean roleExists(String role) {
-    return getAllRoles().contains(role);
-  }
-
-  private List<String> getAllRoles() {
-    return execute(new Command<List<String>>() {
-      @Override
-      public List<String> run(SentryGenericServiceClient client) throws Exception {
-        final List<String> roles = new ArrayList<>();
-        for (TSentryRole tSentryRole : client.listAllRoles(getRequestingUser(), COMPONENT_NAME)) {
-          roles.add(tSentryRole.getRoleName());
-        }
-        return roles;
-      }
-    });
+  private boolean roleExists(Role role) {
+    return listAllRoles().contains(role);
   }
 
   private TSentryPrivilege toTSentryPrivilege(EntityId entityId, Action action) {
