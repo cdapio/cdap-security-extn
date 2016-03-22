@@ -22,13 +22,14 @@ import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.proto.security.Privilege;
 import co.cask.cdap.proto.security.Role;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
+import co.cask.cdap.security.spi.authorization.AbstractAuthorizer;
+import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.Authorizer;
 import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,12 +40,17 @@ import java.util.Set;
  * This class implements {@link Authorizer} from CDAP and is responsible for interacting with Sentry to manage
  * privileges.
  */
-public class SentryAuthorizer implements Authorizer {
+public class SentryAuthorizer extends AbstractAuthorizer {
 
   private static final Logger LOG = LoggerFactory.getLogger(SentryAuthorizer.class);
-  private final AuthBinding binding;
+  private AuthBinding binding;
 
-  public SentryAuthorizer(Properties properties) {
+  public SentryAuthorizer() {
+  }
+
+  @Override
+  public void initialize(AuthorizationContext context) throws Exception {
+    Properties properties = context.getExtensionProperties();
     String sentrySiteUrl = properties.getProperty(AuthConf.SENTRY_SITE_URL);
     Preconditions.checkArgument(!Strings.isNullOrEmpty(AuthConf.SENTRY_SITE_URL),
                                 "Path to sentry-site.xml path is not specified in cdap-site.xml. Please provide the " +
@@ -65,33 +71,22 @@ public class SentryAuthorizer implements Authorizer {
   }
 
   @Override
-  public void grant(EntityId entityId, Principal principal, Set<Action> actions) {
+  public void grant(EntityId entityId, Principal principal, Set<Action> actions) throws RoleNotFoundException {
     Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.ROLE,
                                 "The given principal '%s' is of type '%s'. In Sentry grants can only be done on " +
-                                "roles. Please add the '%s':'%s' to a role and perform grant on the role.",
+                                  "roles. Please add the '%s':'%s' to a role and perform grant on the role.",
                                 principal.getName(), principal.getType(),
                                 principal.getType(), principal.getName());
-    // TODO: Remove this when grant and revoke api throw exception
-
-    try {
-      binding.grant(entityId, new Role(principal.getName()), actions);
-    } catch (RoleNotFoundException e) {
-      throw Throwables.propagate(e);
-    }
+    binding.grant(entityId, new Role(principal.getName()), actions);
   }
 
 
   @Override
-  public void revoke(EntityId entityId, Principal principal, Set<Action> actions) {
+  public void revoke(EntityId entityId, Principal principal, Set<Action> actions) throws RoleNotFoundException {
     Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.ROLE, "The given principal '%s' is of " +
-                                "type '%s'. In Sentry revoke can only be done on roles.",
+                                  "type '%s'. In Sentry revoke can only be done on roles.",
                                 principal.getName(), principal.getType());
-    // TODO: Remove this when grant and revoke api throw exception
-    try {
-      binding.revoke(entityId, new Role(principal.getName()), actions);
-    } catch (RoleNotFoundException e) {
-      throw Throwables.propagate(e);
-    }
+    binding.revoke(entityId, new Role(principal.getName()), actions);
   }
 
   @Override
