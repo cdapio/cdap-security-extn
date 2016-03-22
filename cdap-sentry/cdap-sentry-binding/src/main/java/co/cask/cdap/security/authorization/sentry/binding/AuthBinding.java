@@ -407,8 +407,9 @@ class AuthBinding {
       }
 
       // instantiate the configured provider backend
-      Constructor<?> providerBackendConstructor = classLoader.loadClass(providerBackendName)
-        .getDeclaredConstructor(Configuration.class, String.class);
+      Class<?> providerBackendClass = classLoader.loadClass(providerBackendName);
+      Constructor<?> providerBackendConstructor = providerBackendClass.getDeclaredConstructor(Configuration.class,
+                                                                                              String.class);
       providerBackendConstructor.setAccessible(true);
       ProviderBackend providerBackend = (ProviderBackend) providerBackendConstructor.newInstance(authConf,
                                                                                                  resourceName);
@@ -418,13 +419,14 @@ class AuthBinding {
       }
 
       // instantiate the configured policy engine
-      Constructor<?> policyConstructor = classLoader.loadClass(policyEngineName)
-        .getDeclaredConstructor(ProviderBackend.class);
-      policyConstructor.setAccessible(true);
-      PolicyEngine policyEngine = (PolicyEngine) policyConstructor.newInstance(providerBackend);
+      Class<?> policyEngineClass = classLoader.loadClass(policyEngineName);
+      Constructor<?> policyEngineConstructor = policyEngineClass.getDeclaredConstructor(ProviderBackend.class);
+      policyEngineConstructor.setAccessible(true);
+      PolicyEngine policyEngine = (PolicyEngine) policyEngineConstructor.newInstance(providerBackend);
 
       // Instantiate the configured authz provider
-      Constructor<?> authzProviderConstructor = classLoader.loadClass(authProviderName).getDeclaredConstructor(
+      Class<?> authProviderClass = classLoader.loadClass(authProviderName);
+      Constructor<?> authzProviderConstructor = authProviderClass.getDeclaredConstructor(
         Configuration.class, String.class, PolicyEngine.class);
       authzProviderConstructor.setAccessible(true);
       return (AuthorizationProvider) authzProviderConstructor.newInstance(authConf, resourceName, policyEngine);

@@ -16,6 +16,12 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
+import co.cask.cdap.api.TxRunnable;
+import co.cask.cdap.api.data.DatasetInstantiationException;
+import co.cask.cdap.api.dataset.Dataset;
+import co.cask.cdap.api.dataset.DatasetManagementException;
+import co.cask.cdap.api.dataset.DatasetProperties;
+import co.cask.cdap.api.dataset.InstanceNotFoundException;
 import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.DatasetId;
@@ -27,12 +33,15 @@ import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
+import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
+import co.cask.tephra.TransactionFailureException;
 import com.google.common.base.Joiner;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.net.URL;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -44,14 +53,82 @@ public class SentryAuthorizerTest {
   private static final String SUPERUSER_HULK = "hulk";
   private static final String SUPERUSER_SPIDERMAN = "spiderman";
 
-  public SentryAuthorizerTest() {
+  public SentryAuthorizerTest() throws Exception {
     URL resource = getClass().getClassLoader().getResource("sentry-site.xml");
     Assert.assertNotNull(resource);
     String sentrySitePath = resource.getPath();
-    Properties properties = new Properties();
+    final Properties properties = new Properties();
     properties.put(AuthConf.SENTRY_SITE_URL, sentrySitePath);
     properties.put(AuthConf.SERVICE_SUPERUSERS, Joiner.on(",").join(SUPERUSER_HULK, SUPERUSER_SPIDERMAN));
-    this.authorizer = new SentryAuthorizer(properties);
+    this.authorizer = new SentryAuthorizer();
+    authorizer.initialize(new AuthorizationContext() {
+      @Override
+      public Properties getExtensionProperties() {
+        return properties;
+      }
+
+      @Override
+      public boolean datasetExists(String name) throws DatasetManagementException {
+        return false;
+      }
+
+      @Override
+      public String getDatasetType(String name) throws DatasetManagementException {
+        throw new InstanceNotFoundException(name);
+      }
+
+      @Override
+      public DatasetProperties getDatasetProperties(String name) throws DatasetManagementException {
+        throw new InstanceNotFoundException(name);
+      }
+
+      @Override
+      public void createDataset(String name, String type, DatasetProperties datasetProperties)
+        throws DatasetManagementException {
+
+      }
+
+      @Override
+      public void updateDataset(String name, DatasetProperties datasetProperties) throws DatasetManagementException {
+
+      }
+
+      @Override
+      public void dropDataset(String name) throws DatasetManagementException {
+
+      }
+
+      @Override
+      public void truncateDataset(String name) throws DatasetManagementException {
+
+      }
+
+      @Override
+      public <T extends Dataset> T getDataset(String name) throws DatasetInstantiationException {
+        throw new DatasetInstantiationException("Cannot get dataset through no-op AuthorizationContext");
+      }
+
+      @Override
+      public <T extends Dataset> T getDataset(String name, Map<String, String> map)
+        throws DatasetInstantiationException {
+        throw new DatasetInstantiationException("Cannot get dataset through no-op AuthorizationContext");
+      }
+
+      @Override
+      public void releaseDataset(Dataset dataset) {
+
+      }
+
+      @Override
+      public void discardDataset(Dataset dataset) {
+
+      }
+
+      @Override
+      public void execute(TxRunnable txRunnable) throws TransactionFailureException {
+
+      }
+    });
   }
 
   @Test
