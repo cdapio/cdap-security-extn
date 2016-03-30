@@ -16,21 +16,45 @@
 
 package co.cask.cdap.security.authorization.sentry.model;
 
+import co.cask.cdap.api.artifact.ArtifactId;
+import com.google.common.base.Preconditions;
+
 import java.util.Objects;
 
 /**
  * Represents the {@link Authorizable.AuthorizableType#ARTIFACT} authorizable in CDAP
  */
 public class Artifact implements Authorizable {
-  private final String name;
+
+  private static final String ARTIFACT_DETAILS_SEPARATOR = ".";
+
+  private final String artifactName;
+  private final String artifactVersion;
 
   /**
    * Create an {@link Authorizable.AuthorizableType#ARTIFACT} authorizable of the given name.
    *
-   * @param name Name of the {@link Authorizable.AuthorizableType#ARTIFACT}
+   * @param artifactDetails Details of the {@link Authorizable.AuthorizableType#ARTIFACT} which must be in the
+   * following format {@link ArtifactId#name artifactName}.{@link ArtifactId#version artifactVersion}
    */
-  public Artifact(String name) {
-    this.name = name;
+  public Artifact(String artifactDetails) {
+    String splitter = "\\" + ARTIFACT_DETAILS_SEPARATOR;
+    String[] artifactNameVersion = artifactDetails.trim().split(splitter, 2);
+    Preconditions.checkArgument(artifactNameVersion.length == 2, "Artifact details %s is invalid. Artifact details " +
+      "must be in the following format: artifactName%sartifactVersion.", artifactDetails, ARTIFACT_DETAILS_SEPARATOR);
+    this.artifactName = artifactNameVersion[0];
+    this.artifactVersion = artifactNameVersion[1];
+  }
+
+  /**
+   * Construct an {@link Authorizable.AuthorizableType#ARTIFACT} authorizable with a known artifact name and version
+   *
+   * @param artifactName the artifact name
+   * @param artifactVersion the artifact version
+   */
+  public Artifact(String artifactName, String artifactVersion) {
+    this.artifactName = artifactName;
+    this.artifactVersion = artifactVersion;
   }
 
   /**
@@ -44,13 +68,32 @@ public class Artifact implements Authorizable {
   }
 
   /**
-   * Get name of the {@link Authorizable.AuthorizableType#ARTIFACT}.
+   * Get the artifact details of the {@link Authorizable.AuthorizableType#ARTIFACT} in the following format
+   * {@link ArtifactId#name artifactName}.{@link ArtifactId#version artifactVersion}
    *
    * @return Name of the {@link Authorizable.AuthorizableType#ARTIFACT}.
    */
   @Override
   public String getName() {
-    return name;
+    return artifactName + ARTIFACT_DETAILS_SEPARATOR + artifactVersion;
+  }
+
+  /**
+   * Gets name of the {@link Authorizable.AuthorizableType#ARTIFACT}.
+   *
+   * @return name of the {@link Authorizable.AuthorizableType#ARTIFACT}.
+   */
+  public String getArtifactName() {
+    return artifactName;
+  }
+
+  /**
+   * Gets version of the {@link Authorizable.AuthorizableType#ARTIFACT}.
+   *
+   * @return version of the {@link Authorizable.AuthorizableType#ARTIFACT}.
+   */
+  public String getArtifactVersion() {
+    return artifactVersion;
   }
 
   /**
@@ -72,11 +115,11 @@ public class Artifact implements Authorizable {
       return false;
     }
     Artifact that = (Artifact) o;
-    return Objects.equals(name, that.name);
+    return Objects.equals(artifactName, that.artifactName) && Objects.equals(artifactVersion, that.artifactVersion);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(name);
+    return Objects.hash(artifactName, artifactVersion);
   }
 }
