@@ -21,22 +21,26 @@ import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.ArtifactId;
 import co.cask.cdap.proto.id.DatasetId;
 import co.cask.cdap.proto.id.EntityId;
+import co.cask.cdap.proto.id.InstanceId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
+import co.cask.cdap.proto.security.Privilege;
 import co.cask.cdap.proto.security.Role;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf.AuthzConfVars;
 import co.cask.cdap.security.authorization.sentry.model.ActionFactory;
 import co.cask.cdap.security.authorization.sentry.model.Application;
 import co.cask.cdap.security.authorization.sentry.model.Artifact;
+import co.cask.cdap.security.authorization.sentry.model.Authorizable;
 import co.cask.cdap.security.authorization.sentry.model.Dataset;
 import co.cask.cdap.security.authorization.sentry.model.Instance;
 import co.cask.cdap.security.authorization.sentry.model.Namespace;
 import co.cask.cdap.security.authorization.sentry.model.Program;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
+import co.cask.cdap.security.authorization.sentry.policy.ModelAuthorizables;
 import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
 import co.cask.cdap.security.spi.authentication.SecurityRequestContext;
 import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
@@ -51,7 +55,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.core.common.ActiveRoleSet;
-import org.apache.sentry.core.common.Authorizable;
 import org.apache.sentry.core.common.Subject;
 import org.apache.sentry.policy.common.PolicyEngine;
 import org.apache.sentry.provider.common.AuthorizationProvider;
@@ -69,6 +72,7 @@ import java.lang.reflect.Constructor;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -78,7 +82,7 @@ import javax.annotation.Nullable;
 /**
  * This class instantiate the {@link AuthorizationProvider} configured in {@link AuthConf} and is responsible for
  * performing different authorization operation on CDAP entities by mapping them to authorizables
- * {@link #convertEntityToAuthorizables(String, EntityId)}
+ * {@link #toSentryAuthorizables(EntityId)}
  */
 class AuthBinding {
   private static final Logger LOG = LoggerFactory.getLogger(AuthBinding.class);
@@ -89,7 +93,7 @@ class AuthBinding {
   private final ActionFactory actionFactory;
   private final Set<Principal> superUsers;
 
-  public AuthBinding(String sentrySite, String superUsers, String instanceName) {
+  AuthBinding(String sentrySite, String superUsers, String instanceName) {
     this.authConf = initAuthzConf(sentrySite);
     this.instanceName = instanceName;
     this.authProvider = createAuthProvider();
@@ -190,9 +194,39 @@ class AuthBinding {
                action, entityId);
       return true;
     }
-    List<Authorizable> authorizables = convertEntityToAuthorizables(instanceName, entityId);
+    List<org.apache.sentry.core.common.Authorizable> authorizables = toSentryAuthorizables(entityId);
     Set<ActionFactory.Action> actions = Sets.newHashSet(actionFactory.getActionByName(action.name()));
     return authProvider.hasAccess(new Subject(principal.getName()), authorizables, actions, ActiveRoleSet.ALL);
+  }
+
+  /**
+   * Lists {@link Privilege privileges} for the given {@link Principal}
+   *
+   * @param principal the principal for which the privileges has to be listed
+   * @return {@link Set} of {@link Privilege privilege} for the given principal
+   */
+  Set<Privilege> listPrivileges(Principal principal) {
+    Set<Role> roles = getRoles(principal);
+    LOG.debug("Listing all privileges for {}; Requesting user: {}", principal, getRequestingUser());
+    List<TSentryPrivilege> allPrivileges = getAllPrivileges(roles);
+    return toPrivileges(allPrivileges);
+  }
+
+  @VisibleForTesting
+  Set<Privilege> toPrivileges(List<TSentryPrivilege> allPrivileges) {
+    Set<Privilege> privileges = new HashSet<>();
+    for (TSentryPrivilege sentryPrivilege : allPrivileges) {
+      List<TAuthorizable> authorizables = sentryPrivilege.getAuthorizables();
+      if (authorizables.isEmpty()) {
+        continue;
+      }
+      EntityId parent = null;
+      for (TAuthorizable authorizable : authorizables) {
+        parent = toEntityId(authorizable, parent);
+      }
+      privileges.add(new Privilege(parent, Action.valueOf(sentryPrivilege.getAction().toUpperCase())));
+    }
+    return privileges;
   }
 
   /**
@@ -249,6 +283,7 @@ class AuthBinding {
 
   /**
    * Lists all roles
+   *
    * @return {@link Set} of all {@link Role}
    */
   Set<Role> listAllRoles() {
@@ -297,7 +332,25 @@ class AuthBinding {
     });
   }
 
+  /**
+   * Maps the given {@link EntityId} to {@link Authorizable}. To see a valid set of {@link Authorizable}
+   * please see {@link PrivilegeValidator} which is responsible for validating these authorizables positions and action.
+   *
+   * @param entityId the {@link EntityId} which needs to be mapped to list of {@link Authorizable}
+   * @return a {@link List} of {@link Authorizable} which represents the given {@link EntityId}
+   */
+  @VisibleForTesting
+  List<org.apache.sentry.core.common.Authorizable> toSentryAuthorizables(final EntityId entityId) {
+    List<org.apache.sentry.core.common.Authorizable> authorizables = new LinkedList<>();
+    toAuthorizables(entityId, authorizables);
+    return authorizables;
+  }
+
   private Set<Role> getRoles(@Nullable final Principal principal) {
+    // if the specified principal is non-null and is a role, then we just return a singleton set containing that role
+    if (principal != null && Principal.PrincipalType.ROLE == principal.getType()) {
+      return Collections.singleton(new Role(principal.getName()));
+    }
     Set<Role> roles = new HashSet<>();
     final String requestingUser = getRequestingUser();
     Set<TSentryRole> tSentryRoles = execute(new Command<Set<TSentryRole>>() {
@@ -311,9 +364,9 @@ class AuthBinding {
       roles.add(new Role(tSentryRole.getRoleName()));
     }
     if (principal == null) {
-      LOG.info("Listed all roles {} on request of {}", roles, requestingUser);
+      LOG.info("Listed all roles {}; Requesting user: {}", roles, requestingUser);
     } else {
-      LOG.info("Listed roles {} for principal {} on request of {}", roles, principal, requestingUser);
+      LOG.info("Listed roles {} for principal {}; Requesting user: {}", roles, principal, requestingUser);
     }
     return ImmutableSet.copyOf(roles);
   }
@@ -330,25 +383,6 @@ class AuthBinding {
       result.add(new Principal(curUser, Principal.PrincipalType.USER));
     }
     return result;
-  }
-
-  /**
-   * Maps the given {@link EntityId} to {@link Authorizable}. To see a valid set of {@link Authorizable}
-   * please see {@link PrivilegeValidator} which is responsible for validating these authorizables positions and action.
-   *
-   * @param instanceName the name of the cdap instance
-   * @param entityId the {@link EntityId} which needs to be mapped to list of {@link Authorizable}
-   * @return a {@link List} of {@link Authorizable} which represents the given {@link EntityId}
-   */
-  @VisibleForTesting
-  static List<org.apache.sentry.core.common.Authorizable> convertEntityToAuthorizables(
-    final String instanceName, final EntityId entityId) {
-    List<org.apache.sentry.core.common.Authorizable> authorizables = new LinkedList<>();
-    // cdap instance is not a concept in cdap entities. In sentry integration we need to grant privileges on the
-    // instance so that users can create namespace inside the instance etc.
-    authorizables.add(new Instance(instanceName));
-    getAuthorizable(entityId, authorizables);
-    return authorizables;
   }
 
   private AuthConf initAuthzConf(String sentrySite) {
@@ -453,10 +487,11 @@ class AuthBinding {
     return listAllRoles().contains(role);
   }
 
-  private TSentryPrivilege toTSentryPrivilege(EntityId entityId, Action action) {
-    List<Authorizable> authorizables = convertEntityToAuthorizables(instanceName, entityId);
+  @VisibleForTesting
+  TSentryPrivilege toTSentryPrivilege(EntityId entityId, Action action) {
+    List<org.apache.sentry.core.common.Authorizable> authorizables = toSentryAuthorizables(entityId);
     List<TAuthorizable> tAuthorizables = new ArrayList<>();
-    for (Authorizable authorizable : authorizables) {
+    for (org.apache.sentry.core.common.Authorizable authorizable : authorizables) {
       tAuthorizables.add(new TAuthorizable(authorizable.getTypeName(), authorizable.getName()));
     }
     return new TSentryPrivilege(COMPONENT_NAME, instanceName, tAuthorizables, action.name());
@@ -492,6 +527,48 @@ class AuthBinding {
   }
 
   /**
+   * Maps a {@link TAuthorizable sentry authorizable} to {@link EntityId}
+   *
+   * @param tAuthorizable the TAuthorizable which needs to be mapped to entity
+   * @param parent the parent entity of this TAuthorizable
+   * @return {@link EntityId} for the given {@link TAuthorizable}
+   */
+  private EntityId toEntityId(TAuthorizable tAuthorizable, @Nullable EntityId parent) {
+    Authorizable authorizable = ModelAuthorizables.from(tAuthorizable.getType(), tAuthorizable.getName());
+    switch (Authorizable.AuthorizableType.valueOf(tAuthorizable.getType())) {
+      case INSTANCE:
+        return new InstanceId(instanceName);
+      case NAMESPACE:
+        Namespace namespace = (Namespace) authorizable;
+        return new NamespaceId(namespace.getName());
+      case ARTIFACT:
+        Artifact artifact = (Artifact) authorizable;
+        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.ARTIFACT);
+        return ((NamespaceId) parent).artifact(artifact.getArtifactName(), artifact.getArtifactVersion());
+      case APPLICATION:
+        Application application = (Application) authorizable;
+        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.APPLICATION);
+        return ((NamespaceId) parent).app(application.getName());
+      case PROGRAM:
+        Program program = (Program) authorizable;
+        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.PROGRAM);
+        ApplicationId applicationId = (ApplicationId) parent;
+        return applicationId.program(program.getProgramType(), program.getProgramName());
+      case DATASET:
+        Dataset dataset = (Dataset) authorizable;
+        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.DATASET);
+        return ((NamespaceId) parent).dataset(dataset.getName());
+      case STREAM:
+        Stream stream = (Stream) authorizable;
+        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.STREAM);
+        return ((NamespaceId) parent).stream(stream.getName());
+      default:
+        throw new IllegalArgumentException(String.format("Sentry Authorizable %s has invalid type %s",
+                                                         tAuthorizable.getName(), tAuthorizable.getType()));
+    }
+  }
+
+  /**
    * Maps {@link EntityId} to a {@link List} of {@link co.cask.cdap.security.authorization.sentry.model.Authorizable}
    * by recursively working its way from a given entity.
    *
@@ -499,37 +576,40 @@ class AuthBinding {
    * @param authorizables {@link List} of {@link co.cask.cdap.security.authorization.sentry.model.Authorizable} to
    * add authorizables to
    */
-  private static void getAuthorizable(EntityId entityId,
-                                      List<org.apache.sentry.core.common.Authorizable> authorizables) {
+  private void toAuthorizables(EntityId entityId, List<org.apache.sentry.core.common.Authorizable> authorizables) {
     EntityType entityType = entityId.getEntity();
     switch (entityType) {
+      case INSTANCE:
+        authorizables.add(new Instance(((InstanceId) entityId).getInstance()));
+        break;
       case NAMESPACE:
+        toAuthorizables(new InstanceId(instanceName), authorizables);
         authorizables.add(new Namespace(((NamespaceId) entityId).getNamespace()));
         break;
       case ARTIFACT:
         ArtifactId artifactId = (ArtifactId) entityId;
-        getAuthorizable(artifactId.getParent(), authorizables);
-        authorizables.add(new Artifact((artifactId).getArtifact()));
+        toAuthorizables(artifactId.getParent(), authorizables);
+        authorizables.add(new Artifact(artifactId.getArtifact(), artifactId.getVersion()));
         break;
       case APPLICATION:
         ApplicationId applicationId = (ApplicationId) entityId;
-        getAuthorizable(applicationId.getParent(), authorizables);
+        toAuthorizables(applicationId.getParent(), authorizables);
         authorizables.add(new Application((applicationId).getApplication()));
         break;
       case DATASET:
         DatasetId dataset = (DatasetId) entityId;
-        getAuthorizable(dataset.getParent(), authorizables);
+        toAuthorizables(dataset.getParent(), authorizables);
         authorizables.add(new Dataset((dataset).getDataset()));
         break;
       case STREAM:
         StreamId streamId = (StreamId) entityId;
-        getAuthorizable(streamId.getParent(), authorizables);
+        toAuthorizables(streamId.getParent(), authorizables);
         authorizables.add(new Stream((streamId).getStream()));
         break;
       case PROGRAM:
         ProgramId programId = (ProgramId) entityId;
-        getAuthorizable(programId.getParent(), authorizables);
-        authorizables.add(new Program(programId.getProgram()));
+        toAuthorizables(programId.getParent(), authorizables);
+        authorizables.add(new Program(programId.getType(), programId.getProgram()));
         break;
       default:
         throw new IllegalArgumentException(String.format("The entity %s is of unknown type %s", entityId, entityType));

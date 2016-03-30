@@ -138,7 +138,7 @@ public class SentryAuthorizerTest {
     testAuthorized(new DatasetId("ns1", "ds1"));
     testAuthorized(new ArtifactId("ns1", "art", "1"));
     testAuthorized(new ApplicationId("ns1", "app1"));
-    testAuthorized(new ProgramId("ns1", "app1", ProgramType.MAPREDUCE, "prog1"));
+    testAuthorized(new ProgramId("ns1", "app1", ProgramType.FLOW, "prog1"));
 
     // admin2 is admin of ns2
     assertAuthorized(new NamespaceId("ns2"), getUser("admin2"), Action.ADMIN);
@@ -146,7 +146,7 @@ public class SentryAuthorizerTest {
     assertAuthorized(new StreamId("ns2", "stream1"), getUser("readers2"), Action.READ);
 
     // executors1 can execute prog1
-    assertAuthorized(new ProgramId("ns1", "app1", ProgramType.MAPREDUCE, "prog1"), getUser("executors1"),
+    assertAuthorized(new ProgramId("ns1", "app1", ProgramType.FLOW, "prog1"), getUser("executors1"),
                      Action.EXECUTE);
   }
 
@@ -174,7 +174,7 @@ public class SentryAuthorizerTest {
   public void testSuperUsers() {
     // hulk being an superuser can do anything
     assertAuthorized(new StreamId("ns2", "stream1"), getUser(SUPERUSER_HULK), Action.READ);
-    assertAuthorized(new ProgramId("ns1", "app1", ProgramType.MAPREDUCE, "prog1"), getUser(SUPERUSER_HULK),
+    assertAuthorized(new ProgramId("ns1", "app1", ProgramType.FLOW, "prog1"), getUser(SUPERUSER_HULK),
                      Action.EXECUTE);
     // and so does spiderman
     assertAuthorized(new StreamId("ns1", "stream1"), getUser(SUPERUSER_SPIDERMAN), Action.READ);

@@ -43,6 +43,11 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-proto</artifactId>
+    </dependency>
+
   </dependencies>
 
 </project>
