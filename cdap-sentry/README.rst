@@ -1,6 +1,6 @@
-=========================================
-CDAP Security Extension for Apache Sentry
-=========================================
+================================================
+CDAP Authorization Extension using Apache Sentry
+================================================
 
 Overview
 ========
@@ -86,8 +86,6 @@ authorization extension:
      - String to use to identify the CDAP Instance. Defaults to 'cdap'.
 
 - Restart CDAP Master.
-
-After deploying the ``cdap-sentry`` jars, please restart the respective services (Apache Sentry Server and CDAP Master).
 
 Share and Discuss!
 ==================
