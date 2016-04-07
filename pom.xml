@@ -26,11 +26,13 @@
   <modules>
     <module>cdap-sentry</module>
     <module>cdap-authorization-dataset-extn</module>
+    <module>cdap-security-extensions-dist</module>
   </modules>
 
   <packaging>pom</packaging>
 
   <name>CDAP Security Extensions</name>
+  <description>A collection of Security Extensions for the Cask Data Application Platform.</description>
   <url>http://github.com/caskdata/cdap-security-extn</url>
 
   <organization>
@@ -119,7 +121,7 @@
               <id>validate</id>
               <phase>process-test-classes</phase>
               <configuration>
-                <configLocation>../checkstyle.xml</configLocation>
+                <configLocation>checkstyle.xml</configLocation>
                 <suppressionsLocation>suppressions.xml</suppressionsLocation>
                 <encoding>UTF-8</encoding>
                 <consoleOutput>true</consoleOutput>
