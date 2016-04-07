@@ -19,7 +19,12 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>co.cask.cdap</groupId>
+  <parent>
+    <groupId>co.cask.cdap</groupId>
+    <artifactId>cdap-security-extensions</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
   <artifactId>cdap-sentry</artifactId>
   <version>0.1.0-SNAPSHOT</version>
 
@@ -31,7 +36,8 @@
 
   <packaging>pom</packaging>
 
-  <name>CDAP Sentry Integration</name>
+  <name>CDAP Sentry Authorization Extension</name>
+  <description>A CDAP authorization extension using Apache Sentry as the backing store for ACLs.</description>
   <url>http://github.com/caskdata/cdap-security-extn/cdap-sentry</url>
 
   <organization>
@@ -64,12 +70,8 @@
 
 
   <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <cdap.version>3.4.0-SNAPSHOT</cdap.version>
     <hadoop.version>2.3.0</hadoop.version>
     <sentry.version>1.7.0-incubating-SNAPSHOT</sentry.version>
-    <slf4j.version>1.7.5</slf4j.version>
-    <junit.version>4.11</junit.version>
   </properties>
 
   <repositories>
@@ -85,12 +87,6 @@
 
   <dependencyManagement>
     <dependencies>
-      <dependency>
-        <groupId>co.cask.cdap</groupId>
-        <artifactId>cdap-security-spi</artifactId>
-        <version>${cdap.version}</version>
-        <scope>provided</scope>
-      </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-common</artifactId>
@@ -172,59 +168,10 @@
         <artifactId>sentry-policy-common</artifactId>
         <version>${sentry.version}</version>
       </dependency>
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
-        <version>${slf4j.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
-        <version>${junit.version}</version>
-        <scope>test</scope>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 
   <build>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.1</version>
-          <configuration>
-            <source>1.7</source>
-            <target>1.7</target>
-          </configuration>
-        </plugin>
-
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>2.12.1</version>
-          <executions>
-            <execution>
-              <id>validate</id>
-              <phase>process-test-classes</phase>
-              <configuration>
-                <configLocation>checkstyle.xml</configLocation>
-                <suppressionsLocation>suppressions.xml</suppressionsLocation>
-                <encoding>UTF-8</encoding>
-                <consoleOutput>true</consoleOutput>
-                <failsOnError>true</failsOnError>
-                <includeTestSourceDirectory>true</includeTestSourceDirectory>
-              </configuration>
-              <goals>
-                <goal>check</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-
-      </plugins>
-    </pluginManagement>
-
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
