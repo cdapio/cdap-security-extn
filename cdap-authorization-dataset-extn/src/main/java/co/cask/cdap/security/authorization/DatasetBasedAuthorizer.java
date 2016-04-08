@@ -52,23 +52,23 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
   private static final Logger LOG = LoggerFactory.getLogger(DatasetBasedAuthorizer.class);
   private final Set<Principal> superUsers = new HashSet<>();
   private AuthorizationContext context;
-  private Supplier<ACLDataset> dsSupplier;
+  private Supplier<AuthorizationDataset> dsSupplier;
 
   @Override
   public void initialize(final AuthorizationContext context) throws Exception {
     this.context = context;
-    this.dsSupplier = new Supplier<ACLDataset>() {
+    this.dsSupplier = new Supplier<AuthorizationDataset>() {
       @Override
-      public ACLDataset get() {
+      public AuthorizationDataset get() {
         try {
-          context.createDataset(ACLDataset.TABLE_NAME, "table", DatasetProperties.EMPTY);
+          context.createDataset(AuthorizationDataset.TABLE_NAME, "table", DatasetProperties.EMPTY);
         } catch (InstanceConflictException e) {
-          LOG.info("Dataset {} already exists. Not creating again.", ACLDataset.TABLE_NAME);
+          LOG.info("Dataset {} already exists. Not creating again.", AuthorizationDataset.TABLE_NAME);
         } catch (DatasetManagementException e) {
           throw Throwables.propagate(e);
         }
-        Table table = context.getDataset(ACLDataset.TABLE_NAME);
-        return new ACLDataset(table);
+        Table table = context.getDataset(AuthorizationDataset.TABLE_NAME);
+        return new AuthorizationDataset(table);
       }
     };
     Properties properties = context.getExtensionProperties();
@@ -96,7 +96,7 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
     context.execute(new TxRunnable() {
       @Override
       public void run(DatasetContext context) throws Exception {
-        ACLDataset dataset = dsSupplier.get();
+        AuthorizationDataset dataset = dsSupplier.get();
         for (EntityId current : entity.getHierarchy()) {
           Set<Action> allowedActions = dataset.search(current, principal);
           if (allowedActions.contains(Action.ALL) || allowedActions.contains(action)) {
@@ -117,7 +117,7 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
     context.execute(new TxRunnable() {
       @Override
       public void run(DatasetContext context) throws Exception {
-        ACLDataset dataset = dsSupplier.get();
+        AuthorizationDataset dataset = dsSupplier.get();
         for (Action action : actions) {
           dataset.add(entity, principal, action);
         }
@@ -131,7 +131,7 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
     context.execute(new TxRunnable() {
       @Override
       public void run(DatasetContext context) throws Exception {
-        ACLDataset dataset = dsSupplier.get();
+        AuthorizationDataset dataset = dsSupplier.get();
         for (Action action : actions) {
           dataset.remove(entity, principal, action);
         }
@@ -144,7 +144,7 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
     context.execute(new TxRunnable() {
       @Override
       public void run(DatasetContext context) throws Exception {
-        ACLDataset dataset = dsSupplier.get();
+        AuthorizationDataset dataset = dsSupplier.get();
         dataset.remove(entity);
       }
     });
@@ -156,7 +156,7 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
     context.execute(new TxRunnable() {
       @Override
       public void run(DatasetContext context) throws Exception {
-        ACLDataset dataset = dsSupplier.get();
+        AuthorizationDataset dataset = dsSupplier.get();
         result.set(dataset.listPrivileges(principal));
       }
     });

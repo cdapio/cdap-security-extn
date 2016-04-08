@@ -37,14 +37,14 @@ import java.util.Set;
  * E.g.
  * [NAMESPACE:myspace][ROLE][admins][READ]
  */
-class ACLDataset extends AbstractDataset {
+class AuthorizationDataset extends AbstractDataset {
 
-  static final String TABLE_NAME = "acls";
+  static final String TABLE_NAME = "authorization";
   private static final byte[] VALUE_COLUMN = new byte[0];
 
   private final Table table;
 
-  ACLDataset(Table table) {
+  AuthorizationDataset(Table table) {
     super(TABLE_NAME, table);
     this.table = table;
   }
@@ -60,7 +60,7 @@ class ACLDataset extends AbstractDataset {
   public Set<Action> search(EntityId entity, Principal principal) {
     Set<Action> result = new HashSet<>();
 
-    ACLDatasetKey mdsKey = getKey(entity, principal);
+    AuthorizationDatasetKey mdsKey = getKey(entity, principal);
     byte[] startKey = mdsKey.getKey();
     byte[] stopKey = Bytes.stopKeyForPrefix(startKey);
     Scanner scan = table.scan(startKey, stopKey);
@@ -99,8 +99,8 @@ class ACLDataset extends AbstractDataset {
    * Remove all {@link Action actions} on the specified {@link EntityId} for the given {@link Principal}.
    */
   public void remove(EntityId entity, Principal principal) {
-    ACLDatasetKey aclDatasetKey = getKey(entity, principal);
-    byte[] startKey = aclDatasetKey.getKey();
+    AuthorizationDatasetKey authorizationDatasetKey = getKey(entity, principal);
+    byte[] startKey = authorizationDatasetKey.getKey();
     byte[] stopKey = Bytes.stopKeyForPrefix(startKey);
     Scanner scan = table.scan(startKey, stopKey);
 
@@ -118,8 +118,8 @@ class ACLDataset extends AbstractDataset {
    * Remove all {@link Action actions} for all {@link Principal principals} on the specified {@link EntityId}.
    */
   public void remove(EntityId entity) {
-    ACLDatasetKey aclDatasetKey = getKey(entity);
-    byte[] startKey = aclDatasetKey.getKey();
+    AuthorizationDatasetKey authorizationDatasetKey = getKey(entity);
+    byte[] startKey = authorizationDatasetKey.getKey();
     byte[] stopKey = Bytes.stopKeyForPrefix(startKey);
     Scanner scan = table.scan(startKey, stopKey);
 
@@ -158,38 +158,38 @@ class ACLDataset extends AbstractDataset {
     return privileges;
   }
 
-  private ACLDatasetKey getKey(EntityId entity) {
+  private AuthorizationDatasetKey getKey(EntityId entity) {
     return getKeyBuilder(entity).build();
   }
 
-  private ACLDatasetKey getKey(EntityId entity, Principal principal) {
+  private AuthorizationDatasetKey getKey(EntityId entity, Principal principal) {
     return getKeyBuilder(entity, principal).build();
   }
 
-  private ACLDatasetKey getKey(EntityId entity, Principal principal, Action action) {
+  private AuthorizationDatasetKey getKey(EntityId entity, Principal principal, Action action) {
     return getKeyBuilder(entity, principal, action).build();
   }
 
-  private ACLDatasetKey.Builder getKeyBuilder(EntityId entity, Principal principal, Action action) {
+  private AuthorizationDatasetKey.Builder getKeyBuilder(EntityId entity, Principal principal, Action action) {
     return getKeyBuilder(entity, principal).add(action.name());
   }
 
-  private ACLDatasetKey.Builder getKeyBuilder(EntityId entity, Principal principal) {
+  private AuthorizationDatasetKey.Builder getKeyBuilder(EntityId entity, Principal principal) {
     return getKeyBuilder(entity).add(principal.getType().name()).add(principal.getName());
   }
 
-  private ACLDatasetKey.Builder getKeyBuilder(EntityId entity) {
-    return new ACLDatasetKey.Builder().add(entity.toString());
+  private AuthorizationDatasetKey.Builder getKeyBuilder(EntityId entity) {
+    return new AuthorizationDatasetKey.Builder().add(entity.toString());
   }
 
   private EntityId getEntity(byte[] rowKey) {
-    ACLDatasetKey.Splitter keySplitter = new ACLDatasetKey(rowKey).split();
+    AuthorizationDatasetKey.Splitter keySplitter = new AuthorizationDatasetKey(rowKey).split();
     // The rowkey is [entity][principal-type][principal-name][action-name]
     return EntityId.fromString(keySplitter.getString());
   }
 
   private Principal getPrincipal(byte[] rowKey) {
-    ACLDatasetKey.Splitter keySplitter = new ACLDatasetKey(rowKey).split();
+    AuthorizationDatasetKey.Splitter keySplitter = new AuthorizationDatasetKey(rowKey).split();
     // The rowkey is [entity][principal-type][principal-name][action-name]
     keySplitter.skipString(); // skip the entity
     String principalType = keySplitter.getString();
