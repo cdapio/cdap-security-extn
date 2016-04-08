@@ -22,15 +22,15 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 
 /**
- * Class to generate and manage keys for {@link ACLDataset}.
+ * Class to generate and manage keys for {@link AuthorizationDataset}.
  */
-final class ACLDatasetKey {
+final class AuthorizationDatasetKey {
   private final byte[] key;
 
   /**
    * @param key bytearray as constructed by {@link Builder}
    */
-  public ACLDatasetKey(byte[] key) {
+  public AuthorizationDatasetKey(byte[] key) {
     this.key = key;
   }
 
@@ -105,7 +105,7 @@ final class ACLDatasetKey {
   }
 
   /**
-   * Builds an {@link ACLDatasetKey}.
+   * Builds an {@link AuthorizationDatasetKey}.
    */
   public static final class Builder {
     private byte[] key;
@@ -119,8 +119,8 @@ final class ACLDatasetKey {
       return this;
     }
 
-    public ACLDatasetKey build() {
-      return new ACLDatasetKey(key);
+    public AuthorizationDatasetKey build() {
+      return new AuthorizationDatasetKey(key);
     }
 
     // Encodes parts of the key with segments of <length> <value>
