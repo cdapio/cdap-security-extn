@@ -35,20 +35,20 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 /**
- * Tests for {@link ACLDataset}.
+ * Tests for {@link AuthorizationDataset}.
  */
-public class ACLDatasetTest {
+public class AuthorizationDatasetTest {
 
   @ClassRule
   public static DatasetFrameworkTestUtil dsFrameworkUtil = new DatasetFrameworkTestUtil();
 
   private static final DatasetId tabInstance = new DatasetId("myspace", "tab");
-  private static ACLDataset table;
+  private static AuthorizationDataset table;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
     dsFrameworkUtil.createInstance("table", tabInstance.toId(), DatasetProperties.EMPTY);
-    table = new ACLDataset((Table) dsFrameworkUtil.getInstance(tabInstance.toId()));
+    table = new AuthorizationDataset((Table) dsFrameworkUtil.getInstance(tabInstance.toId()));
   }
 
   @AfterClass
