@@ -18,10 +18,10 @@ package co.cask.cdap.security.authorization.sentry.binding;
 
 import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.id.ApplicationId;
+import co.cask.cdap.proto.id.ArtifactId;
 import co.cask.cdap.proto.id.DatasetId;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.id.NamespaceId;
-import co.cask.cdap.proto.id.NamespacedArtifactId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.security.authorization.sentry.model.Application;
@@ -63,7 +63,7 @@ public class AuthBindingEntityToAuthMapperTest {
     Assert.assertEquals(getAuthorizablesList(AuthorizableType.NAMESPACE), authorizables);
 
     // artifact
-    entityId = new NamespacedArtifactId(NAMESPACE, ARTIFACT, ARTIFACT_VERSION);
+    entityId = new ArtifactId(NAMESPACE, ARTIFACT, ARTIFACT_VERSION);
     authorizables = AuthBinding.convertEntityToAuthorizables(INSTANCE, entityId);
     Assert.assertEquals(getAuthorizablesList(AuthorizableType.ARTIFACT), authorizables);
 
