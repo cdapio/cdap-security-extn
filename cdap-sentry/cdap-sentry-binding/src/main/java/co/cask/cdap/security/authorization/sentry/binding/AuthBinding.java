@@ -18,10 +18,10 @@ package co.cask.cdap.security.authorization.sentry.binding;
 
 import co.cask.cdap.proto.element.EntityType;
 import co.cask.cdap.proto.id.ApplicationId;
+import co.cask.cdap.proto.id.ArtifactId;
 import co.cask.cdap.proto.id.DatasetId;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.id.NamespaceId;
-import co.cask.cdap.proto.id.NamespacedArtifactId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
@@ -507,7 +507,7 @@ class AuthBinding {
         authorizables.add(new Namespace(((NamespaceId) entityId).getNamespace()));
         break;
       case ARTIFACT:
-        NamespacedArtifactId artifactId = (NamespacedArtifactId) entityId;
+        ArtifactId artifactId = (ArtifactId) entityId;
         getAuthorizable(artifactId.getParent(), authorizables);
         authorizables.add(new Artifact((artifactId).getArtifact()));
         break;
@@ -537,13 +537,8 @@ class AuthBinding {
   }
 
   private String getRequestingUser() throws IllegalArgumentException {
-    // Preconditions.checkArgument(!SecurityRequestContext.getUserId().isPresent(), "No authenticated user found.");
-    // TODO Issues-15: To support testing on insecure clusters where we don't have security in cdap we will returning a
-    // dummy username. Once the development is almost finalized we should remove the below dummy username and
-    // uncomment the line above.
-    if (SecurityRequestContext.getUserId() == null) {
-      return "cdap";
-    }
+     Preconditions.checkArgument(SecurityRequestContext.getUserId() != null, "No authenticated user found. Please " +
+       "verify that authentication is enabled in CDAP.");
     return SecurityRequestContext.getUserId();
   }
 }

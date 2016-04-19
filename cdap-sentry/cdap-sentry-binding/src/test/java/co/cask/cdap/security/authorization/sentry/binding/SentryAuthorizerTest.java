@@ -24,10 +24,10 @@ import co.cask.cdap.api.dataset.DatasetProperties;
 import co.cask.cdap.api.dataset.InstanceNotFoundException;
 import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.id.ApplicationId;
+import co.cask.cdap.proto.id.ArtifactId;
 import co.cask.cdap.proto.id.DatasetId;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.id.NamespaceId;
-import co.cask.cdap.proto.id.NamespacedArtifactId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
@@ -136,7 +136,7 @@ public class SentryAuthorizerTest {
     testAuthorized(new NamespaceId("ns1"));
     testAuthorized(new StreamId("ns1", "stream1"));
     testAuthorized(new DatasetId("ns1", "ds1"));
-    testAuthorized(new NamespacedArtifactId("ns1", "art", "1"));
+    testAuthorized(new ArtifactId("ns1", "art", "1"));
     testAuthorized(new ApplicationId("ns1", "app1"));
     testAuthorized(new ProgramId("ns1", "app1", ProgramType.MAPREDUCE, "prog1"));
 
