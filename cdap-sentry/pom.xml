@@ -88,6 +88,18 @@
   <dependencyManagement>
     <dependencies>
       <dependency>
+        <groupId>co.cask.cdap</groupId>
+        <artifactId>cdap-security-spi</artifactId>
+        <version>${cdap.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>co.cask.cdap</groupId>
+        <artifactId>cdap-proto</artifactId>
+        <version>${cdap.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-common</artifactId>
         <version>${hadoop.version}</version>

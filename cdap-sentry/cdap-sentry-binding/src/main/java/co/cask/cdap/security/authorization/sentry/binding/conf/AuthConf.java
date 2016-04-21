@@ -32,11 +32,11 @@ public class AuthConf extends Configuration {
   // sentry-site.xml path
   public static final String SENTRY_SITE_URL = "sentry.site.url";
   // cdap instance name to be used in sentry for example: cdap
-  public static final String SERVICE_INSTANCE_NAME = "cdap.instance.name";
+  public static final String SERVICE_INSTANCE_NAME = "instance.name";
   // cdap username to be used in sentry for example: cdap
-  public static final String SERVICE_USER_NAME = "cdap.user.name";
+  public static final String SERVICE_USER_NAME = "user.name";
   // a comma separated list of users who will be superusers
-  public static final String SERVICE_SUPERUSERS = "cdap.superusers";
+  public static final String SERVICE_SUPERUSERS = "superusers";
 
   /**
    * Config setting definitions
