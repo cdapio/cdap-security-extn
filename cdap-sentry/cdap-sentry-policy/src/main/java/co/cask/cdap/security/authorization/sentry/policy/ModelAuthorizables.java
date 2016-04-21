@@ -32,21 +32,9 @@ import java.util.NoSuchElementException;
 /**
  * Class to create {@link Authorizable} from {@link AuthorizableType} and name
  */
-public final class ModelAuthorizables {
+final class ModelAuthorizables {
 
   private ModelAuthorizables() {
-  }
-
-  /**
-   * Gets a {@link Authorizable} from the given key and value
-   *
-   * @param key the {@link AuthorizableType type} of the authorizable
-   * @param value the {@link Authorizable name} of the authorizable
-   * @return the created {@link Authorizable} with the given name if {@link AuthorizableType} given was valid
-   * @throws NoSuchElementException if the given {@link AuthorizableType} was not valid
-   */
-  public static Authorizable from(String key, String value) {
-    return from(new KeyValue(key, value));
   }
 
   /**
@@ -57,7 +45,7 @@ public final class ModelAuthorizables {
    * @return the created {@link Authorizable} with the given name if {@link AuthorizableType} given was valid
    * @throws NoSuchElementException if the given {@link AuthorizableType} was not valid
    */
-  static Authorizable from(String keyValue) {
+  public static Authorizable from(String keyValue) {
     return from(new KeyValue(keyValue));
   }
 

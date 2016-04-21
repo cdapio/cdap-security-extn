@@ -21,33 +21,26 @@ import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.ArtifactId;
 import co.cask.cdap.proto.id.DatasetId;
 import co.cask.cdap.proto.id.EntityId;
-import co.cask.cdap.proto.id.InstanceId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.StreamId;
-import co.cask.cdap.proto.security.Action;
-import co.cask.cdap.proto.security.Privilege;
 import co.cask.cdap.security.authorization.sentry.model.Application;
 import co.cask.cdap.security.authorization.sentry.model.Artifact;
-import co.cask.cdap.security.authorization.sentry.model.Authorizable;
 import co.cask.cdap.security.authorization.sentry.model.Authorizable.AuthorizableType;
 import co.cask.cdap.security.authorization.sentry.model.Dataset;
 import co.cask.cdap.security.authorization.sentry.model.Instance;
 import co.cask.cdap.security.authorization.sentry.model.Namespace;
 import co.cask.cdap.security.authorization.sentry.model.Program;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
-import com.google.common.collect.ImmutableSet;
-import org.apache.sentry.provider.db.generic.service.thrift.TSentryPrivilege;
+import org.apache.sentry.core.common.Authorizable;
 import org.junit.Assert;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.net.URL;
 import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Test for {@link AuthBinding#toSentryAuthorizables(EntityId)}. For others please see
+ * Test for {@link AuthBinding#convertEntityToAuthorizables(String, EntityId)}. For others please see
  * {@link SentryAuthorizerTest} since {@link SentryAuthorizer} delegates to {@link AuthBinding}
  */
 public class AuthBindingEntityToAuthMapperTest {
@@ -61,70 +54,38 @@ public class AuthBindingEntityToAuthMapperTest {
   private static final String DATASET = "d1";
   private static final String PROGRAM = "p1";
 
-  private static AuthBinding binding;
-
-  @BeforeClass
-  public static void setup() {
-    URL resource = AuthBindingEntityToAuthMapperTest.class.getClassLoader().getResource("sentry-site.xml");
-    Assert.assertNotNull(resource);
-    String sentrySitePath = resource.getPath();
-    binding = new AuthBinding(sentrySitePath, "superUser", "cdap");
-  }
 
   @Test
   public void testValidEntities() {
-
-    // instance
-    EntityId entityId = new InstanceId(INSTANCE);
-    List<org.apache.sentry.core.common.Authorizable> authorizables = binding.toSentryAuthorizables(entityId);
-    Assert.assertEquals(getAuthorizablesList(AuthorizableType.INSTANCE), authorizables);
-
     // namespace
-    entityId = new NamespaceId(NAMESPACE);
-    authorizables = binding.toSentryAuthorizables(entityId);
+    EntityId entityId = new NamespaceId(NAMESPACE);
+    List<Authorizable> authorizables = AuthBinding.convertEntityToAuthorizables(INSTANCE, entityId);
     Assert.assertEquals(getAuthorizablesList(AuthorizableType.NAMESPACE), authorizables);
 
     // artifact
     entityId = new ArtifactId(NAMESPACE, ARTIFACT, ARTIFACT_VERSION);
-    authorizables = binding.toSentryAuthorizables(entityId);
+    authorizables = AuthBinding.convertEntityToAuthorizables(INSTANCE, entityId);
     Assert.assertEquals(getAuthorizablesList(AuthorizableType.ARTIFACT), authorizables);
 
     // stream
     entityId = new StreamId(NAMESPACE, STREAM);
-    authorizables = binding.toSentryAuthorizables(entityId);
+    authorizables = AuthBinding.convertEntityToAuthorizables(INSTANCE, entityId);
     Assert.assertEquals(getAuthorizablesList(AuthorizableType.STREAM), authorizables);
 
     // dataset
     entityId = new DatasetId(NAMESPACE, DATASET);
-    authorizables = binding.toSentryAuthorizables(entityId);
+    authorizables = AuthBinding.convertEntityToAuthorizables(INSTANCE, entityId);
     Assert.assertEquals(getAuthorizablesList(AuthorizableType.DATASET), authorizables);
 
     // application
     entityId = new ApplicationId(NAMESPACE, APPLICATION);
-    authorizables = binding.toSentryAuthorizables(entityId);
+    authorizables = AuthBinding.convertEntityToAuthorizables(INSTANCE, entityId);
     Assert.assertEquals(getAuthorizablesList(AuthorizableType.APPLICATION), authorizables);
 
     // program
     entityId = new ProgramId(NAMESPACE, APPLICATION, ProgramType.FLOW, PROGRAM);
-    authorizables = binding.toSentryAuthorizables(entityId);
+    authorizables = AuthBinding.convertEntityToAuthorizables(INSTANCE, entityId);
     Assert.assertEquals(getAuthorizablesList(AuthorizableType.PROGRAM), authorizables);
-  }
-
-  @Test
-  public void testToPrivileges() {
-    List<TSentryPrivilege> sentryPrivileges = new LinkedList<>();
-    InstanceId instanceId = new InstanceId(INSTANCE);
-    ArtifactId artifactId = new ArtifactId(NAMESPACE, ARTIFACT, ARTIFACT_VERSION);
-    ProgramId programId = new ProgramId(NAMESPACE, APPLICATION, ProgramType.FLOW, PROGRAM);
-
-    sentryPrivileges.add(binding.toTSentryPrivilege(instanceId, Action.ADMIN));
-    sentryPrivileges.add(binding.toTSentryPrivilege(artifactId, Action.READ));
-    sentryPrivileges.add(binding.toTSentryPrivilege(programId, Action.WRITE));
-
-    Assert.assertEquals(ImmutableSet.of(new Privilege(instanceId, Action.ADMIN),
-                                        new Privilege(artifactId, Action.READ),
-                                        new Privilege(programId, Action.WRITE)),
-                        binding.toPrivileges(sentryPrivileges));
   }
 
   private List<co.cask.cdap.security.authorization.sentry.model.Authorizable> getAuthorizablesList(
@@ -134,19 +95,17 @@ public class AuthBindingEntityToAuthMapperTest {
     return authzList;
   }
 
-  private void getAuthorizablesList(AuthorizableType authzType, List<Authorizable> authorizableList) {
+  private void getAuthorizablesList(
+    AuthorizableType authzType, List<co.cask.cdap.security.authorization.sentry.model.Authorizable> authorizableList) {
     switch (authzType) {
-      case INSTANCE:
+      case NAMESPACE:
         authorizableList.clear();
         authorizableList.add(new Instance(INSTANCE));
-        break;
-      case NAMESPACE:
-        getAuthorizablesList(AuthorizableType.INSTANCE, authorizableList);
         authorizableList.add(new Namespace(NAMESPACE));
         break;
       case ARTIFACT:
         getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
-        authorizableList.add(new Artifact(ARTIFACT, ARTIFACT_VERSION));
+        authorizableList.add(new Artifact(ARTIFACT));
         break;
       case APPLICATION:
         getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
@@ -162,7 +121,7 @@ public class AuthBindingEntityToAuthMapperTest {
         break;
       case PROGRAM:
         getAuthorizablesList(AuthorizableType.APPLICATION, authorizableList);
-        authorizableList.add(new Program(ProgramType.FLOW, PROGRAM));
+        authorizableList.add(new Program(PROGRAM));
         break;
       default:
         throw new IllegalArgumentException(String.format("Authorizable Types %s is invalid.", authzType));

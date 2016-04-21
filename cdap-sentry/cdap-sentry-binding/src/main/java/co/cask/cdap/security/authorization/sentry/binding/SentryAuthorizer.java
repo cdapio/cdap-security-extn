@@ -65,7 +65,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       properties.getProperty(AuthConf.SERVICE_INSTANCE_NAME) :
       AuthConf.AuthzConfVars.getDefault(AuthConf.SERVICE_INSTANCE_NAME);
 
-    LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {} and cdap instance name {}",
+    LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {} and cdap instance name {}" +
                sentrySiteUrl, serviceInstanceName);
     this.binding = new AuthBinding(sentrySiteUrl, superUsers, serviceInstanceName);
   }
@@ -96,7 +96,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
 
   @Override
   public Set<Privilege> listPrivileges(Principal principal) {
-    return binding.listPrivileges(principal);
+    //TODO: Add code here to list privileges
+    return null;
   }
 
   @Override
@@ -107,11 +108,13 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   @Override
   public void dropRole(Role role) throws RoleNotFoundException {
     binding.dropRole(role);
+
   }
 
   @Override
   public void addRoleToPrincipal(Role role, Principal principal) throws RoleNotFoundException {
     binding.addRoleToGroup(role, principal);
+
   }
 
   @Override
