@@ -40,51 +40,11 @@
   <description>A CDAP authorization extension using Apache Sentry as the backing store for ACLs.</description>
   <url>http://github.com/caskdata/cdap-security-extn/cdap-sentry</url>
 
-  <organization>
-    <name>Cask Data, Inc.</name>
-    <url>http://cask.co</url>
-  </organization>
-
-  <licenses>
-    <license>
-      <name>The Apache Software License, Version 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-    </license>
-  </licenses>
-
-  <developers>
-    <developer>
-      <name>Cask Data</name>
-      <email>cask-dev@googlegroups.com</email>
-      <organization>Cask Data, Inc.</organization>
-      <organizationUrl>http://www.cdap.io</organizationUrl>
-    </developer>
-  </developers>
-
-  <scm>
-    <connection>scm:git:https://github.com/caskdata/cdap-security-extn.git</connection>
-    <developerConnection>scm:git:git@github.com:caskdata/cdap-security-extn.git</developerConnection>
-    <url>https://github.com/caskdata/cdap-security-extn.git</url>
-    <tag>HEAD</tag>
-  </scm>
-
-
   <properties>
     <hadoop.version>2.3.0</hadoop.version>
     <sentry.version>1.7.0</sentry.version>
   </properties>
-
-  <repositories>
-    <repository>
-      <id>sonatype</id>
-      <url>https://oss.sonatype.org/content/groups/public</url>
-    </repository>
-    <repository>
-      <id>sonatype-snapshots</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-    </repository>
-  </repositories>
-
+  
   <dependencyManagement>
     <dependencies>
       <dependency>
