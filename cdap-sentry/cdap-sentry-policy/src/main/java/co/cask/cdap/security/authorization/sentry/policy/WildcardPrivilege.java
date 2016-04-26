@@ -17,6 +17,7 @@
 package co.cask.cdap.security.authorization.sentry.policy;
 
 import co.cask.cdap.security.authorization.sentry.model.ActionConstant;
+import co.cask.cdap.security.authorization.sentry.model.ActionFactory.Action;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import org.apache.sentry.policy.common.KeyValue;
@@ -52,45 +53,70 @@ public class WildcardPrivilege implements Privilege {
   }
 
   @Override
-  public boolean implies(Privilege otherPrivilege) {
-    if (this == otherPrivilege) {
-      return true;
-    }
-    if (!(otherPrivilege instanceof WildcardPrivilege)) {
+  public boolean implies(Privilege requestPrivilege) {
+    if (!(requestPrivilege instanceof WildcardPrivilege)) {
       return false;
     }
-    WildcardPrivilege wp = (WildcardPrivilege) otherPrivilege;
-
-    Iterator<KeyValue> thisParts = privilegeParts.iterator();
-    for (KeyValue otherPart : wp.privilegeParts) {
-      // If this privilege has less parts than the other privilege, everything after the number of parts contained
-      // in this privilege is automatically implied, so return true
-      if (!thisParts.hasNext()) {
+    WildcardPrivilege requestWildcardPrivilege = (WildcardPrivilege) requestPrivilege;
+    List<KeyValue> requestParts = requestWildcardPrivilege.privilegeParts;
+    if (this == requestWildcardPrivilege || equals(requestWildcardPrivilege)) {
+      return true;
+    }
+    int index = 0;
+    for (KeyValue requestPart : requestParts) {
+      // If policy has less parts than the request, everything after the number of parts contained
+      // in the policy is automatically implied, so return true
+      if (privilegeParts.size() - 1 < index) {
         return true;
       }
-
-      KeyValue thisPart = thisParts.next();
-      if (!thisPart.getKey().equalsIgnoreCase(otherPart.getKey()) || !impliesKeyValue(thisPart, otherPart)) {
+      KeyValue policyPart = privilegeParts.get(index);
+      // If we've reached the action in the current policy part but request privilege has more non-action parts, then
+      // continue till we've reached the action in the request part. This also implies everything in the request part
+      // policy part is implied.
+      if (policyPart.getKey().equalsIgnoreCase(ActionConstant.ACTION_NAME)
+        && !(requestPart.getKey().equalsIgnoreCase(ActionConstant.ACTION_NAME))) {
+        continue;
+      }
+      // If the keys aren't equal, return false
+      if (!policyPart.getKey().equalsIgnoreCase(requestPart.getKey())) {
         return false;
       }
+      if (!impliesKeyValue(policyPart, requestPart)) {
+        return false;
+      }
+      index++;
     }
-    // If this privilege has more parts than the other parts (otherPrivilege), only imply it if all of the other
-    // parts are "*" or "ALL"
-    while (thisParts.hasNext()) {
-      if (!thisParts.next().getValue().equals(ActionConstant.ALL)) {
+    // If policy has more parts than the request, only imply it if all of the other parts are "*" or "ALL"
+    for (; index < privilegeParts.size(); index++) {
+      KeyValue part = privilegeParts.get(index);
+      if (!part.getValue().equals(ActionConstant.ALL)) {
         return false;
       }
     }
     return true;
   }
 
+  /**
+   * For policy and request parts with the same key, ensure that the policy implies the request. In this method, the
+   * keys for both #policyPart and #requestPart are expected to be the same.
+   *
+   * @param policyPart the policy part
+   * @param requestPart the request part
+   * @return true if either
+   * - policy part is {@link Action#ALL}; or
+   * - policy part equals request part;
+   * false otherwise.
+   */
   private boolean impliesKeyValue(KeyValue policyPart, KeyValue requestPart) {
     Preconditions.checkState(policyPart.getKey().equalsIgnoreCase(requestPart.getKey()),
                              String.format("Privilege Key Mismatch: Key %s and %s does not match.", policyPart.getKey
                                (), requestPart.getKey()));
-    return policyPart.getValue().equalsIgnoreCase(ActionConstant.ALL) ||
-      policyPart.equals(requestPart) ||
-      (!ActionConstant.ACTION_NAME.equalsIgnoreCase(policyPart.getKey())
-        && ActionConstant.ALL.equalsIgnoreCase(requestPart.getValue()));
+    // if it is an action, then either the policy part must include ALL, or be the same as the request part.
+    if (ActionConstant.ACTION_NAME.equalsIgnoreCase(policyPart.getKey()) &&
+      policyPart.getValue().equalsIgnoreCase(ActionConstant.ALL)) {
+        return true;
+    }
+    // if policy part is not Action#ALL, make sure that the policy and request parts match.
+    return policyPart.equals(requestPart);
   }
 }

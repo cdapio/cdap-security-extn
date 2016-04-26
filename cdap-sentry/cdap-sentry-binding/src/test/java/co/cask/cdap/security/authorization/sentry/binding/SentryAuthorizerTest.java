@@ -59,7 +59,9 @@ public class SentryAuthorizerTest {
     String sentrySitePath = resource.getPath();
     final Properties properties = new Properties();
     properties.put(AuthConf.SENTRY_SITE_URL, sentrySitePath);
-    properties.put(AuthConf.SERVICE_SUPERUSERS, Joiner.on(",").join(SUPERUSER_HULK, SUPERUSER_SPIDERMAN));
+    properties.put(AuthConf.INSTANCE_NAME, "cdap");
+    properties.put(AuthConf.SUPERUSERS, Joiner.on(",").join(SUPERUSER_HULK, SUPERUSER_SPIDERMAN));
+    properties.put(AuthConf.SENTRY_ADMIN_GROUP, "cdap");
     this.authorizer = new SentryAuthorizer();
     authorizer.initialize(new AuthorizationContext() {
       @Override
@@ -181,6 +183,33 @@ public class SentryAuthorizerTest {
     assertAuthorized(new StreamId("ns2", "stream1"), getUser(SUPERUSER_SPIDERMAN), Action.ADMIN);
   }
 
+  @Test
+  public void testHierarchy() {
+    // admin1 has ADMIN on ns1
+    assertAuthorized(new NamespaceId("ns1"), getUser("admin1"), Action.ADMIN);
+    // hence, admin1 should have ADMIN on any child of ns1, even a child that admin1 has not been given explicit ADMIN
+    // access's on in the authz-provider.ini
+    assertAuthorized(new StreamId("ns1", "notconfigured"), getUser("admin1"), Action.ADMIN);
+    assertAuthorized(new DatasetId("ns1", "notconfigured"), getUser("admin1"), Action.ADMIN);
+    assertAuthorized(new ArtifactId("ns1", "notconfigured", "1.0"), getUser("admin1"), Action.ADMIN);
+    assertAuthorized(new ApplicationId("ns1", "notconfigured"), getUser("admin1"), Action.ADMIN);
+    assertAuthorized(new ProgramId("ns1", "foo", ProgramType.SPARK, "bar"), getUser("admin1"), Action.ADMIN);
+
+    // however, admin1 should not get ADMIN on a children of ns2 via hierarchy
+    assertUnauthorized(new StreamId("ns2", "notconfigured"), getUser("admin1"), Action.ADMIN);
+    assertUnauthorized(new DatasetId("ns2", "notconfigured"), getUser("admin1"), Action.ADMIN);
+    assertUnauthorized(new ArtifactId("ns2", "notconfigured", "1.0"), getUser("admin1"), Action.ADMIN);
+    assertUnauthorized(new ApplicationId("ns2", "notconfigured"), getUser("admin1"), Action.ADMIN);
+    assertUnauthorized(new ProgramId("ns2", "foo", ProgramType.SPARK, "bar"), getUser("admin1"), Action.ADMIN);
+
+    // readers1 have READ on app1 in ns1
+    assertAuthorized(new ApplicationId("ns1", "app1"), getUser("readers1"), Action.READ);
+    // as a result, readers1 should get READ on any program in app1, even ones that have not been explicitly
+    // configured in authz-provider.ini
+    assertAuthorized(new ProgramId("ns1", "app1", ProgramType.MAPREDUCE, "notconfigured"),
+                     getUser("readers1"), Action.READ);
+  }
+
   private void testAuthorized(EntityId entityId) {
     // admin1 is admin of entity
     assertAuthorized(entityId, getUser("admin1"), Action.ADMIN);
@@ -206,8 +235,8 @@ public class SentryAuthorizerTest {
     try {
       authorizer.enforce(entityId, principal, action);
       Assert.fail("The authorization check should have failed.");
-    } catch (Exception e) {
-      Assert.assertTrue(e instanceof UnauthorizedException);
+    } catch (UnauthorizedException expected) {
+      // expected
     }
   }
 
