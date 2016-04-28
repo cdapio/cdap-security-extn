@@ -31,12 +31,12 @@ public class AuthConf extends Configuration {
 
   // sentry-site.xml path
   public static final String SENTRY_SITE_URL = "sentry.site.url";
-  // cdap instance name to be used in sentry for example: cdap
-  public static final String SERVICE_INSTANCE_NAME = "cdap.instance.name";
-  // cdap username to be used in sentry for example: cdap
-  public static final String SERVICE_USER_NAME = "cdap.user.name";
+  // an admin group in sentry service that can create roles
+  public static final String SENTRY_ADMIN_GROUP = "sentry.admin.group";
+  // cdap instance name to be used in sentry
+  public static final String INSTANCE_NAME = "instance.name";
   // a comma separated list of users who will be superusers
-  public static final String SERVICE_SUPERUSERS = "cdap.superusers";
+  public static final String SUPERUSERS = "superusers";
 
   /**
    * Config setting definitions
@@ -47,9 +47,9 @@ public class AuthConf extends Configuration {
     AUTHZ_POLICY_ENGINE("sentry.cdap.policy.engine", SimplePolicyEngine.class.getName()),
     AUTHZ_PROVIDER_RESOURCE("sentry.cdap.provider.resource", ""),
     // if no instanceName or username is provided 'cdap' will be used
-    AUTHZ_SERVICE_INSTANCE_NAME(SERVICE_INSTANCE_NAME, "cdap"),
-    AUTHZ_SERVICE_USER_NAME(SERVICE_USER_NAME, "cdap"),
-    AUTHZ_SERVICE_SUPERUSERS(SERVICE_SUPERUSERS, "");
+    AUTHZ_SERVICE_INSTANCE_NAME(INSTANCE_NAME, "cdap"),
+    AUTHZ_SENTRY_ADMIN_GROUP(SENTRY_ADMIN_GROUP, "cdap"),
+    AUTHZ_SUPERUSERS(SUPERUSERS, "");
 
     private final String varName;
     private final String defaultVal;

@@ -50,6 +50,29 @@
     <package.sentry.dirs>${package.sentry.libs}/=/opt/${package.sentry.name}/</package.sentry.dirs>
   </properties>
 
+  <dependencies>
+    <dependency>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-authorization-dataset-extn</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-sentry-binding</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-sentry-model</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-sentry-policy</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+
   <profiles>
     <profile>
       <id>pkg-prepare</id>
@@ -110,61 +133,56 @@
               </execution>
             </executions>
           </plugin>
+
+          <!-- Use the maven-dependency-plugin to copy dependencies to use while generating packages -->
           <plugin>
-            <artifactId>maven-resources-plugin</artifactId>
-            <version>2.6</version>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <version>2.10</version>
             <executions>
               <execution>
-                <id>copy-cdap-resources</id>
+                <id>copy</id>
                 <phase>validate</phase>
                 <goals>
-                  <goal>copy-resources</goal>
+                  <goal>copy</goal>
                 </goals>
                 <configuration>
-                  <outputDirectory>${package.cdap.libs}</outputDirectory>
-                  <resources>
-                    <resource>
-                      <directory>${project.parent.basedir}/cdap-sentry/cdap-sentry-binding/target</directory>
-                      <filtering>true</filtering>
-                      <includes>
-                        <include>*.jar</include>
-                      </includes>
-                    </resource>
-                    <resource>
-                      <directory>${project.parent.basedir}/cdap-authorization-dataset-extn/target</directory>
-                      <filtering>true</filtering>
-                      <includes>
-                        <include>*.jar</include>
-                      </includes>
-                    </resource>
-                  </resources>
-                </configuration>
-              </execution>
-              <execution>
-                <id>copy-sentry-resources</id>
-                <!-- here the phase you need -->
-                <phase>validate</phase>
-                <goals>
-                  <goal>copy-resources</goal>
-                </goals>
-                <configuration>
-                  <outputDirectory>${package.sentry.libs}</outputDirectory>
-                  <resources>
-                    <resource>
-                      <directory>${project.parent.basedir}/cdap-sentry/cdap-sentry-model/target</directory>
-                      <filtering>true</filtering>
-                      <includes>
-                        <include>*.jar</include>
-                      </includes>
-                    </resource>
-                    <resource>
-                      <directory>${project.parent.basedir}/cdap-sentry/cdap-sentry-policy/target</directory>
-                      <filtering>true</filtering>
-                      <includes>
-                        <include>*.jar</include>
-                      </includes>
-                    </resource>
-                  </resources>
+                  <artifactItems>
+                    <artifactItem>
+                      <groupId>co.cask.cdap</groupId>
+                      <artifactId>cdap-authorization-dataset-extn</artifactId>
+                      <version>${project.version}</version>
+                      <type>jar</type>
+                      <overWrite>true</overWrite>
+                      <outputDirectory>${package.cdap.libs}</outputDirectory>
+                    </artifactItem>
+                    <artifactItem>
+                      <groupId>co.cask.cdap</groupId>
+                      <artifactId>cdap-sentry-binding</artifactId>
+                      <version>${project.version}</version>
+                      <type>jar</type>
+                      <overWrite>true</overWrite>
+                      <outputDirectory>${package.cdap.libs}</outputDirectory>
+                    </artifactItem>
+                    <artifactItem>
+                      <groupId>co.cask.cdap</groupId>
+                      <artifactId>cdap-sentry-model</artifactId>
+                      <version>${project.version}</version>
+                      <type>jar</type>
+                      <overWrite>true</overWrite>
+                      <outputDirectory>${package.sentry.libs}</outputDirectory>
+                    </artifactItem>
+                    <artifactItem>
+                      <groupId>co.cask.cdap</groupId>
+                      <artifactId>cdap-sentry-policy</artifactId>
+                      <version>${project.version}</version>
+                      <type>jar</type>
+                      <overWrite>true</overWrite>
+                      <outputDirectory>${package.sentry.libs}</outputDirectory>
+                    </artifactItem>
+                  </artifactItems>
+                  <overWriteReleases>true</overWriteReleases>
+                  <overWriteSnapshots>true</overWriteSnapshots>
                 </configuration>
               </execution>
             </executions>

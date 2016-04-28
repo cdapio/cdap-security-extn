@@ -21,29 +21,31 @@ import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.ArtifactId;
 import co.cask.cdap.proto.id.DatasetId;
 import co.cask.cdap.proto.id.EntityId;
+import co.cask.cdap.proto.id.InstanceId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
+import co.cask.cdap.proto.security.Privilege;
 import co.cask.cdap.proto.security.Role;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf.AuthzConfVars;
 import co.cask.cdap.security.authorization.sentry.model.ActionFactory;
 import co.cask.cdap.security.authorization.sentry.model.Application;
 import co.cask.cdap.security.authorization.sentry.model.Artifact;
+import co.cask.cdap.security.authorization.sentry.model.Authorizable;
 import co.cask.cdap.security.authorization.sentry.model.Dataset;
 import co.cask.cdap.security.authorization.sentry.model.Instance;
 import co.cask.cdap.security.authorization.sentry.model.Namespace;
 import co.cask.cdap.security.authorization.sentry.model.Program;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
+import co.cask.cdap.security.authorization.sentry.policy.ModelAuthorizables;
 import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
-import co.cask.cdap.security.spi.authentication.SecurityRequestContext;
 import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -51,7 +53,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.core.common.ActiveRoleSet;
-import org.apache.sentry.core.common.Authorizable;
 import org.apache.sentry.core.common.Subject;
 import org.apache.sentry.policy.common.PolicyEngine;
 import org.apache.sentry.provider.common.AuthorizationProvider;
@@ -69,6 +70,7 @@ import java.lang.reflect.Constructor;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -78,7 +80,7 @@ import javax.annotation.Nullable;
 /**
  * This class instantiate the {@link AuthorizationProvider} configured in {@link AuthConf} and is responsible for
  * performing different authorization operation on CDAP entities by mapping them to authorizables
- * {@link #convertEntityToAuthorizables(String, EntityId)}
+ * {@link #toSentryAuthorizables(EntityId)}
  */
 class AuthBinding {
   private static final Logger LOG = LoggerFactory.getLogger(AuthBinding.class);
@@ -89,12 +91,12 @@ class AuthBinding {
   private final ActionFactory actionFactory;
   private final Set<Principal> superUsers;
 
-  public AuthBinding(String sentrySite, String superUsers, String instanceName) {
+  AuthBinding(String sentrySite, Set<Principal> superUsers, String instanceName) {
     this.authConf = initAuthzConf(sentrySite);
     this.instanceName = instanceName;
     this.authProvider = createAuthProvider();
     this.actionFactory = new ActionFactory();
-    this.superUsers = getSuperUsers(superUsers);
+    this.superUsers = superUsers;
   }
 
   /**
@@ -103,14 +105,16 @@ class AuthBinding {
    * @param entityId on which the actions need to be granted
    * @param role to which the actions needs to granted
    * @param actions the actions which needs to be granted
-   * @throws RoleNotFoundException if the given principal does not exists as a role
+   * @param requestingUser the user executing this operation
+   * @throws RoleNotFoundException if the given role does not exist
    */
-  void grant(final EntityId entityId, final Role role, Set<Action> actions) throws RoleNotFoundException {
-    if (!roleExists(role)) {
+  void grant(final EntityId entityId, final Role role, Set<Action> actions,
+             final String requestingUser) throws RoleNotFoundException {
+    if (!roleExists(role, requestingUser)) {
       throw new RoleNotFoundException(role);
     }
-    final String requestingUser = getRequestingUser();
-    LOG.info("Granting actions {} on entity {} for role {} on request of {}", actions, entityId, role, requestingUser);
+    LOG.debug("Granting actions {} on entity {} for role {}; Requesting user: {}",
+              actions, entityId, role, requestingUser);
     for (final Action action : actions) {
       execute(new Command<Void>() {
         @Override
@@ -129,14 +133,16 @@ class AuthBinding {
    * @param entityId the {@link EntityId} whose {@link Action actions} are to be revoked
    * @param role the {@link Role} from which the actions needs to be revoked
    * @param actions the set of {@link Action actions} to revoke
-   * @throws RoleNotFoundException if the given principal does not exists as a role
+   * @param requestingUser the user executing this operation
+   * @throws RoleNotFoundException if the given role does not exist
    */
-  void revoke(final EntityId entityId, final Role role, Set<Action> actions) throws RoleNotFoundException {
-    if (!roleExists(role)) {
+  void revoke(final EntityId entityId, final Role role, Set<Action> actions,
+              final String requestingUser) throws RoleNotFoundException {
+    if (!roleExists(role, requestingUser)) {
       throw new RoleNotFoundException(role);
     }
-    final String requestingUser = getRequestingUser();
-    LOG.info("Revoking actions {} on entity {} from role {} on request of {}", actions, entityId, role, requestingUser);
+    LOG.debug("Revoking actions {} on entity {} from role {}; Requesting user: {}",
+              actions, entityId, role, requestingUser);
     for (final Action action : actions) {
       execute(new Command<Void>() {
         @Override
@@ -153,13 +159,13 @@ class AuthBinding {
    * {@link EntityId}.
    *
    * @param entityId the {@link EntityId} on which all {@link Action actions} are to be revoked
+   * @param requestingUser the user executing this operation
    */
-  void revoke(EntityId entityId) {
-    Set<Role> allRoles = listAllRoles();
-    final List<TSentryPrivilege> allPrivileges = getAllPrivileges(allRoles);
+  void revoke(EntityId entityId, final String requestingUser) {
+    Set<Role> allRoles = listAllRoles(requestingUser);
+    final List<TSentryPrivilege> allPrivileges = getAllPrivileges(allRoles, requestingUser);
     final List<TAuthorizable> tAuthorizables = toTAuthorizable(entityId);
-    final String requestingUser = getRequestingUser();
-    LOG.info("Revoking all actions for all users from entity {} on request of {}", entityId, requestingUser);
+    LOG.debug("Revoking all actions for all users from entity {}; Requesting user: {}", entityId, requestingUser);
     execute(new Command<Void>() {
       @Override
       public Void run(SentryGenericServiceClient client) throws Exception {
@@ -186,31 +192,61 @@ class AuthBinding {
   boolean authorize(EntityId entityId, Principal principal, Action action) {
     if (superUsers.contains(principal)) {
       // superusers are allowed to perform any action on all entities so need to to authorize
-      LOG.info("Authorizing superuser with principal {} for action {} on entity {}", principal,
-               action, entityId);
+      LOG.debug("Authorizing superuser with principal {} for action {} on entity {}", principal, action, entityId);
       return true;
     }
-    List<Authorizable> authorizables = convertEntityToAuthorizables(instanceName, entityId);
+    List<org.apache.sentry.core.common.Authorizable> authorizables = toSentryAuthorizables(entityId);
     Set<ActionFactory.Action> actions = Sets.newHashSet(actionFactory.getActionByName(action.name()));
     return authProvider.hasAccess(new Subject(principal.getName()), authorizables, actions, ActiveRoleSet.ALL);
+  }
+
+  /**
+   * Lists {@link Privilege privileges} for the given {@link Principal}
+   *
+   * @param principal the principal for which the privileges has to be listed
+   * @param requestingUser the user executing this operation
+   * @return {@link Set} of {@link Privilege privilege} for the given principal
+   */
+  Set<Privilege> listPrivileges(Principal principal, String requestingUser) {
+    Set<Role> roles = getRoles(principal, requestingUser);
+    LOG.debug("Listing all privileges for {}; Requesting user: {}", principal, requestingUser);
+    List<TSentryPrivilege> allPrivileges = getAllPrivileges(roles, requestingUser);
+    return toPrivileges(allPrivileges);
+  }
+
+  @VisibleForTesting
+  Set<Privilege> toPrivileges(List<TSentryPrivilege> allPrivileges) {
+    Set<Privilege> privileges = new HashSet<>();
+    for (TSentryPrivilege sentryPrivilege : allPrivileges) {
+      List<TAuthorizable> authorizables = sentryPrivilege.getAuthorizables();
+      if (authorizables.isEmpty()) {
+        continue;
+      }
+      EntityId parent = null;
+      for (TAuthorizable authorizable : authorizables) {
+        parent = toEntityId(authorizable, parent);
+      }
+      privileges.add(new Privilege(parent, Action.valueOf(sentryPrivilege.getAction().toUpperCase())));
+    }
+    return privileges;
   }
 
   /**
    * Creates the given role.
    *
    * @param role the role to be created
+   * @param requestingUser the user executing this operation
    * @throws RoleAlreadyExistsException if the given role already exists
    */
-  void createRole(final Role role) throws RoleAlreadyExistsException {
-    if (roleExists(role)) {
+  void createRole(final Role role, final String requestingUser) throws RoleAlreadyExistsException {
+    if (roleExists(role, requestingUser)) {
       throw new RoleAlreadyExistsException(role);
     }
-    final String requestingUser = getRequestingUser();
     execute(new Command<Void>() {
       @Override
       public Void run(SentryGenericServiceClient client) throws Exception {
         client.createRole(requestingUser, role.getName(), COMPONENT_NAME);
-        LOG.info("Created role {} on request of {}", role, requestingUser);
+        LOG.debug("Created role {}; Requesting user: {}", role, requestingUser);
         return null;
       }
     });
@@ -220,18 +256,18 @@ class AuthBinding {
    * Drops the given role.
    *
    * @param role the role to dropped
+   * @param requestingUser the user executing this operation
    * @throws RoleNotFoundException if the role to be dropped does not exists
    */
-  void dropRole(final Role role) throws RoleNotFoundException {
-    if (!roleExists(role)) {
+  void dropRole(final Role role, final String requestingUser) throws RoleNotFoundException {
+    if (!roleExists(role, requestingUser)) {
       throw new RoleNotFoundException(role);
     }
-    final String requestingUser = getRequestingUser();
     execute(new Command<Void>() {
       @Override
       public Void run(SentryGenericServiceClient client) throws Exception {
         client.dropRole(requestingUser, role.getName(), COMPONENT_NAME);
-        LOG.info("Dropped role {} on request of {}", role, requestingUser);
+        LOG.info("Dropped role {}; Requesting user: {}", role, requestingUser);
         return null;
       }
     });
@@ -241,18 +277,21 @@ class AuthBinding {
    * Lists roles for the given principal
    *
    * @param principal the principal for which roles need to be listed
+   * @param requestingUser the user executing this operation
    * @return {@link Set} of {@link Role} to which this principal belongs to
    */
-  Set<Role> listRolesForGroup(Principal principal) {
-    return getRoles(principal);
+  Set<Role> listRolesForGroup(Principal principal, final String requestingUser) {
+    return getRoles(principal, requestingUser);
   }
 
   /**
    * Lists all roles
+   *
+   * @param requestingUser the user executing this operation
    * @return {@link Set} of all {@link Role}
    */
-  Set<Role> listAllRoles() {
-    return getRoles(null);
+  Set<Role> listAllRoles(final String requestingUser) {
+    return getRoles(null, requestingUser);
   }
 
   /**
@@ -260,16 +299,18 @@ class AuthBinding {
    *
    * @param role the role which needs to be added to the group principal
    * @param principal the group principal to which the role needs to be added
+   * @param requestingUser the user executing this operation
    * @throws RoleNotFoundException if the role to be added does not exists
    */
-  void addRoleToGroup(final Role role, final Principal principal) throws RoleNotFoundException {
-    if (!roleExists(role)) {
+  void addRoleToGroup(final Role role, final Principal principal,
+                      final String requestingUser) throws RoleNotFoundException {
+    if (!roleExists(role, requestingUser)) {
       throw new RoleNotFoundException(role);
     }
     execute(new Command<Void>() {
       @Override
       public Void run(SentryGenericServiceClient client) throws Exception {
-        client.addRoleToGroups(getRequestingUser(), role.getName(), COMPONENT_NAME,
+        client.addRoleToGroups(requestingUser, role.getName(), COMPONENT_NAME,
                                ImmutableSet.of(principal.getName()));
         return null;
       }
@@ -281,25 +322,44 @@ class AuthBinding {
    *
    * @param role the role which needs to be removed to the group principal
    * @param principal the group principal to which the role needs to be removed
+   * @param requestingUser the user executing this operation
    * @throws RoleNotFoundException if the role to be removed does not exists
    */
-  void removeRoleFromGroup(final Role role, final Principal principal) throws RoleNotFoundException {
-    if (!roleExists(role)) {
+  void removeRoleFromGroup(final Role role, final Principal principal,
+                           final String requestingUser) throws RoleNotFoundException {
+    if (!roleExists(role, requestingUser)) {
       throw new RoleNotFoundException(role);
     }
     execute(new Command<Void>() {
       @Override
       public Void run(SentryGenericServiceClient client) throws Exception {
-        client.deleteRoleToGroups(getRequestingUser(), role.getName(), COMPONENT_NAME,
+        client.deleteRoleToGroups(requestingUser, role.getName(), COMPONENT_NAME,
                                   ImmutableSet.of(principal.getName()));
         return null;
       }
     });
   }
 
-  private Set<Role> getRoles(@Nullable final Principal principal) {
+  /**
+   * Maps the given {@link EntityId} to {@link Authorizable}. To see a valid set of {@link Authorizable}
+   * please see {@link PrivilegeValidator} which is responsible for validating these authorizables positions and action.
+   *
+   * @param entityId the {@link EntityId} which needs to be mapped to list of {@link Authorizable}
+   * @return a {@link List} of {@link Authorizable} which represents the given {@link EntityId}
+   */
+  @VisibleForTesting
+  List<org.apache.sentry.core.common.Authorizable> toSentryAuthorizables(final EntityId entityId) {
+    List<org.apache.sentry.core.common.Authorizable> authorizables = new LinkedList<>();
+    toAuthorizables(entityId, authorizables);
+    return authorizables;
+  }
+
+  private Set<Role> getRoles(@Nullable final Principal principal, final String requestingUser) {
+    // if the specified principal is non-null and is a role, then we just return a singleton set containing that role
+    if (principal != null && Principal.PrincipalType.ROLE == principal.getType()) {
+      return Collections.singleton(new Role(principal.getName()));
+    }
     Set<Role> roles = new HashSet<>();
-    final String requestingUser = getRequestingUser();
     Set<TSentryRole> tSentryRoles = execute(new Command<Set<TSentryRole>>() {
       @Override
       public Set<TSentryRole> run(SentryGenericServiceClient client) throws Exception {
@@ -311,44 +371,21 @@ class AuthBinding {
       roles.add(new Role(tSentryRole.getRoleName()));
     }
     if (principal == null) {
-      LOG.info("Listed all roles {} on request of {}", roles, requestingUser);
+      LOG.debug("Listed all roles {}; Requesting user: {}", roles, requestingUser);
     } else {
-      LOG.info("Listed roles {} for principal {} on request of {}", roles, principal, requestingUser);
+      LOG.debug("Listed roles {} for principal {}; Requesting user: {}", roles, principal, requestingUser);
     }
     return ImmutableSet.copyOf(roles);
   }
 
   /**
-   * Gets a {@link Set} of {@link Principal} of superusers which is provided throug
-   * {@link AuthConf#SERVICE_SUPERUSERS}
-   *
-   * @return {@link Set} of {@link Principal} of superusers
+   * Checks if the given role exists
+   * @param role the role to be checked for existence
+   * @param requestingUser the user executing this operation
+   * @return true if the role exists else false
    */
-  private Set<Principal> getSuperUsers(String superUsers) {
-    Set<Principal> result = new HashSet<>();
-    for (String curUser : Splitter.on(",").trimResults().split(superUsers)) {
-      result.add(new Principal(curUser, Principal.PrincipalType.USER));
-    }
-    return result;
-  }
-
-  /**
-   * Maps the given {@link EntityId} to {@link Authorizable}. To see a valid set of {@link Authorizable}
-   * please see {@link PrivilegeValidator} which is responsible for validating these authorizables positions and action.
-   *
-   * @param instanceName the name of the cdap instance
-   * @param entityId the {@link EntityId} which needs to be mapped to list of {@link Authorizable}
-   * @return a {@link List} of {@link Authorizable} which represents the given {@link EntityId}
-   */
-  @VisibleForTesting
-  static List<org.apache.sentry.core.common.Authorizable> convertEntityToAuthorizables(
-    final String instanceName, final EntityId entityId) {
-    List<org.apache.sentry.core.common.Authorizable> authorizables = new LinkedList<>();
-    // cdap instance is not a concept in cdap entities. In sentry integration we need to grant privileges on the
-    // instance so that users can create namespace inside the instance etc.
-    authorizables.add(new Instance(instanceName));
-    getAuthorizable(entityId, authorizables);
-    return authorizables;
+  boolean roleExists(Role role, final String requestingUser) {
+    return listAllRoles(requestingUser).contains(role);
   }
 
   private AuthConf initAuthzConf(String sentrySite) {
@@ -435,13 +472,13 @@ class AuthBinding {
     }
   }
 
-  private List<TSentryPrivilege> getAllPrivileges(final Set<Role> roles) {
+  private List<TSentryPrivilege> getAllPrivileges(final Set<Role> roles, final String requestingUser) {
     return execute(new Command<List<TSentryPrivilege>>() {
       @Override
       public List<TSentryPrivilege> run(SentryGenericServiceClient client) throws Exception {
         final List<TSentryPrivilege> tSentryPrivileges = new ArrayList<>();
         for (Role role : roles) {
-          tSentryPrivileges.addAll(client.listPrivilegesByRoleName(getRequestingUser(), role.getName(),
+          tSentryPrivileges.addAll(client.listPrivilegesByRoleName(requestingUser, role.getName(),
                                                                    COMPONENT_NAME, instanceName));
         }
         return ImmutableList.copyOf(tSentryPrivileges);
@@ -449,14 +486,11 @@ class AuthBinding {
     });
   }
 
-  private boolean roleExists(Role role) {
-    return listAllRoles().contains(role);
-  }
-
-  private TSentryPrivilege toTSentryPrivilege(EntityId entityId, Action action) {
-    List<Authorizable> authorizables = convertEntityToAuthorizables(instanceName, entityId);
+  @VisibleForTesting
+  TSentryPrivilege toTSentryPrivilege(EntityId entityId, Action action) {
+    List<org.apache.sentry.core.common.Authorizable> authorizables = toSentryAuthorizables(entityId);
     List<TAuthorizable> tAuthorizables = new ArrayList<>();
-    for (Authorizable authorizable : authorizables) {
+    for (org.apache.sentry.core.common.Authorizable authorizable : authorizables) {
       tAuthorizables.add(new TAuthorizable(authorizable.getTypeName(), authorizable.getName()));
     }
     return new TSentryPrivilege(COMPONENT_NAME, instanceName, tAuthorizables, action.name());
@@ -492,6 +526,48 @@ class AuthBinding {
   }
 
   /**
+   * Maps a {@link TAuthorizable sentry authorizable} to {@link EntityId}
+   *
+   * @param tAuthorizable the TAuthorizable which needs to be mapped to entity
+   * @param parent the parent entity of this TAuthorizable
+   * @return {@link EntityId} for the given {@link TAuthorizable}
+   */
+  private EntityId toEntityId(TAuthorizable tAuthorizable, @Nullable EntityId parent) {
+    Authorizable authorizable = ModelAuthorizables.from(tAuthorizable.getType(), tAuthorizable.getName());
+    switch (Authorizable.AuthorizableType.valueOf(tAuthorizable.getType())) {
+      case INSTANCE:
+        return new InstanceId(instanceName);
+      case NAMESPACE:
+        Namespace namespace = (Namespace) authorizable;
+        return new NamespaceId(namespace.getName());
+      case ARTIFACT:
+        Artifact artifact = (Artifact) authorizable;
+        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.ARTIFACT);
+        return ((NamespaceId) parent).artifact(artifact.getArtifactName(), artifact.getArtifactVersion());
+      case APPLICATION:
+        Application application = (Application) authorizable;
+        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.APPLICATION);
+        return ((NamespaceId) parent).app(application.getName());
+      case PROGRAM:
+        Program program = (Program) authorizable;
+        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.PROGRAM);
+        ApplicationId applicationId = (ApplicationId) parent;
+        return applicationId.program(program.getProgramType(), program.getProgramName());
+      case DATASET:
+        Dataset dataset = (Dataset) authorizable;
+        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.DATASET);
+        return ((NamespaceId) parent).dataset(dataset.getName());
+      case STREAM:
+        Stream stream = (Stream) authorizable;
+        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.STREAM);
+        return ((NamespaceId) parent).stream(stream.getName());
+      default:
+        throw new IllegalArgumentException(String.format("Sentry Authorizable %s has invalid type %s",
+                                                         tAuthorizable.getName(), tAuthorizable.getType()));
+    }
+  }
+
+  /**
    * Maps {@link EntityId} to a {@link List} of {@link co.cask.cdap.security.authorization.sentry.model.Authorizable}
    * by recursively working its way from a given entity.
    *
@@ -499,46 +575,43 @@ class AuthBinding {
    * @param authorizables {@link List} of {@link co.cask.cdap.security.authorization.sentry.model.Authorizable} to
    * add authorizables to
    */
-  private static void getAuthorizable(EntityId entityId,
-                                      List<org.apache.sentry.core.common.Authorizable> authorizables) {
+  private void toAuthorizables(EntityId entityId, List<org.apache.sentry.core.common.Authorizable> authorizables) {
     EntityType entityType = entityId.getEntity();
     switch (entityType) {
+      case INSTANCE:
+        authorizables.add(new Instance(((InstanceId) entityId).getInstance()));
+        break;
       case NAMESPACE:
+        toAuthorizables(new InstanceId(instanceName), authorizables);
         authorizables.add(new Namespace(((NamespaceId) entityId).getNamespace()));
         break;
       case ARTIFACT:
         ArtifactId artifactId = (ArtifactId) entityId;
-        getAuthorizable(artifactId.getParent(), authorizables);
-        authorizables.add(new Artifact((artifactId).getArtifact()));
+        toAuthorizables(artifactId.getParent(), authorizables);
+        authorizables.add(new Artifact(artifactId.getArtifact(), artifactId.getVersion()));
         break;
       case APPLICATION:
         ApplicationId applicationId = (ApplicationId) entityId;
-        getAuthorizable(applicationId.getParent(), authorizables);
+        toAuthorizables(applicationId.getParent(), authorizables);
         authorizables.add(new Application((applicationId).getApplication()));
         break;
       case DATASET:
         DatasetId dataset = (DatasetId) entityId;
-        getAuthorizable(dataset.getParent(), authorizables);
+        toAuthorizables(dataset.getParent(), authorizables);
         authorizables.add(new Dataset((dataset).getDataset()));
         break;
       case STREAM:
         StreamId streamId = (StreamId) entityId;
-        getAuthorizable(streamId.getParent(), authorizables);
+        toAuthorizables(streamId.getParent(), authorizables);
         authorizables.add(new Stream((streamId).getStream()));
         break;
       case PROGRAM:
         ProgramId programId = (ProgramId) entityId;
-        getAuthorizable(programId.getParent(), authorizables);
-        authorizables.add(new Program(programId.getProgram()));
+        toAuthorizables(programId.getParent(), authorizables);
+        authorizables.add(new Program(programId.getType(), programId.getProgram()));
         break;
       default:
         throw new IllegalArgumentException(String.format("The entity %s is of unknown type %s", entityId, entityType));
     }
-  }
-
-  private String getRequestingUser() throws IllegalArgumentException {
-     Preconditions.checkArgument(SecurityRequestContext.getUserId() != null, "No authenticated user found. Please " +
-       "verify that authentication is enabled in CDAP.");
-    return SecurityRequestContext.getUserId();
   }
 }
