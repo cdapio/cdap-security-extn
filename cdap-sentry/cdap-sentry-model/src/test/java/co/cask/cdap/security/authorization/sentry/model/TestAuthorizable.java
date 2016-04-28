@@ -16,7 +16,6 @@
 
 package co.cask.cdap.security.authorization.sentry.model;
 
-import co.cask.cdap.proto.ProgramType;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -31,33 +30,31 @@ public class TestAuthorizable {
     String name = "test";
 
     Instance instance = new Instance(name);
-    Assert.assertEquals(name, instance.getName());
-    Assert.assertEquals(Authorizable.AuthorizableType.INSTANCE, instance.getAuthzType());
+    Assert.assertEquals(instance.getName(), name);
+    Assert.assertEquals(instance.getAuthzType(), Authorizable.AuthorizableType.INSTANCE);
 
     Namespace namespace = new Namespace(name);
-    Assert.assertEquals(name, namespace.getName());
-    Assert.assertEquals(Authorizable.AuthorizableType.NAMESPACE, namespace.getAuthzType());
+    Assert.assertEquals(namespace.getName(), name);
+    Assert.assertEquals(namespace.getAuthzType(), Authorizable.AuthorizableType.NAMESPACE);
 
-    Artifact artifact = new Artifact("art", "1");
-    Assert.assertEquals("art", artifact.getArtifactName());
-    Assert.assertEquals("1", artifact.getArtifactVersion());
-    Assert.assertEquals(Authorizable.AuthorizableType.ARTIFACT, artifact.getAuthzType());
+    Artifact artifact = new Artifact(name);
+    Assert.assertEquals(artifact.getName(), name);
+    Assert.assertEquals(artifact.getAuthzType(), Authorizable.AuthorizableType.ARTIFACT);
 
     Application application = new Application(name);
-    Assert.assertEquals(name, application.getName());
-    Assert.assertEquals(Authorizable.AuthorizableType.APPLICATION, application.getAuthzType());
+    Assert.assertEquals(application.getName(), name);
+    Assert.assertEquals(application.getAuthzType(), Authorizable.AuthorizableType.APPLICATION);
 
-    Program program = new Program(ProgramType.FLOW, "flow1");
-    Assert.assertEquals(ProgramType.FLOW, program.getProgramType());
-    Assert.assertEquals("flow1", program.getProgramName());
-    Assert.assertEquals(Authorizable.AuthorizableType.PROGRAM, program.getAuthzType());
+    Program program = new Program(name);
+    Assert.assertEquals(program.getName(), name);
+    Assert.assertEquals(program.getAuthzType(), Authorizable.AuthorizableType.PROGRAM);
 
     Stream stream = new Stream(name);
-    Assert.assertEquals(name, stream.getName());
-    Assert.assertEquals(Authorizable.AuthorizableType.STREAM, stream.getAuthzType());
+    Assert.assertEquals(stream.getName(), name);
+    Assert.assertEquals(stream.getAuthzType(), Authorizable.AuthorizableType.STREAM);
 
     Dataset dataset = new Dataset(name);
-    Assert.assertEquals(name, dataset.getName());
-    Assert.assertEquals(Authorizable.AuthorizableType.DATASET, dataset.getAuthzType());
+    Assert.assertEquals(dataset.getName(), name);
+    Assert.assertEquals(dataset.getAuthzType(), Authorizable.AuthorizableType.DATASET);
   }
 }

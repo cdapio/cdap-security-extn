@@ -50,7 +50,7 @@ public class TestPrivilegeValidator {
     testValidPrivilege("instance=instance1->namespace=namespace1->action=read");
 
     // artifact
-    testValidPrivilege("instance=instance1->namespace=namespace1->artifact=artifact1.0->action=write");
+    testValidPrivilege("instance=instance1->namespace=namespace1->artifact=artifact1->action=write");
 
     // stream
     testValidPrivilege("instance=instance1->namespace=namespace1->stream=stream1->action=all");
@@ -62,7 +62,7 @@ public class TestPrivilegeValidator {
     testValidPrivilege("instance=instance1->namespace=namespace1->application=application1->action=read");
 
     // program
-    testValidPrivilege("instance=instance1->namespace=namespace1->application=application1->program=flow.program1" +
+    testValidPrivilege("instance=instance1->namespace=namespace1->application=application1->program=program1" +
                          "->action=execute");
 
   }
@@ -76,7 +76,7 @@ public class TestPrivilegeValidator {
     testInvalidPrivileges("instance=instance1->namesSpace=namespace1->action=read");
 
     // artifact
-    testInvalidPrivileges("instance=instance1->namespace=namespace1->artTifact=arttifact1.0->action=write");
+    testInvalidPrivileges("instance=instance1->namespace=namespace1->artTifact=arttifact1->action=write");
 
     // stream
     testInvalidPrivileges("instance=instance1->namespace=namespace1->streEam=stream1->action=all");
@@ -88,8 +88,8 @@ public class TestPrivilegeValidator {
     testInvalidPrivileges("instance=instance1->namespace=namespace1->appliCcation=application1->action=read");
 
     // program
-    testInvalidPrivileges("instance=instance1->namespace=namespace1->application=application1->progGram=flow." +
-                            "program1->action=execute");
+    testInvalidPrivileges("instance=instance1->namespace=namespace1->application=application1->progGram=program1" +
+                            "->action=execute");
   }
 
   @Test
@@ -104,8 +104,7 @@ public class TestPrivilegeValidator {
 
   @Test
   public void testWithMorePartsInPrivilege() {
-    testInvalidPrivileges("instance=instance1->namespace=namespace1->dataset=dataset1->program=flow." +
-                            "program1->action=read");
+    testInvalidPrivileges("instance=instance1->namespace=namespace1->dataset=dataset1->program=program1->action=read");
   }
 
   @Test
@@ -126,7 +125,7 @@ public class TestPrivilegeValidator {
       privilegeValidator.validate(new PrivilegeValidatorContext(privilege));
       Assert.fail("Should throw an exception");
     } catch (Exception e) {
-      // expected
+      Assert.assertTrue(e instanceof RuntimeException);
     }
   }
 }
