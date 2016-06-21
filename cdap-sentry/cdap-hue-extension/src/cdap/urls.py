@@ -23,8 +23,8 @@ from django.conf.urls import patterns, url
 urlpatterns = patterns('cdap',
                        url(r'^$', 'views.index'),
                        url(r'^authenticate$', 'views.cdap_authenticate'),
+                       url(r'^details/(?P<path>.+)/$', 'views.details'),
                        # TODO: Implement the following apis
-                       # url(r'^details/(?P<path>.+)/$', 'views.details'),
                        # url(r'^list_roles_by_group', 'views.list_roles_by_group'),
                        # url(r'^list_privileges_by_role/(?P<role>.+)/', 'views.list_privileges_by_role'),
                        # url(r'^list_privileges_by_group/(?P<group>.+)/', 'views.list_privileges_by_group'),

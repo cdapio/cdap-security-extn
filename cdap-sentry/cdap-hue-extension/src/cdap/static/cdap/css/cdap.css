@@ -41,6 +41,7 @@ Customized CSS style
     margin-top: 0px;
     padding-top: 0px;
     word-wrap: break-word;
+    display: none;
 }
 
 #jstree {
@@ -53,23 +54,15 @@ Customized CSS style
 }
 
 .row-fluid .span4 {
-    width: 48%;
-    height: 100%;
-}
-
-#json-view {
-    width: 600px;
-    margin-bottom: 40px;
-}
-
-.jsonview ul li {
-    line-height: 15px;
-}
-
-.acl-panel {
     border-left: 1px solid #e5e5e5;
     padding-top: 6px;
     padding-left: 18px;
+    width: 39%;
+    height: 1000px;
+    overflow: scroll;
+}
+
+.acl-panel {
     height: 1000px;
 }
 
@@ -79,7 +72,7 @@ Customized CSS style
 }
 
 .acl-add-button {
-    padding-right: 88%;
+    padding-right: 78%;
 }
 
 .acl-new {
@@ -87,5 +80,19 @@ Customized CSS style
 }
 
 .acl-management {
-    margin-top: 5px;
+    margin-top: 15px;
+}
+
+.role-management {
+    display: none;
+}
+
+.breadcrumb {
+    padding: 0;
+    margin-left: 3px;
+    margin-bottom: 15px;
+}
+
+.myModal {
+    z-index: -10;
 }
