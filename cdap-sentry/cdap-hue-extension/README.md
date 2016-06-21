@@ -89,6 +89,7 @@ Here is the file structure of CDAP plugin
 
 	.
 	├── Makefile	 file used by app_reg.py command, related to plugin installation
+	├── setup.cfg	 setup files for pep8 style check. Use "pep8 ." command to start style check
 	├── setup.py     file used by app_reg.py command, configuration info(name, author etc.) defined here
 	├── src          contains all source code
 	│   ├── cdap

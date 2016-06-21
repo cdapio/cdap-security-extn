@@ -21,6 +21,16 @@ import requests
 from cdap_auth_client import BasicAuthenticationClient
 
 
+class ExtendedAuthenticationClient(BasicAuthenticationClient):
+  def clear_config(self):
+    """
+    Add the function to clear the configs in AuthenticationClient.
+    In case user provides wrong credentials at the first time.
+    """
+    self._BasicAuthenticationClient__username = None
+    self._BasicAuthenticationClient__password = None
+
+
 class auth_client:
   """
   An authorization Client to connect to CDAP rest service running on a secure cluster
@@ -36,7 +46,7 @@ class auth_client:
     self._auth_header = None
     self.is_set_credentials = False
     self.host_url = "%s/%s" % (cdap_router_uri, cdap_api_version)
-    self.client = BasicAuthenticationClient()
+    self.client = ExtendedAuthenticationClient()
     cdap_host, cdap_router_port = re.sub('^https?://', '', cdap_router_uri).strip('/').split(':')
     self.client.set_connection_info(cdap_host, int(cdap_router_port), False)
 
@@ -46,17 +56,19 @@ class auth_client:
     Leave all the excpetions to be caught outside this function.
     """
     if self.client.is_auth_enabled():
-      self._cdap_username = username
-      self._cdap_password = password
       properties = {
         'security_auth_client_username': username,
         'security_auth_client_password': password,
         'security_ssl_cert_check': True
       }
+      self.client.clear_config()
       self.client.configure(properties)
-      token = self.client.get_access_token()
-      self._auth_header = {'Authorization': token.token_type + ' ' + token.value}
+      self._set_access_token()
     self.is_set_credentials = True
+
+  def _set_access_token(self):
+    token = self.client.get_access_token()
+    self._auth_header = {'Authorization': token.token_type + ' ' + token.value}
 
   def get(self, url):
     """
@@ -65,5 +77,5 @@ class auth_client:
     """
     if self.client.is_token_expired():
       # Update the token if is expired
-      self.authenticate(self._cdap_username, self._cdap_password)
+      self._set_access_token()
     return json.loads(requests.get(self.host_url + url, headers=self._auth_header).text)

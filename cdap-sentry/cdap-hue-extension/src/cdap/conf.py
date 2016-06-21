@@ -35,7 +35,16 @@ CDAP_ROUTER_URI = Config(
 )
 
 CDAP_API_VERSION = Config(
-  key="cdap_api_version",
-  help=_t("Specify the cdap api version"),
-  default="v3",
+  key='cdap_api_version',
+  help=_t('Specify the cdap api version'),
+  default='v3',
 )
+
+# REST API definition of CDAP
+# Defined here. Not from hue.ini
+CDAP_REST_APIS = {
+  'stream': '/streams',
+  'dataset': '/data/datasets',
+  'artifact': '/artifacts',
+  'application': '/apps',
+}
