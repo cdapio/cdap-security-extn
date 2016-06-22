@@ -41,7 +41,7 @@ Customized CSS style
     margin-top: 0px;
     padding-top: 0px;
     word-wrap: break-word;
-    display: None;
+    display: none;
 }
 
 #jstree {
@@ -84,7 +84,7 @@ Customized CSS style
 }
 
 .role-management {
-    display: None;
+    display: none;
 }
 
 .breadcrumb {

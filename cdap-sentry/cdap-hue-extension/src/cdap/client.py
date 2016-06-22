@@ -33,8 +33,8 @@ class ExtendedAuthenticationClient(BasicAuthenticationClient):
 
 class auth_client:
   """
-  An authorization Client to connect to CDAP rest service running on a secure cluster
-  It get initialized by client = auth_client("host:port/api_version")
+  A wrapper of authentication client from cdap_auth_client package to connect to secure CDAP cluster
+  It get initialized by client = auth_client("http://host:port", api_version)
   And user should provide credentials by client.authenticate(username, password)
    to get the access token of a secure cdap cluster
   Once the token expires, the client will get a new token from the server automatically
