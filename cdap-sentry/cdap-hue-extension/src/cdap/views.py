@@ -16,6 +16,7 @@
 #
 
 from desktop.lib.django_util import render
+from django.core.cache import get_cache
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponse, HttpResponseServerError
 from cdap.client import auth_client
 from cdap.conf import CDAP_ROUTER_URI, CDAP_API_VERSION, CDAP_REST_APIS
@@ -28,7 +29,8 @@ import logging
 
 LOG = logging.getLogger(__name__)
 CDAP_CLIENT = auth_client(CDAP_ROUTER_URI.get(), CDAP_API_VERSION.get())
-ENTITIES_DETAIL = dict()
+CACHE = get_cache('default')
+ENTITIES_DETAIL_CACHE_KEY = "entities_detail_key"
 
 
 ##############################################################
@@ -107,7 +109,6 @@ def index(request):
     ...
   }
   """
-  global ENTITIES_DETAIL
   # If not yet authenticated, render a template to ask for the username / password
   if not CDAP_CLIENT.is_set_credentials:
     return render('index.mako', request, dict(date2='testjson', unauthenticated=True))
@@ -115,7 +116,9 @@ def index(request):
   namespaces = _call_cdap_api('namespaces')
   entities = dict((ns['name'], dict()) for ns in namespaces)
   entities_detail = dict((ns['name'], ns) for ns in namespaces)
-  entities, ENTITIES_DETAIL = _fetch_entites_from_cdap(entities, entities_detail)
+  entities, entities_detail = _fetch_entites_from_cdap(entities, entities_detail)
+  # Detail informations are stored in entites_detail. Cache it for future requests.
+  CACHE.set(ENTITIES_DETAIL_CACHE_KEY, entities_detail)
   return render('index.mako', request, dict(date2='testjson', entities=entities))
 
 
@@ -126,11 +129,10 @@ def details(request, path):
   :param path: Path to the entity (namespaceName/.../.../.../)
   :return: JSON Struct:  {property1: value, property2: value, ...}
   """
-  item = ENTITIES_DETAIL
+  item = CACHE.get(ENTITIES_DETAIL_CACHE_KEY)
   # ENTITIES_DETAIL : {"namespaceName": {"name":"", "description": "", "stream":{}, "artifact":"", "dataset":"",
   # "application":""}, {}...} Each part in path.split('/') matches the key name in ENTITIES_DETAIL
   # The detailed information of entity at path stores in the last dict
   for k in path.strip('/').split('/'):
     item = item[k]
   return HttpResponse(json.dumps(item), content_type='application/json')
-
