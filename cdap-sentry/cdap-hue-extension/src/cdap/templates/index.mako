@@ -171,12 +171,10 @@ ${shared.menubar(section='mytab')}
 <script>
   $(document).ready(function () {
     $('.myModal').on('show.bs.modal', function (e) {
-      $('.myModal').css("width", "700px");
       $('.myModal').css("z-index", "100000");
     });
 
     $('.myModal').on('hidden.bs.modal', function (e) {
-      $('.myModal').css("width", "0px");
       $('.myModal').css("z-index", "-10");
     });
 

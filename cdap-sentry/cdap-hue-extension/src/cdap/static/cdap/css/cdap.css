@@ -92,3 +92,7 @@ Customized CSS style
     margin-left: 3px;
     margin-bottom: 15px;
 }
+
+.myModal {
+    z-index: -10;
+}
