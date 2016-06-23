@@ -24,8 +24,8 @@ from cdap_auth_client import BasicAuthenticationClient
 class ExtendedAuthenticationClient(BasicAuthenticationClient):
   def clear_config(self):
     """
-    Add the function to clear the configs in AuthenticationClient.
-    In case user provides wrong credentials at the first time.
+    Clears the configs in the AuthenticationClient for use
+    where the user provides incorrect credentials the first time.
     """
     self._BasicAuthenticationClient__username = None
     self._BasicAuthenticationClient__password = None
@@ -33,10 +33,11 @@ class ExtendedAuthenticationClient(BasicAuthenticationClient):
 
 class auth_client:
   """
-  A wrapper of authentication client from cdap_auth_client package to connect to secure CDAP cluster
-  It get initialized by client = auth_client("http://host:port", api_version)
+  A wrapper of the authentication client from the cdap_auth_client package for connecting to a secure CDAP cluster.
+  It is initialized using:
+    client = auth_client("http://host:port", api_version)
   And user should provide credentials by client.authenticate(username, password)
-   to get the access token of a secure cdap cluster
+    to get the access token of a secure cdap cluster
   Once the token expires, the client will get a new token from the server automatically
   """
 
@@ -45,7 +46,7 @@ class auth_client:
     self._cdap_password = None
     self._auth_header = None
     self.is_set_credentials = False
-    self.host_url = "%s/%s" % (cdap_router_uri, cdap_api_version)
+    self.host_url = "%s/%s/" % (cdap_router_uri, cdap_api_version)
     self.client = ExtendedAuthenticationClient()
     cdap_host, cdap_router_port = re.sub('^https?://', '', cdap_router_uri).strip('/').split(':')
     self.client.set_connection_info(cdap_host, int(cdap_router_port), False)
@@ -59,7 +60,7 @@ class auth_client:
       properties = {
         'security_auth_client_username': username,
         'security_auth_client_password': password,
-        'security_ssl_cert_check': True
+        'security_ssl_cert_check': True,
       }
       self.client.clear_config()
       self.client.configure(properties)
@@ -78,4 +79,4 @@ class auth_client:
     if self.client.is_token_expired():
       # Update the token if is expired
       self._set_access_token()
-    return json.loads(requests.get(self.host_url + url, headers=self._auth_header).text)
+    return json.loads(requests.get(self.host_url + url.strip('/'), headers=self._auth_header).text)

@@ -43,8 +43,8 @@ CDAP_API_VERSION = Config(
 # REST API definition of CDAP
 # Defined here. Not from hue.ini
 CDAP_REST_APIS = {
-  'stream': '/streams',
-  'dataset': '/data/datasets',
-  'artifact': '/artifacts',
-  'application': '/apps',
+  'stream': 'streams',
+  'dataset': 'data/datasets',
+  'artifact': 'artifacts',
+  'application': 'apps',
 }

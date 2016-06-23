@@ -22,6 +22,7 @@ from cdap.conf import CDAP_ROUTER_URI, CDAP_API_VERSION, CDAP_REST_APIS
 from libsentry.api2 import get_api
 
 from collections import defaultdict
+import os
 import json
 import logging
 
@@ -34,7 +35,7 @@ ENTITIES_DETAIL = dict()
 # Localized helper functions defined here
 ##############################################################
 
-def cdap_error_handler(func):
+def _cdap_error_handler(func):
   """
   Decorator to handle exceptions for a controller function
   """
@@ -57,14 +58,14 @@ def _fetch_entites_from_cdap(entities, entities_detail):
   # Iter through entities and fetch the name and description
   for namespace in entities:
     for entity_type, entity_url in CDAP_REST_APIS.iteritems():
-      full_url = '/namespaces/' + namespace + entity_url
+      full_url = os.path.join('namespaces', namespace, entity_url)
       items = _call_cdap_api(full_url)
       if entity_type == 'application':
         # Application has additional hierarchy
         entities[namespace][entity_type] = {}
         entities_detail[namespace][entity_type] = {}
         for item in items:
-          programs = _call_cdap_api(full_url + '/' + item['name'])['programs']
+          programs = _call_cdap_api(os.path.join(full_url, item['name']))['programs']
           program_dict = defaultdict(list)
           for program in programs:
             program_dict[program['type'].lower()].append(program)
@@ -85,47 +86,51 @@ def _fetch_entites_from_cdap(entities, entities_detail):
 
 
 ##############################################################
-# Controller functions goes here
+# Controller functions
 # Routers are defined in urls.py
 ##############################################################
 
-@cdap_error_handler
+@_cdap_error_handler
 def cdap_authenticate(request):
   CDAP_CLIENT.authenticate(request.POST['username'], request.POST['password'])
   return HttpResponse()
 
 
-@cdap_error_handler
+@_cdap_error_handler
 def index(request):
   """
-  Request handler for index page. CDAP rest service does not provide api to fetch all entities,
-  so call apis hierarchically.
-  :return: Json Struct:
+  Request handler for the index page. As the CDAP RESTful service does not provide an API to fetch all of the
+  entities, call the APIs hierarchically.
+  :return: JSON Struct:
   entities: {
     namespace1: {"stream": [], "dataset": [], "artifact": [], "application": [{"type": []}]},
     ...
   }
   """
   global ENTITIES_DETAIL
-  # If not authenticate yet, render template to ask for username/password
+  # If not yet authenticated, render a template to ask for the username / password
   if not CDAP_CLIENT.is_set_credentials:
     return render('index.mako', request, dict(date2='testjson', unauthenticated=True))
   # Fetch all the namespaces first
-  namespaces = _call_cdap_api('/namespaces')
+  namespaces = _call_cdap_api('namespaces')
   entities = dict((ns['name'], dict()) for ns in namespaces)
   entities_detail = dict((ns['name'], ns) for ns in namespaces)
   entities, ENTITIES_DETAIL = _fetch_entites_from_cdap(entities, entities_detail)
   return render('index.mako', request, dict(date2='testjson', entities=entities))
 
 
-@cdap_error_handler
+@_cdap_error_handler
 def details(request, path):
   """
-  Return detailed information of the entity with path
+  Returns detailed information on the entity at path.
   :param path: Path to the entity (namespaceName/.../.../.../)
-  :return: Json Struct:  {property1: value, property2: value, ...}
+  :return: JSON Struct:  {property1: value, property2: value, ...}
   """
   item = ENTITIES_DETAIL
+  # ENTITIES_DETAIL : {"namespaceName": {"name":"", "description": "", "stream":{}, "artifact":"", "dataset":"",
+  # "application":""}, {}...} Each part in path.split('/') matches the key name in ENTITIES_DETAIL
+  # The detailed information of entity at path stores in the last dict
   for k in path.strip('/').split('/'):
     item = item[k]
   return HttpResponse(json.dumps(item), content_type='application/json')
+
