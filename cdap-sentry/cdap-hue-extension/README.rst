@@ -35,13 +35,13 @@ Installation
 
 Build
 -----
-To install and activate the cdap plugin for Hue:
+To install and activate the cdap plugin for Hue::
 
-	  $ ln -s cdap-security-extn/cdap-sentry/cdap-hue-extension $HUE_HOME/cdap
-	  $ cd $HUE_HOME
-	  $ tools/app_reg/app_reg.py --install cdap --relative-paths
-	  $ chown -R hue: cdap/  # Or chown to the user that will start Hue
-	  $ sudo $HUE_HOME/build/env/bin/python $HUE_HOME/build/env/bin/pip install cdap-auth-client
+  $ ln -s cdap-security-extn/cdap-sentry/cdap-hue-extension $HUE_HOME/cdap
+  $ cd $HUE_HOME
+  $ tools/app_reg/app_reg.py --install cdap --relative-paths
+  $ chown -R hue: cdap/  # Or chown to the user that will start Hue
+  $ sudo $HUE_HOME/build/env/bin/python $HUE_HOME/build/env/bin/pip install cdap-auth-client
 
 Note: If your Hue comes with Cloudera Manager, then HUE_HOME should be set natively. 
 
@@ -49,31 +49,31 @@ If you choose to build Hue from source code, HUE_HOME should be set to the direc
 
 Configuration
 -------------
-Configs needed in hue.ini:
+Configs needed in hue.ini::
 
-	[cdap]
-	  # Configuration of cdap
-	  # cdap_host=fully-qualified-hostname
-	  # cdap_router_port=10000
-	  # cdap_api_version=v3
+  [cdap]
+    # Configuration of cdap
+    # cdap_host=fully-qualified-hostname
+    # cdap_router_port=10000
+    # cdap_api_version=v3
 
-	[libsentry]
-	  # Hostname or IP of Sentry server.
-	  # hostname=fully-qualified-hostname
+  [libsentry]
+    # Hostname or IP of Sentry server.
+    # hostname=fully-qualified-hostname
 
-	  # Port the sentry service is running on.
-	  # port=8038
+    # Port the sentry service is running on.
+    # port=8038
 
-	  # Sentry configuration directory, where sentry-site.xml is located.
-	  # sentry_conf_dir=$SENTRY_HOME/conf   # SENTRY_HOME refers to the directory where sentry is installed
+    # Sentry configuration directory, where sentry-site.xml is located.
+    # sentry_conf_dir=$SENTRY_HOME/conf   # SENTRY_HOME refers to the directory where sentry is installed
 
-	[[kerberos]]
-	  # Path to Hue's Kerberos keytab file
-	  # hue_keytab=
-	  # Kerberos principal name for Hue
-	  # hue_principal=hue/hostname.foo.com
-	  # Path to kinit
-	  # kinit_path=/path/to/kinit
+  [[kerberos]]
+    # Path to Hue's Kerberos keytab file
+    # hue_keytab=
+    # Kerberos principal name for Hue
+    # hue_principal=hue/hostname.foo.com
+    # Path to kinit
+    # kinit_path=/path/to/kinit
 
 Note: If security feature is enabled, your should use fully-qualified hostname rather than 
 localhost or 127.0.0.1 in the configs above when Hue is running on the same machine with CDAP. 
@@ -85,34 +85,34 @@ Project Details
 Directory Structure
 -------------------
 
-Here is the file structure of CDAP plugin
+Here is the file structure of CDAP plugin::
 
-	.
-	├── Makefile	 file used by app_reg.py command, related to plugin installation
-	├── setup.cfg	 setup files for pep8 style check. Use "pep8 ." command to start style check
-	├── setup.py     file used by app_reg.py command, configuration info(name, author etc.) defined here
-	├── src          contains all source code
-	│   ├── cdap
-	│   │   ├── client.py		an authorization client built based upon python cdap-auth-client
-	│   │   ├── conf.py       file to parse all the configurations defined in hue.ini
-	│   │   ├── forms.py      files to validate all submiited forms, blank currently since no forms are defined. But Hue needs this file to start the CDAP plugin
-	│   │   ├── models.py     files to define database related structure, blank currently since no database is used for CDAP plugin. But Hue also needs this file
-	│   │   ├── settings.py   customized settings of CDAP plugin including app name, icon, menu etc., used by Django
-	│   │   ├── static
-	│   │   │   └── cdap
-	│   │   │       ├── art      contains all the icons of CDAP plugin, defined in settings.py
-	│   │   │       │   ├── cdap.png
-	│   │   │       │   ├── icon_cdap_24.png
-	│   │   │       │   └── icon_cdap_48.png
-	│   │   │       ├── css
-	│   │   │       │   └── cdap.css    css file for CDAP
-	│   │   │       └── js
-	│   │   │           └── cdap.js    JavaScript file for CDAP
-	│   │   ├── templates
-	│   │   │   ├── index.mako    Mako template for the main page of CDAP plugin
-	│   │   │   └── shared_components.mako    banner, navigation bar, footer defined here
-	│   │   ├── urls.py		routers of CDAP, starts with /cdap/..., use regex to match all urls
-	│   │   ├── views.py	controllers of CDAP
+  .
+  ├── Makefile	 file used by app_reg.py command, related to plugin installation
+  ├── setup.cfg	 setup files for pep8 style check. Use "pep8 ." command to start style check
+  ├── setup.py     file used by app_reg.py command, configuration info(name, author etc.) defined here
+  ├── src          contains all source code
+  │   ├── cdap
+  │   │   ├── client.py		an authorization client built based upon python cdap-auth-client
+  │   │   ├── conf.py       file to parse all the configurations defined in hue.ini
+  │   │   ├── forms.py      files to validate all submiited forms, blank currently since no forms are defined. But Hue needs this file to start the CDAP plugin
+  │   │   ├── models.py     files to define database related structure, blank currently since no database is used for CDAP plugin. But Hue also needs this file
+  │   │   ├── settings.py   customized settings of CDAP plugin including app name, icon, menu etc., used by Django
+  │   │   ├── static
+  │   │   │   └── cdap
+  │   │   │       ├── art      contains all the icons of CDAP plugin, defined in settings.py
+  │   │   │       │   ├── cdap.png
+  │   │   │       │   ├── icon_cdap_24.png
+  │   │   │       │   └── icon_cdap_48.png
+  │   │   │       ├── css
+  │   │   │       │   └── cdap.css    css file for CDAP
+  │   │   │       └── js
+  │   │   │           └── cdap.js    JavaScript file for CDAP
+  │   │   ├── templates
+  │   │   │   ├── index.mako    Mako template for the main page of CDAP plugin
+  │   │   │   └── shared_components.mako    banner, navigation bar, footer defined here
+  │   │   ├── urls.py		routers of CDAP, starts with /cdap/..., use regex to match all urls
+  │   │   ├── views.py	controllers of CDAP
 
 
 Backend Design
@@ -122,6 +122,7 @@ The backend code in this CDAP app is splited into two parts, and they are define
 
 1. Talking to CDAP restful service to list CDAP entities. This part of code take advantage of
 auth_client and load all related CDAP entites once a user starts to use the app. 
+
 2. Talking to Sentry server to add/delete roles and alter sentry privileges. 
 This part of code take advantage of Hue's built in sentry client code defined in $HUE_HOME/desktop/libs/libsentry/api2.py. 
 All the related data structure required to use these apis are documented in the comments. 
