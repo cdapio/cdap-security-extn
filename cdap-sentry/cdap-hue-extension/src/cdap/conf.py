@@ -1,20 +1,4 @@
-# coding=utf8
-# Copyright © 2016 Cask Data, Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may not
-# use this file except in compliance with the License. You may obtain a copy of
-# the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations under
-# the License.
-
-# This file parse the configs defined in section [cdap] in Hue's config file
-
+#!/usr/bin/env python
 
 import logging
 import os.path
@@ -22,29 +6,30 @@ import sys
 
 from django.utils.translation import ugettext_lazy as _t, ugettext as _
 
-from desktop.conf import default_ssl_cacerts, default_ssl_validate, AUTH_PASSWORD as DEFAULT_AUTH_PASSWORD, \
+from desktop.conf import default_ssl_cacerts, default_ssl_validate, AUTH_PASSWORD as DEFAULT_AUTH_PASSWORD,\
   AUTH_USERNAME as DEFAULT_AUTH_USERNAME
-from desktop.lib.conf import ConfigSection, Config
+from desktop.lib.conf import ConfigSection, Config, coerce_bool, coerce_csv, coerce_password_from_script
+from desktop.lib.exceptions import StructuredThriftTransportException
+
 
 LOG = logging.getLogger(__name__)
 
-CDAP_ROUTER_URI = Config(
-  key='cdap_router_uri',
-  help=_t('Fully qualified URI to CDAP Router. eg. http://localhost:10000'),
-  default='http://localhost:10000'
+
+
+CDAP_API_HOST = Config(
+    key="cdap_api_host",
+    help=_t("Host where CDAP rest api service is running. Different from the cdap ui server"),
+    default="10.128.0.7"
 )
+
+CDAP_API_PORT = Config(
+  key="cdap_api_port",
+  help=_t("Configure the port the cdap api server runs on."),
+  default=10000,
+  type=int)
 
 CDAP_API_VERSION = Config(
-  key='cdap_api_version',
-  help=_t('Specify the cdap api version'),
-  default='v3',
+    key="cdap_api_version",
+    help=_t("Specify the cdap api version"),
+    default="v3",
 )
-
-# REST API definition of CDAP
-# Defined here. Not from hue.ini
-CDAP_REST_APIS = {
-  'stream': 'streams',
-  'dataset': 'data/datasets',
-  'artifact': 'artifacts',
-  'application': 'apps',
-}
