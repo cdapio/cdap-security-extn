@@ -15,39 +15,23 @@
   the License.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <parent>
-    <artifactId>cdap-sentry-extension</artifactId>
-    <groupId>co.cask.cdap</groupId>
-    <version>0.2.0-SNAPSHOT</version>
-  </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>cdap-sentry-model</artifactId>
+  <parent>
+    <groupId>co.cask.cdap</groupId>
+    <artifactId>cdap-sentry</artifactId>
+    <version>0.2.0-SNAPSHOT</version>
+  </parent>
 
-  <name>CDAP Sentry Model</name>
-  <description>Defines the CDAP Data Model in Apache Sentry.</description>
+  <artifactId>cdap-hue-extension</artifactId>
+  <version>0.2.0-SNAPSHOT</version>
 
-  <dependencies>
+  <packaging>pom</packaging>
 
-    <dependency>
-      <groupId>org.apache.sentry</groupId>
-      <artifactId>sentry-core-common</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>co.cask.cdap</groupId>
-      <artifactId>cdap-proto</artifactId>
-    </dependency>
-
-  </dependencies>
+  <name>CDAP Hue Extension</name>
+  <description>A Hue plugin for CDAP.</description>
+  <url>http://github.com/caskdata/cdap-security-extn/cdap-sentry/cdap-hue-extension</url>
 
 </project>
