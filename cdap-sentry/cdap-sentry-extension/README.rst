@@ -75,15 +75,15 @@ authorization extension:
 
    * - Parameter
      - Value
-   * - ``security.authorization.authorizer.extension.jar.path``
+   * - ``security.authorization.extension.jar.path``
      - Absolute path of the ``cdap-sentry-binding-*.jar`` on the local file system of the CDAP Master.
-   * - ``security.authorization.authorizer.extension.config.sentry.site.url``
+   * - ``security.authorization.extension.config.sentry.site.url``
      - Absolute path of the client-side ``sentry-site.xml`` on the local file system of the CDAP Master.
-   * - ``security.authorization.authorizer.extension.config.sentry.admin.group``
+   * - ``security.authorization.extension.config.sentry.admin.group``
      - A unix group configured as an admin group in the Sentry Service (identified by ``sentry.service.admin.group``
        in the ``sentry-site.xml`` used by the Sentry Service). This group is used while granting ``ALL`` privileges
        to a user when he/she successfully creates an entity.
-   * - ``security.authorization.authorizer.extension.config.superusers``
+   * - ``security.authorization.extension.config.superusers``
      - Comma-separated list of super users. Super users are authorized to perform all operations on all entities.
        They can also manage roles.
    * - ``security.authorization.authorizer.extension.config.instance.name``
