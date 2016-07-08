@@ -111,8 +111,19 @@ public class SentryAuthorizerTest {
       }
 
       @Override
+      public <T extends Dataset> T getDataset(String namespace, String dataset) throws DatasetInstantiationException {
+        throw new DatasetInstantiationException("Cannot get dataset through no-op AuthorizationContext");
+      }
+
+      @Override
       public <T extends Dataset> T getDataset(String name, Map<String, String> map)
         throws DatasetInstantiationException {
+        throw new DatasetInstantiationException("Cannot get dataset through no-op AuthorizationContext");
+      }
+
+      @Override
+      public <T extends Dataset> T getDataset(String namespace, String dataset,
+                                              Map<String, String> properties) throws DatasetInstantiationException {
         throw new DatasetInstantiationException("Cannot get dataset through no-op AuthorizationContext");
       }
 
