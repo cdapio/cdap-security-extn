@@ -71,8 +71,7 @@ public class AuthBindingEntityToAuthMapperTest {
     URL resource = AuthBindingEntityToAuthMapperTest.class.getClassLoader().getResource("sentry-site.xml");
     Assert.assertNotNull(resource);
     String sentrySitePath = resource.getPath();
-    Set<Principal> superUsers = Collections.singleton(new Principal("superUser", Principal.PrincipalType.USER));
-    binding = new AuthBinding(sentrySitePath, superUsers, "cdap");
+    binding = new AuthBinding(sentrySitePath, "cdap");
   }
 
   @Test

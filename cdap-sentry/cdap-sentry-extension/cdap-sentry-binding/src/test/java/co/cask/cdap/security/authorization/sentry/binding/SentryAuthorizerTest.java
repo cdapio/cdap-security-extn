@@ -145,7 +145,7 @@ public class SentryAuthorizerTest {
   }
 
   @Test
-  public void testAuthorized() {
+  public void testAuthorized() throws Exception {
     testAuthorized(new NamespaceId("ns1"));
     testAuthorized(new StreamId("ns1", "stream1"));
     testAuthorized(new DatasetId("ns1", "ds1"));
@@ -164,7 +164,7 @@ public class SentryAuthorizerTest {
   }
 
   @Test
-  public void testUnauthorized() {
+  public void testUnauthorized() throws Exception {
     // do some invalid operations
     // admin1 is not admin of ns2
     assertUnauthorized(new NamespaceId("ns2"), getUser("admin1"), Action.ADMIN);
@@ -184,7 +184,7 @@ public class SentryAuthorizerTest {
   }
 
   @Test
-  public void testSuperUsers() {
+  public void testSuperUsers() throws Exception {
     // hulk being an superuser can do anything
     assertAuthorized(new StreamId("ns2", "stream1"), getUser(SUPERUSER_HULK), Action.READ);
     assertAuthorized(new ProgramId("ns1", "app1", ProgramType.FLOW, "prog1"), getUser(SUPERUSER_HULK),
@@ -195,7 +195,7 @@ public class SentryAuthorizerTest {
   }
 
   @Test
-  public void testHierarchy() {
+  public void testHierarchy() throws Exception {
     // admin1 has ADMIN on ns1
     assertAuthorized(new NamespaceId("ns1"), getUser("admin1"), Action.ADMIN);
     // hence, admin1 should have ADMIN on any child of ns1, even a child that admin1 has not been given explicit ADMIN
@@ -221,7 +221,7 @@ public class SentryAuthorizerTest {
                      getUser("readers1"), Action.READ);
   }
 
-  private void testAuthorized(EntityId entityId) {
+  private void testAuthorized(EntityId entityId) throws Exception {
     // admin1 is admin of entity
     assertAuthorized(entityId, getUser("admin1"), Action.ADMIN);
     // reader1 can read entity
@@ -234,7 +234,7 @@ public class SentryAuthorizerTest {
     assertAuthorized(entityId, getUser("all1"), Action.ADMIN);
   }
 
-  private void assertAuthorized(EntityId entityId, Principal principal, Action action) {
+  private void assertAuthorized(EntityId entityId, Principal principal, Action action) throws Exception {
     try {
       authorizer.enforce(entityId, principal, action);
     } catch (UnauthorizedException e) {
@@ -242,7 +242,7 @@ public class SentryAuthorizerTest {
     }
   }
 
-  private void assertUnauthorized(EntityId entityId, Principal principal, Action action) {
+  private void assertUnauthorized(EntityId entityId, Principal principal, Action action) throws Exception {
     try {
       authorizer.enforce(entityId, principal, action);
       Assert.fail("The authorization check should have failed.");
