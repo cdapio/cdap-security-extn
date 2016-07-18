@@ -50,6 +50,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   private static final String ENTITY_ROLE_PREFIX = ".";
   private AuthBinding binding;
   private String sentryAdminGroup;
+  private Set<Principal> superUsers;
 
   public SentryAuthorizer() {
   }
@@ -83,8 +84,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
 
     LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {} and cdap instance name {}",
                sentrySiteUrl, instanceName);
-    Set<Principal> superUsersPrincipals = getSuperUsers(superUsers);
-    this.binding = new AuthBinding(sentrySiteUrl, superUsersPrincipals, instanceName);
+    this.superUsers = getSuperUsers(superUsers);
+    this.binding = new AuthBinding(sentrySiteUrl, instanceName);
   }
 
   @Override
@@ -159,13 +160,29 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public void enforce(EntityId entityId, Principal principal, Action action) throws UnauthorizedException {
-    Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.USER, "The given principal '%s' is of " +
+  public void enforce(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
+    Preconditions.checkArgument(Principal.PrincipalType.USER == principal.getType(), "The given principal '%s' is of " +
                                 "type '%s'. In Sentry authorization checks can only be performed on principal type " +
                                 "'%s'.", principal.getName(), principal.getType(), Principal.PrincipalType.USER);
-    if (!binding.authorize(entityId, principal, action)) {
-      throw new UnauthorizedException(principal, action, entityId);
+    if (superUsers.contains(principal)) {
+      // superusers are allowed to perform any action on all entities so need to authorize
+      LOG.debug("Authorizing superuser with principal {} for actions {} on entity {}", principal, actions, entityId);
+      return;
     }
+
+    if (!binding.authorize(entityId, principal, actions)) {
+      throw new UnauthorizedException(principal, actions, entityId);
+    }
+  }
+
+  @Override
+  public <T extends EntityId> Set<T> filter(Set<T> unfiltered, Principal principal) throws Exception {
+    if (superUsers.contains(principal)) {
+      // superusers are allowed to perform any action on all entities so need to filter
+      LOG.debug("No filtering necessary for superuser {}. Returning all entities", principal, unfiltered);
+      return unfiltered;
+    }
+    return super.filter(unfiltered, principal);
   }
 
   private synchronized void performUserBasedGrant(EntityId entityId, Principal principal, Set<Action> actions) {

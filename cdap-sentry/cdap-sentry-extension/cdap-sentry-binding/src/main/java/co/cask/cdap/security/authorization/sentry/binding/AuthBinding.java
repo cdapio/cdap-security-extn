@@ -45,9 +45,11 @@ import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
 import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
@@ -89,14 +91,12 @@ class AuthBinding {
   private final AuthorizationProvider authProvider;
   private final String instanceName;
   private final ActionFactory actionFactory;
-  private final Set<Principal> superUsers;
 
-  AuthBinding(String sentrySite, Set<Principal> superUsers, String instanceName) {
+  AuthBinding(String sentrySite, String instanceName) {
     this.authConf = initAuthzConf(sentrySite);
     this.instanceName = instanceName;
     this.authProvider = createAuthProvider();
     this.actionFactory = new ActionFactory();
-    this.superUsers = superUsers;
   }
 
   /**
@@ -185,19 +185,20 @@ class AuthBinding {
    *
    * @param entityId {@link EntityId} of the entity on which the action is being performed
    * @param principal the {@link Principal} who needs to perform this action
-   * @param action {@link Action} the action which needs to be checked
+   * @param actions {@link Action actions} that need to be checked for authorization
    * @return true if the given {@link Principal} can perform the given {@link Action} on the given {@link EntityId}
    * else false
    */
-  boolean authorize(EntityId entityId, Principal principal, Action action) {
-    if (superUsers.contains(principal)) {
-      // superusers are allowed to perform any action on all entities so need to to authorize
-      LOG.debug("Authorizing superuser with principal {} for action {} on entity {}", principal, action, entityId);
-      return true;
-    }
+  boolean authorize(EntityId entityId, Principal principal, Set<Action> actions) {
     List<org.apache.sentry.core.common.Authorizable> authorizables = toSentryAuthorizables(entityId);
-    Set<ActionFactory.Action> actions = Sets.newHashSet(actionFactory.getActionByName(action.name()));
-    return authProvider.hasAccess(new Subject(principal.getName()), authorizables, actions, ActiveRoleSet.ALL);
+    Set<ActionFactory.Action> sentryActions = Sets.newHashSet(
+      Collections2.transform(actions, new Function<Action, ActionFactory.Action>() {
+        @Override
+        public ActionFactory.Action apply(Action action) {
+          return actionFactory.getActionByName(action.name());
+        }
+      }));
+    return authProvider.hasAccess(new Subject(principal.getName()), authorizables, sentryActions, ActiveRoleSet.ALL);
   }
 
   /**

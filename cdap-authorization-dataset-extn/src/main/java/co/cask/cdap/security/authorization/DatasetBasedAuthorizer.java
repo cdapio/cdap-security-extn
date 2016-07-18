@@ -86,8 +86,7 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public void enforce(final EntityId entity, final Principal principal,
-                      final Action action) throws UnauthorizedException, TransactionFailureException {
+  public void enforce(final EntityId entity, final Principal principal, final Set<Action> actions) throws Exception {
     // no enforcement for superusers
     if (superUsers.contains(principal)) {
       return;
@@ -99,7 +98,7 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
         AuthorizationDataset dataset = dsSupplier.get();
         for (EntityId current : entity.getHierarchy()) {
           Set<Action> allowedActions = dataset.search(current, principal);
-          if (allowedActions.contains(Action.ALL) || allowedActions.contains(action)) {
+          if (allowedActions.contains(Action.ALL) || allowedActions.containsAll(actions)) {
             result.set(true);
             return;
           }
@@ -107,8 +106,17 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
       }
     });
     if (!result.get()) {
-      throw new UnauthorizedException(principal, action, entity);
+      throw new UnauthorizedException(principal, actions, entity);
     }
+  }
+
+  @Override
+  public <T extends EntityId> Set<T> filter(Set<T> unfiltered, Principal principal) throws Exception {
+    // no filtering for superusers
+    if (superUsers.contains(principal)) {
+      return unfiltered;
+    }
+    return super.filter(unfiltered, principal);
   }
 
   @Override
