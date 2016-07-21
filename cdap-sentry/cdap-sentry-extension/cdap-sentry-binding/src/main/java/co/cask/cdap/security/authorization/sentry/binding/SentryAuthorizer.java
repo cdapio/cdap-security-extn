@@ -16,13 +16,13 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
+import co.cask.cdap.api.Predicate;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.proto.security.Privilege;
 import co.cask.cdap.proto.security.Role;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
-import co.cask.cdap.security.spi.authentication.SecurityRequestContext;
 import co.cask.cdap.security.spi.authorization.AbstractAuthorizer;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.Authorizer;
@@ -49,11 +49,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   private static final Logger LOG = LoggerFactory.getLogger(SentryAuthorizer.class);
   private static final String ENTITY_ROLE_PREFIX = ".";
   private AuthBinding binding;
-  private String sentryAdminGroup;
   private Set<Principal> superUsers;
-
-  public SentryAuthorizer() {
-  }
+  private AuthorizationContext context;
 
   @Override
   public void initialize(AuthorizationContext context) throws Exception {
@@ -69,12 +66,13 @@ public class SentryAuthorizer extends AbstractAuthorizer {
                                   "users who will be superusers with property name %s. Example: user1,user2",
                                 AuthConf.SUPERUSERS);
 
-    this.sentryAdminGroup = properties.getProperty(AuthConf.SENTRY_ADMIN_GROUP);
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(sentryAdminGroup),
-                                "No Sentry admin groups defined in cdap-site.xml. Please set %s in cdap-site.xml " +
-                                  "to a single admin group defined in the sentry service. This group will be used to " +
-                                  "grant access to users after they have created entities in CDAP",
-                                AuthConf.SENTRY_ADMIN_GROUP);
+    String sentryAdminGroup = properties.getProperty(AuthConf.SENTRY_ADMIN_GROUP);
+    if (Strings.isNullOrEmpty(sentryAdminGroup)) {
+      LOG.warn("No Sentry admin group defined in cdap-site.xml. This group will be used to grant access to users " +
+                 "after they have successfully created entities in CDAP. To use this feature and fix this warning, " +
+                 "please set {} in cdap-site.xml to a single admin group defined in the sentry service as the " +
+                 "property sentry.service.admin.group.", AuthConf.SENTRY_ADMIN_GROUP);
+    }
     Preconditions.checkArgument(!sentryAdminGroup.contains(","),
                                 "Please provide exactly one Sentry admin group at %s in cdap-site.xml. Found '%s'.",
                                 AuthConf.SENTRY_ADMIN_GROUP, sentryAdminGroup);
@@ -85,7 +83,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {} and cdap instance name {}",
                sentrySiteUrl, instanceName);
     this.superUsers = getSuperUsers(superUsers);
-    this.binding = new AuthBinding(sentrySiteUrl, instanceName);
+    this.binding = new AuthBinding(sentrySiteUrl, instanceName, sentryAdminGroup);
+    this.context = context;
   }
 
   @Override
@@ -95,6 +94,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
         binding.grant(entityId, new Role(principal.getName()), actions, getRequestingUser());
         break;
       case USER:
+        LOG.warn("Performing a user based grant for user {} on entity {} and actions {}", principal, entityId, actions);
         performUserBasedGrant(entityId, principal, actions);
         break;
       default:
@@ -114,10 +114,18 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public void revoke(EntityId entityId) throws RoleNotFoundException {
-    binding.revoke(entityId, getRequestingUser());
+  public void revoke(EntityId entityId) {
+    binding.revoke(entityId);
     // remove the role created for this entity
-    binding.dropRole(new Role(ENTITY_ROLE_PREFIX + entityId.toString()), sentryAdminGroup);
+    Role role = new Role(ENTITY_ROLE_PREFIX + entityId.toString());
+    try {
+      binding.dropRole(role);
+    } catch (RoleNotFoundException e) {
+      // this is a dot role. it should be ok for deletion to fail, but log a warning
+      // this will happen because while creating a new entity, we first revoke any orphaned privileges on the entity
+      // during that operation this role will not exist.
+      LOG.warn("Trying to delete role {}, but it was not found. Ignoring");
+    }
   }
 
   @Override
@@ -176,13 +184,13 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public <T extends EntityId> Set<T> filter(Set<T> unfiltered, Principal principal) throws Exception {
+  public Predicate<EntityId> createFilter(Principal principal) throws Exception {
     if (superUsers.contains(principal)) {
       // superusers are allowed to perform any action on all entities so need to filter
-      LOG.debug("No filtering necessary for superuser {}. Returning all entities", principal, unfiltered);
-      return unfiltered;
+      LOG.debug("No filtering necessary for superuser {}. Returning an allow-all filter.", principal);
+      return ALLOW_ALL;
     }
-    return super.filter(unfiltered, principal);
+    return super.createFilter(principal);
   }
 
   private synchronized void performUserBasedGrant(EntityId entityId, Principal principal, Set<Action> actions) {
@@ -193,16 +201,18 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     }
     Role dotRole = new Role(ENTITY_ROLE_PREFIX + entityId.toString());
     try {
-      binding.createRole(dotRole, sentryAdminGroup);
+      LOG.warn("Creating role {}", dotRole);
+      binding.createRole(dotRole);
     } catch (RoleAlreadyExistsException e) {
-      LOG.debug("Dot role {} already exists.");
+      LOG.warn("Dot role {} already exists.");
     }
     try {
-      binding.addRoleToGroup(dotRole, new Principal(principal.getName(), Principal.PrincipalType.GROUP),
-                             sentryAdminGroup);
+      LOG.warn("Adding role {} to group {}", dotRole, principal);
+      binding.addRoleToGroup(dotRole, new Principal(principal.getName(), Principal.PrincipalType.GROUP));
       // #36 Ideally the requesting user here could be the getRequestingUser(), but AuthBinding.grant checks for the
       // existence of the role, which involves listing all roles, which is only allowed for sentry admin groups.
-      binding.grant(entityId, dotRole, actions, sentryAdminGroup);
+      LOG.warn("Granting actions {} to role {} on entity {} as {}", actions, dotRole, entityId);
+      binding.grant(entityId, dotRole, actions);
     } catch (RoleNotFoundException e) {
       // Not possible, since we just made sure it exists, and this method is synchronized
       LOG.warn("Role {} not found. This is unexpected since its existence was just ensured.", dotRole);
@@ -224,9 +234,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   }
 
   private String getRequestingUser() throws IllegalArgumentException {
-    String requestingUser = SecurityRequestContext.getUserId();
-    Preconditions.checkArgument(requestingUser != null, "No authenticated user found. Please " +
-      "verify that authentication is enabled in CDAP.");
-    return requestingUser;
+    Principal principal = context.getPrincipal();
+    LOG.trace("Got requesting principal {}", principal);
+    return principal.getName();
   }
 }

@@ -91,20 +91,41 @@ class AuthBinding {
   private final AuthorizationProvider authProvider;
   private final String instanceName;
   private final ActionFactory actionFactory;
+  private final String sentryAdminGroup;
 
-  AuthBinding(String sentrySite, String instanceName) {
+  AuthBinding(String sentrySite, String instanceName, @Nullable String sentryAdminGroup) {
     this.authConf = initAuthzConf(sentrySite);
     this.instanceName = instanceName;
     this.authProvider = createAuthProvider();
     this.actionFactory = new ActionFactory();
+    this.sentryAdminGroup = sentryAdminGroup;
   }
 
   /**
-   * Grants the given {@link Set} of {@link Action} on the given {@link EntityId} to the given {@link Role}
+   * Grants the specified {@link Action actions} on the specified {@link EntityId} to the specified {@link Role} as the
+   * {@link #sentryAdminGroup}. This is used to grant privileges to the dot role created for an entity.
    *
-   * @param entityId on which the actions need to be granted
-   * @param role to which the actions needs to granted
-   * @param actions the actions which needs to be granted
+   * @param entityId the entity on which the actions need to be granted
+   * @param role the role to which the actions need to granted
+   * @param actions the actions which need to be granted
+   * @throws RoleNotFoundException if the given role does not exist
+   */
+  void grant(EntityId entityId, Role role, Set<Action> actions) throws RoleNotFoundException {
+    if (Strings.isNullOrEmpty(sentryAdminGroup)) {
+      LOG.warn("Skipping grant of actions {} on entity {} to role {}, because {} is not set.", actions, entityId, role,
+               AuthConf.SENTRY_ADMIN_GROUP);
+      return;
+    }
+    grant(entityId, role, actions, sentryAdminGroup);
+  }
+
+  /**
+   * Grants the specified {@link Action actions} on the specified {@link EntityId} to the specified {@link Role} as the
+   * {@link #sentryAdminGroup}.
+   *
+   * @param entityId the entity on which the actions need to be granted
+   * @param role the role to which the actions need to granted
+   * @param actions the actions which need to be granted
    * @param requestingUser the user executing this operation
    * @throws RoleNotFoundException if the given role does not exist
    */
@@ -152,6 +173,23 @@ class AuthBinding {
         }
       });
     }
+  }
+
+  /**
+   * Revoke all privileges on a CDAP entity. This is a privileged operation executed either to clean up orphaned
+   * privileges on an entity before creating it, or to revoke all privileges on an entity once the entity is deleted.
+   * This operation is executed as the {@link #sentryAdminGroup}. If the {@link #sentryAdminGroup} is not provided,
+   * this operation will be skipped, and privileges will have to be manually cleaned up by a Sentry admin/superuser.
+   *
+   * @param entityId the {@link EntityId} on which all privileges have to be revoked
+   */
+  void revoke(EntityId entityId) {
+    if (sentryAdminGroup == null) {
+      LOG.warn("Skipping revoke all privileges on entity {}, because {} is not set.", entityId,
+               AuthConf.SENTRY_ADMIN_GROUP);
+      return;
+    }
+    revoke(entityId, sentryAdminGroup);
   }
 
   /**
@@ -233,11 +271,26 @@ class AuthBinding {
   }
 
   /**
-   * Creates the given role.
+   * Creates a role as a {@link #sentryAdminGroup}. This is necessary for creating an entity role to automatically
+   * grant privileges to a {@link Principal} when he successfully creates an entity.
+   *
+   * @param role the role to create
+   * @throws RoleAlreadyExistsException if the role already exists
+   */
+  void createRole(Role role) throws RoleAlreadyExistsException {
+    if (Strings.isNullOrEmpty(sentryAdminGroup)) {
+      LOG.warn("Skipping creation of role {}, because {} is not set.", role, AuthConf.SENTRY_ADMIN_GROUP);
+      return;
+    }
+    createRole(role, sentryAdminGroup);
+  }
+
+  /**
+   * Creates the specified role.
    *
    * @param role the role to be created
    * @param requestingUser the user executing this operation
-   * @throws RoleAlreadyExistsException if the given role already exists
+   * @throws RoleAlreadyExistsException if the specified role already exists
    */
   void createRole(final Role role, final String requestingUser) throws RoleAlreadyExistsException {
     if (roleExists(role, requestingUser)) {
@@ -251,6 +304,21 @@ class AuthBinding {
         return null;
       }
     });
+  }
+
+  /**
+   * Drops the specified role as the {@link #sentryAdminGroup}. This is used to drop the dot role created for an entity
+   * when it is first created.
+   *
+   * @param role the role to drop
+   * @throws RoleNotFoundException if the specified role does not exist
+   */
+  void dropRole(Role role) throws RoleNotFoundException {
+    if (Strings.isNullOrEmpty(sentryAdminGroup)) {
+      LOG.warn("Skipping deletion of role {}, because {} is not set.", role, AuthConf.SENTRY_ADMIN_GROUP);
+      return;
+    }
+    dropRole(role, sentryAdminGroup);
   }
 
   /**
@@ -293,6 +361,23 @@ class AuthBinding {
    */
   Set<Role> listAllRoles(final String requestingUser) {
     return getRoles(null, requestingUser);
+  }
+
+  /**
+   * Adds the specified role to the specified {@link Principal group} as the {@link #sentryAdminGroup}. This is used
+   * to add the dot role for an entity to the creator when the entity is first created.
+   *
+   * @param role the dot role to add to the group
+   * @param principal the group to add the dot role to
+   * @throws RoleNotFoundException if the role does not exist
+   */
+  void addRoleToGroup(Role role, Principal principal) throws RoleNotFoundException {
+    if (Strings.isNullOrEmpty(sentryAdminGroup)) {
+      LOG.warn("Skipping addition of role {} to group {}, because {} is not set.", role, principal,
+               AuthConf.SENTRY_ADMIN_GROUP);
+      return;
+    }
+    addRoleToGroup(role, principal, sentryAdminGroup);
   }
 
   /**
@@ -381,9 +466,10 @@ class AuthBinding {
 
   /**
    * Checks if the given role exists
+   *
    * @param role the role to be checked for existence
    * @param requestingUser the user executing this operation
-   * @return true if the role exists else false
+   * @return {@code true} if the specified role exists, {@code false} otherwise
    */
   boolean roleExists(Role role, final String requestingUser) {
     return listAllRoles(requestingUser).contains(role);

@@ -26,7 +26,6 @@ import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
-import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.proto.security.Privilege;
 import co.cask.cdap.security.authorization.sentry.model.Application;
 import co.cask.cdap.security.authorization.sentry.model.Artifact;
@@ -44,10 +43,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.net.URL;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Test for {@link AuthBinding#toSentryAuthorizables(EntityId)}. For others please see
@@ -71,7 +68,7 @@ public class AuthBindingEntityToAuthMapperTest {
     URL resource = AuthBindingEntityToAuthMapperTest.class.getClassLoader().getResource("sentry-site.xml");
     Assert.assertNotNull(resource);
     String sentrySitePath = resource.getPath();
-    binding = new AuthBinding(sentrySitePath, "cdap");
+    binding = new AuthBinding(sentrySitePath, "cdap", null);
   }
 
   @Test
