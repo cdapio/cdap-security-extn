@@ -20,6 +20,8 @@ import co.cask.cdap.proto.element.EntityType;
 import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.ArtifactId;
 import co.cask.cdap.proto.id.DatasetId;
+import co.cask.cdap.proto.id.DatasetModuleId;
+import co.cask.cdap.proto.id.DatasetTypeId;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.id.InstanceId;
 import co.cask.cdap.proto.id.NamespaceId;
@@ -36,6 +38,8 @@ import co.cask.cdap.security.authorization.sentry.model.Application;
 import co.cask.cdap.security.authorization.sentry.model.Artifact;
 import co.cask.cdap.security.authorization.sentry.model.Authorizable;
 import co.cask.cdap.security.authorization.sentry.model.Dataset;
+import co.cask.cdap.security.authorization.sentry.model.DatasetModule;
+import co.cask.cdap.security.authorization.sentry.model.DatasetType;
 import co.cask.cdap.security.authorization.sentry.model.Instance;
 import co.cask.cdap.security.authorization.sentry.model.Namespace;
 import co.cask.cdap.security.authorization.sentry.model.Program;
@@ -308,7 +312,7 @@ class AuthBinding {
 
   /**
    * Drops the specified role as the {@link #sentryAdminGroup}. This is used to drop the dot role created for an entity
-   * when it is first created.
+   * when it was first created.
    *
    * @param role the role to drop
    * @throws RoleNotFoundException if the specified role does not exist
@@ -472,7 +476,10 @@ class AuthBinding {
    * @return {@code true} if the specified role exists, {@code false} otherwise
    */
   boolean roleExists(Role role, final String requestingUser) {
-    return listAllRoles(requestingUser).contains(role);
+    Set<Role> roles = listAllRoles(requestingUser);
+    // Sentry lowercases all roles, so while checking for existence, lower case the role as well
+    Role lowerCaseRole = new Role(role.getName().toLowerCase());
+    return roles.contains(lowerCaseRole);
   }
 
   private AuthConf initAuthzConf(String sentrySite) {
@@ -644,6 +651,14 @@ class AuthBinding {
         Dataset dataset = (Dataset) authorizable;
         Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.DATASET);
         return ((NamespaceId) parent).dataset(dataset.getName());
+      case DATASET_MODULE:
+        DatasetModule datasetModule = (DatasetModule) authorizable;
+        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.DATASET_MODULE);
+        return ((NamespaceId) parent).datasetModule(datasetModule.getName());
+      case DATASET_TYPE:
+        DatasetType datasetType = (DatasetType) authorizable;
+        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.DATASET_TYPE);
+        return ((NamespaceId) parent).datasetType(datasetType.getName());
       case STREAM:
         Stream stream = (Stream) authorizable;
         Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.STREAM);
@@ -680,12 +695,22 @@ class AuthBinding {
       case APPLICATION:
         ApplicationId applicationId = (ApplicationId) entityId;
         toAuthorizables(applicationId.getParent(), authorizables);
-        authorizables.add(new Application((applicationId).getApplication()));
+        authorizables.add(new Application(applicationId.getApplication()));
         break;
       case DATASET:
         DatasetId dataset = (DatasetId) entityId;
         toAuthorizables(dataset.getParent(), authorizables);
-        authorizables.add(new Dataset((dataset).getDataset()));
+        authorizables.add(new Dataset(dataset.getDataset()));
+        break;
+      case DATASET_MODULE:
+        DatasetModuleId datasetModuleId = (DatasetModuleId) entityId;
+        toAuthorizables(datasetModuleId.getParent(), authorizables);
+        authorizables.add(new DatasetModule(datasetModuleId.getModule()));
+        break;
+      case DATASET_TYPE:
+        DatasetTypeId datasetTypeId = (DatasetTypeId) entityId;
+        toAuthorizables(datasetTypeId.getParent(), authorizables);
+        authorizables.add(new DatasetType(datasetTypeId.getType()));
         break;
       case STREAM:
         StreamId streamId = (StreamId) entityId;

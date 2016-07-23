@@ -20,6 +20,8 @@ import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.ArtifactId;
 import co.cask.cdap.proto.id.DatasetId;
+import co.cask.cdap.proto.id.DatasetModuleId;
+import co.cask.cdap.proto.id.DatasetTypeId;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.id.InstanceId;
 import co.cask.cdap.proto.id.NamespaceId;
@@ -32,6 +34,8 @@ import co.cask.cdap.security.authorization.sentry.model.Artifact;
 import co.cask.cdap.security.authorization.sentry.model.Authorizable;
 import co.cask.cdap.security.authorization.sentry.model.Authorizable.AuthorizableType;
 import co.cask.cdap.security.authorization.sentry.model.Dataset;
+import co.cask.cdap.security.authorization.sentry.model.DatasetModule;
+import co.cask.cdap.security.authorization.sentry.model.DatasetType;
 import co.cask.cdap.security.authorization.sentry.model.Instance;
 import co.cask.cdap.security.authorization.sentry.model.Namespace;
 import co.cask.cdap.security.authorization.sentry.model.Program;
@@ -59,6 +63,8 @@ public class AuthBindingEntityToAuthMapperTest {
   private static final String ARTIFACT_VERSION = "0";
   private static final String STREAM = "s1";
   private static final String DATASET = "d1";
+  private static final String DATASET_MODULE = "dm";
+  private static final String DATASET_TYPE = "dt";
   private static final String PROGRAM = "p1";
 
   private static AuthBinding binding;
@@ -98,6 +104,16 @@ public class AuthBindingEntityToAuthMapperTest {
     entityId = new DatasetId(NAMESPACE, DATASET);
     authorizables = binding.toSentryAuthorizables(entityId);
     Assert.assertEquals(getAuthorizablesList(AuthorizableType.DATASET), authorizables);
+
+    // dataset module
+    entityId = new DatasetModuleId(NAMESPACE, DATASET_MODULE);
+    authorizables = binding.toSentryAuthorizables(entityId);
+    Assert.assertEquals(getAuthorizablesList(AuthorizableType.DATASET_MODULE), authorizables);
+
+    // dataset type
+    entityId = new DatasetTypeId(NAMESPACE, DATASET_TYPE);
+    authorizables = binding.toSentryAuthorizables(entityId);
+    Assert.assertEquals(getAuthorizablesList(AuthorizableType.DATASET_TYPE), authorizables);
 
     // application
     entityId = new ApplicationId(NAMESPACE, APPLICATION);
@@ -159,6 +175,14 @@ public class AuthBindingEntityToAuthMapperTest {
       case DATASET:
         getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
         authorizableList.add(new Dataset(DATASET));
+        break;
+      case DATASET_MODULE:
+        getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
+        authorizableList.add(new DatasetModule(DATASET_MODULE));
+        break;
+      case DATASET_TYPE:
+        getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
+        authorizableList.add(new DatasetType(DATASET_TYPE));
         break;
       case PROGRAM:
         getAuthorizablesList(AuthorizableType.APPLICATION, authorizableList);
