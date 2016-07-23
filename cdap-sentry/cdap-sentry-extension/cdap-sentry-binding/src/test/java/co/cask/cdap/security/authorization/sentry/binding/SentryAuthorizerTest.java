@@ -40,6 +40,7 @@ import com.google.common.base.Joiner;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
 import java.util.Properties;
@@ -65,6 +66,22 @@ public class SentryAuthorizerTest {
     this.authorizer = new SentryAuthorizer();
     authorizer.initialize(new AuthorizationContext() {
       @Override
+      public void putSecureData(String namespace, String key, byte[] data, String description,
+                                Map<String, String> properties) throws IOException {
+        // no-op
+      }
+
+      @Override
+      public void deleteSecureData(String namespace, String key) throws IOException {
+        // no-op
+      }
+
+      @Override
+      public Principal getPrincipal() {
+        return new Principal(System.getProperty("user.name"), Principal.PrincipalType.USER);
+      }
+
+      @Override
       public Properties getExtensionProperties() {
         return properties;
       }
@@ -87,22 +104,22 @@ public class SentryAuthorizerTest {
       @Override
       public void createDataset(String name, String type, DatasetProperties datasetProperties)
         throws DatasetManagementException {
-
+        // no-op
       }
 
       @Override
       public void updateDataset(String name, DatasetProperties datasetProperties) throws DatasetManagementException {
-
+        // no-op
       }
 
       @Override
       public void dropDataset(String name) throws DatasetManagementException {
-
+        // no-op
       }
 
       @Override
       public void truncateDataset(String name) throws DatasetManagementException {
-
+        // no-op
       }
 
       @Override
@@ -129,17 +146,17 @@ public class SentryAuthorizerTest {
 
       @Override
       public void releaseDataset(Dataset dataset) {
-
+        // no-op
       }
 
       @Override
       public void discardDataset(Dataset dataset) {
-
+        // no-op
       }
 
       @Override
       public void execute(TxRunnable txRunnable) throws TransactionFailureException {
-
+        // no-op
       }
     });
   }

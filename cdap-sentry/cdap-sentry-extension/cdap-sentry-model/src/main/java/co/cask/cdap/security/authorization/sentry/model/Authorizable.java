@@ -31,7 +31,9 @@ public interface Authorizable extends org.apache.sentry.core.common.Authorizable
     APPLICATION,
     PROGRAM,
     DATASET,
-    STREAM
+    DATASET_MODULE,
+    DATASET_TYPE,
+    STREAM,
   }
 
   AuthorizableType getAuthzType();

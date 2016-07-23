@@ -22,6 +22,7 @@ import co.cask.cdap.api.TxRunnable;
 import co.cask.cdap.api.dataset.module.DatasetDefinitionRegistry;
 import co.cask.cdap.api.dataset.module.DatasetModule;
 import co.cask.cdap.api.metrics.MetricsCollectionService;
+import co.cask.cdap.api.security.store.SecureStoreManager;
 import co.cask.cdap.common.guice.ConfigModule;
 import co.cask.cdap.common.metrics.NoOpMetricsCollectionService;
 import co.cask.cdap.data.dataset.SystemDatasetInstantiator;
@@ -34,6 +35,8 @@ import co.cask.cdap.data2.dataset2.SingleThreadDatasetCache;
 import co.cask.cdap.data2.dataset2.module.lib.inmemory.InMemoryTableModule;
 import co.cask.cdap.internal.app.runtime.DefaultAdmin;
 import co.cask.cdap.proto.id.NamespaceId;
+import co.cask.cdap.security.auth.context.AuthenticationContextModules;
+import co.cask.cdap.security.spi.authentication.AuthenticationContext;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.Authorizer;
 import co.cask.cdap.security.spi.authorization.AuthorizerTest;
@@ -54,6 +57,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -69,6 +74,7 @@ public class DatasetBasedAuthorizerTest extends AuthorizerTest {
     Injector injector = Guice.createInjector(
       new TransactionInMemoryModule(),
       new ConfigModule(),
+      new AuthenticationContextModules().getMasterModule(),
       new AbstractModule() {
         @Override
         protected void configure() {
@@ -94,7 +100,18 @@ public class DatasetBasedAuthorizerTest extends AuthorizerTest {
     TransactionSystemClient txClient = injector.getInstance(TransactionSystemClient.class);
     final DynamicDatasetCache dsCache = new SingleThreadDatasetCache(instantiator, txClient, NamespaceId.DEFAULT,
                                                                      ImmutableMap.<String, String>of(), null, null);
-    Admin admin = new DefaultAdmin(dsFramework, NamespaceId.DEFAULT);
+    Admin admin = new DefaultAdmin(dsFramework, NamespaceId.DEFAULT, new SecureStoreManager() {
+      @Override
+      public void putSecureData(String namespace, String key, byte[] data,
+                                String description, Map<String, String> properties) throws IOException {
+        // no-op
+      }
+
+      @Override
+      public void deleteSecureData(String namespace, String key) throws IOException {
+        // no-op
+      }
+    });
     Transactional txnl = new Transactional() {
       @Override
       public void execute(TxRunnable runnable) throws TransactionFailureException {
@@ -110,7 +127,9 @@ public class DatasetBasedAuthorizerTest extends AuthorizerTest {
         transactionContext.finish();
       }
     };
-    AuthorizationContext authContext = new DefaultAuthorizationContext(new Properties(), dsCache, admin, txnl);
+    AuthorizationContext authContext = new DefaultAuthorizationContext(
+      new Properties(), dsCache, admin, txnl, injector.getInstance(AuthenticationContext.class)
+    );
     datasetAuthorizer.initialize(authContext);
   }
 

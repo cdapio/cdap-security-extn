@@ -16,6 +16,7 @@
 
 package co.cask.cdap.security.authorization;
 
+import co.cask.cdap.api.Predicate;
 import co.cask.cdap.api.TxRunnable;
 import co.cask.cdap.api.data.DatasetContext;
 import co.cask.cdap.api.dataset.DatasetManagementException;
@@ -111,12 +112,12 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public <T extends EntityId> Set<T> filter(Set<T> unfiltered, Principal principal) throws Exception {
+  public Predicate<EntityId> createFilter(Principal principal) throws Exception {
     // no filtering for superusers
     if (superUsers.contains(principal)) {
-      return unfiltered;
+      return ALLOW_ALL;
     }
-    return super.filter(unfiltered, principal);
+    return super.createFilter(principal);
   }
 
   @Override
