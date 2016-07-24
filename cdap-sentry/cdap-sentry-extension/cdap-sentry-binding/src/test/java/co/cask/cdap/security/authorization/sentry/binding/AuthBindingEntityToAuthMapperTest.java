@@ -26,6 +26,7 @@ import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.id.InstanceId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
+import co.cask.cdap.proto.id.SecureKeyId;
 import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Privilege;
@@ -39,6 +40,7 @@ import co.cask.cdap.security.authorization.sentry.model.DatasetType;
 import co.cask.cdap.security.authorization.sentry.model.Instance;
 import co.cask.cdap.security.authorization.sentry.model.Namespace;
 import co.cask.cdap.security.authorization.sentry.model.Program;
+import co.cask.cdap.security.authorization.sentry.model.SecureKey;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
 import com.google.common.collect.ImmutableSet;
 import org.apache.sentry.provider.db.generic.service.thrift.TSentryPrivilege;
@@ -66,6 +68,7 @@ public class AuthBindingEntityToAuthMapperTest {
   private static final String DATASET_MODULE = "dm";
   private static final String DATASET_TYPE = "dt";
   private static final String PROGRAM = "p1";
+  private static final String SECUREKEY = "k1";
 
   private static AuthBinding binding;
 
@@ -124,6 +127,11 @@ public class AuthBindingEntityToAuthMapperTest {
     entityId = new ProgramId(NAMESPACE, APPLICATION, ProgramType.FLOW, PROGRAM);
     authorizables = binding.toSentryAuthorizables(entityId);
     Assert.assertEquals(getAuthorizablesList(AuthorizableType.PROGRAM), authorizables);
+
+    // securekey
+    entityId = new SecureKeyId(NAMESPACE, SECUREKEY);
+    authorizables = binding.toSentryAuthorizables(entityId);
+    Assert.assertEquals(getAuthorizablesList(AuthorizableType.SECUREKEY), authorizables);
   }
 
   @Test
@@ -187,6 +195,10 @@ public class AuthBindingEntityToAuthMapperTest {
       case PROGRAM:
         getAuthorizablesList(AuthorizableType.APPLICATION, authorizableList);
         authorizableList.add(new Program(ProgramType.FLOW, PROGRAM));
+        break;
+      case SECUREKEY:
+        getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
+        authorizableList.add(new SecureKey(SECUREKEY));
         break;
       default:
         throw new IllegalArgumentException(String.format("Authorizable Types %s is invalid.", authzType));

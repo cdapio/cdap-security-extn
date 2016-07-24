@@ -26,6 +26,7 @@ import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.id.InstanceId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
+import co.cask.cdap.proto.id.SecureKeyId;
 import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
@@ -43,6 +44,7 @@ import co.cask.cdap.security.authorization.sentry.model.DatasetType;
 import co.cask.cdap.security.authorization.sentry.model.Instance;
 import co.cask.cdap.security.authorization.sentry.model.Namespace;
 import co.cask.cdap.security.authorization.sentry.model.Program;
+import co.cask.cdap.security.authorization.sentry.model.SecureKey;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
 import co.cask.cdap.security.authorization.sentry.policy.ModelAuthorizables;
 import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
@@ -663,6 +665,10 @@ class AuthBinding {
         Stream stream = (Stream) authorizable;
         Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.STREAM);
         return ((NamespaceId) parent).stream(stream.getName());
+      case SECUREKEY:
+        SecureKey secureKey = (SecureKey) authorizable;
+        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.SECUREKEY);
+        return ((NamespaceId) parent).secureKey(secureKey.getName());
       default:
         throw new IllegalArgumentException(String.format("Sentry Authorizable %s has invalid type %s",
                                                          tAuthorizable.getName(), tAuthorizable.getType()));
@@ -721,6 +727,11 @@ class AuthBinding {
         ProgramId programId = (ProgramId) entityId;
         toAuthorizables(programId.getParent(), authorizables);
         authorizables.add(new Program(programId.getType(), programId.getProgram()));
+        break;
+      case SECUREKEY:
+        SecureKeyId secureKeyId = (SecureKeyId) entityId;
+        toAuthorizables(secureKeyId.getParent(), authorizables);
+        authorizables.add(new SecureKey(secureKeyId.getName()));
         break;
       default:
         throw new IllegalArgumentException(String.format("The entity %s is of unknown type %s", entityId, entityType));
