@@ -94,7 +94,6 @@ public class SentryAuthorizer extends AbstractAuthorizer {
         binding.grant(entityId, new Role(principal.getName()), actions, getRequestingUser());
         break;
       case USER:
-        LOG.warn("Performing a user based grant for user {} on entity {} and actions {}", principal, entityId, actions);
         performUserBasedGrant(entityId, principal, actions);
         break;
       default:
@@ -121,10 +120,9 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     try {
       binding.dropRole(role);
     } catch (RoleNotFoundException e) {
-      // this is a dot role. it should be ok for deletion to fail, but log a warning
-      // this will happen because while creating a new entity, we first revoke any orphaned privileges on the entity
-      // during that operation this role will not exist.
-      LOG.warn("Trying to delete role {}, but it was not found. Ignoring");
+      // This is a dot role. It should be ok for deletion to fail. This happens because while creating a new entity,
+      // we first revoke any orphaned privileges on the entity. During that operation this role may not exist.
+      LOG.debug("Trying to delete role {}, but it was not found. Ignoring.", role);
     }
   }
 
@@ -201,21 +199,19 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     }
     Role dotRole = new Role(ENTITY_ROLE_PREFIX + entityId.toString());
     try {
-      LOG.warn("Creating role {}", dotRole);
       binding.createRole(dotRole);
+      LOG.debug("Created role {}", dotRole);
     } catch (RoleAlreadyExistsException e) {
-      LOG.warn("Dot role {} already exists.");
+      LOG.debug("Dot role {} already exists.", dotRole);
     }
     try {
-      LOG.warn("Adding role {} to group {}", dotRole, principal);
       binding.addRoleToGroup(dotRole, new Principal(principal.getName(), Principal.PrincipalType.GROUP));
-      // #36 Ideally the requesting user here could be the getRequestingUser(), but AuthBinding.grant checks for the
-      // existence of the role, which involves listing all roles, which is only allowed for sentry admin groups.
-      LOG.warn("Granting actions {} to role {} on entity {} as {}", actions, dotRole, entityId);
+      LOG.debug("Added role {} to group {}", dotRole, principal);
       binding.grant(entityId, dotRole, actions);
+      LOG.debug("Granted actions {} to role {} on entity {}", actions, dotRole, entityId);
     } catch (RoleNotFoundException e) {
       // Not possible, since we just made sure it exists, and this method is synchronized
-      LOG.warn("Role {} not found. This is unexpected since its existence was just ensured.", dotRole);
+      LOG.debug("Role {} not found. This is unexpected since its existence was just ensured.", dotRole);
     }
   }
 
