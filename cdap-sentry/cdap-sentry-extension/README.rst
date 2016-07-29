@@ -38,9 +38,11 @@ Building
 
 Prerequisites
 -------------
-Since Apache Sentry releases are source-only, this project assumes that Sentry has been pre-built and installed in the
-local maven repo. To do this, in the Apache Sentry source root directory please run::
+Since Apache Sentry releases are source-only, this project assumes that Apache Sentry 1.7.0 has been pre-built and
+installed in the local maven repo. To do this, in the Apache Sentry source root directory please run::
 
+  git fetch origin
+  git checkout branch-1.7.0
   mvn clean install -DskipTests
 
 
