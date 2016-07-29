@@ -64,7 +64,8 @@ Sentry Server Side Deployment
 -----------------------------
 
 The server side code only requires CDAP Sentry Policy and the CDAP Sentry Model classes. So, the
-``cdap-sentry-policy/target/cdap-sentry-policy-*.jar`` and ``cdap-sentry-model/target/cdap-sentry-model-*.jar``
+``cdap-sentry-extension/cdap-sentry-policy/target/cdap-sentry-policy-*.jar`` and
+``cdap-sentry-extension/cdap-sentry-model/target/cdap-sentry-model-*.jar``
 should be deployed on the host running the Sentry Service. There are two options for deploying these jars:
 
 1. Copy them to the ``[SENTRY_HOME_DIR]/lib`` directory; or
