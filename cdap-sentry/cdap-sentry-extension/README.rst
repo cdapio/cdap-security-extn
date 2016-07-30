@@ -114,7 +114,7 @@ The CDAP Master, which is also a client for the Sentry service requires the CDAP
    * - ``security.authorization.extension.config.superusers``
      - Comma-separated list of super users. Super users are authorized to perform all operations on all entities.
        They can also manage roles.
-   * - ``security.authorization.authorizer.extension.config.instance.name``
+   * - ``security.authorization.extension.config.instance.name``
      - String to use to identify the CDAP Instance. Defaults to 'cdap'.
 
 - Restart CDAP Master.
