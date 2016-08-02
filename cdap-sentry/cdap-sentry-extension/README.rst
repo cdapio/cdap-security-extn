@@ -107,10 +107,7 @@ The CDAP Master, which is also a client for the Sentry service requires the CDAP
      - A unix group configured as an admin group in the Sentry Service (identified by ``sentry.service.admin.group``
        in the ``sentry-site.xml`` used by the Sentry Service). This group is used while granting ``ALL`` privileges
        to a user when he/she successfully creates an entity, as well as revoking privileges when an entity is deleted.
-       This is an optional setting. If unspecified, these convenience operations (granting privileges upon entity
-       creation and revoking them upon entity deletion) will not be performed. In that case, Sentry admins will be
-       responsible for granting privileges to roles in Sentry after successful creation of entities in CDAP, as well as
-       for revoking those privileges when entities are deleted.
+       It is also required to list privileges and roles in Sentry for enforcing authorization on CDAP entities.
    * - ``security.authorization.extension.config.superusers``
      - Comma-separated list of super users. Super users are authorized to perform all operations on all entities.
        They can also manage roles.
