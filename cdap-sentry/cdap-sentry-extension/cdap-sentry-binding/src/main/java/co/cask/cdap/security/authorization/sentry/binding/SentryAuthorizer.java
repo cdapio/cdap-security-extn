@@ -67,12 +67,12 @@ public class SentryAuthorizer extends AbstractAuthorizer {
                                 AuthConf.SUPERUSERS);
 
     String sentryAdminGroup = properties.getProperty(AuthConf.SENTRY_ADMIN_GROUP);
-    if (Strings.isNullOrEmpty(sentryAdminGroup)) {
-      LOG.warn("No Sentry admin group defined in cdap-site.xml. This group will be used to grant access to users " +
-                 "after they have successfully created entities in CDAP. To use this feature and fix this warning, " +
-                 "please set {} in cdap-site.xml to a single admin group defined in the sentry service as the " +
-                 "property sentry.service.admin.group.", AuthConf.SENTRY_ADMIN_GROUP);
-    }
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(sentryAdminGroup),
+      "No Sentry admin group defined in cdap-site.xml. This group is used to grant access to users after they " +
+        "have successfully created entities in CDAP. It is also necessary to list privileges of users during " +
+        "enforcement To use this feature and fix this warning, please set %s in cdap-site.xml to a single admin " +
+        "group defined in the sentry service as the property sentry.service.admin.group.", AuthConf.SENTRY_ADMIN_GROUP);
+
     Preconditions.checkArgument(!sentryAdminGroup.contains(","),
                                 "Please provide exactly one Sentry admin group at %s in cdap-site.xml. Found '%s'.",
                                 AuthConf.SENTRY_ADMIN_GROUP, sentryAdminGroup);
@@ -80,8 +80,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       properties.getProperty(AuthConf.INSTANCE_NAME) :
       AuthConf.AuthzConfVars.getDefault(AuthConf.INSTANCE_NAME);
 
-    LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {} and cdap instance name {}",
-               sentrySiteUrl, instanceName);
+    LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {}, cdap instance name {} and superusers: {}",
+               sentrySiteUrl, instanceName, superUsers);
     this.superUsers = getSuperUsers(superUsers);
     this.binding = new AuthBinding(sentrySiteUrl, instanceName, sentryAdminGroup);
     this.context = context;
@@ -130,7 +130,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
 
   @Override
   public Set<Privilege> listPrivileges(Principal principal) {
-    return binding.listPrivileges(principal, getRequestingUser());
+    return binding.listPrivileges(principal);
   }
 
   @Override
@@ -164,7 +164,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
 
   @Override
   public Set<Role> listAllRoles() {
-    return binding.listAllRoles(getRequestingUser());
+    return binding.listAllRoles();
   }
 
   @Override
@@ -185,6 +185,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
 
   @Override
   public Predicate<EntityId> createFilter(Principal principal) throws Exception {
+    LOG.info("superusers: {}, current user to filter: {}", superUsers, principal);
     if (superUsers.contains(principal)) {
       // superusers are allowed to perform any action on all entities so need to filter
       LOG.debug("No filtering necessary for superuser {}. Returning an allow-all filter.", principal);

@@ -117,11 +117,6 @@ class AuthBinding {
    * @throws RoleNotFoundException if the given role does not exist
    */
   void grant(EntityId entityId, Role role, Set<Action> actions) throws RoleNotFoundException {
-    if (Strings.isNullOrEmpty(sentryAdminGroup)) {
-      LOG.warn("Skipping grant of actions {} on entity {} to role {}, because {} is not set.", actions, entityId, role,
-               AuthConf.SENTRY_ADMIN_GROUP);
-      return;
-    }
     grant(entityId, role, actions, sentryAdminGroup);
   }
 
@@ -137,7 +132,7 @@ class AuthBinding {
    */
   void grant(final EntityId entityId, final Role role, Set<Action> actions,
              final String requestingUser) throws RoleNotFoundException {
-    if (!roleExists(role, requestingUser)) {
+    if (!roleExists(role)) {
       throw new RoleNotFoundException(role);
     }
     LOG.debug("Granting actions {} on entity {} for role {}; Requesting user: {}",
@@ -165,7 +160,7 @@ class AuthBinding {
    */
   void revoke(final EntityId entityId, final Role role, Set<Action> actions,
               final String requestingUser) throws RoleNotFoundException {
-    if (!roleExists(role, requestingUser)) {
+    if (!roleExists(role)) {
       throw new RoleNotFoundException(role);
     }
     LOG.debug("Revoking actions {} on entity {} from role {}; Requesting user: {}",
@@ -184,17 +179,11 @@ class AuthBinding {
   /**
    * Revoke all privileges on a CDAP entity. This is a privileged operation executed either to clean up orphaned
    * privileges on an entity before creating it, or to revoke all privileges on an entity once the entity is deleted.
-   * This operation is executed as the {@link #sentryAdminGroup}. If the {@link #sentryAdminGroup} is not provided,
-   * this operation will be skipped, and privileges will have to be manually cleaned up by a Sentry admin/superuser.
+   * This operation is executed as the {@link #sentryAdminGroup}.
    *
    * @param entityId the {@link EntityId} on which all privileges have to be revoked
    */
   void revoke(EntityId entityId) {
-    if (sentryAdminGroup == null) {
-      LOG.warn("Skipping revoke all privileges on entity {}, because {} is not set.", entityId,
-               AuthConf.SENTRY_ADMIN_GROUP);
-      return;
-    }
     revoke(entityId, sentryAdminGroup);
   }
 
@@ -206,8 +195,8 @@ class AuthBinding {
    * @param requestingUser the user executing this operation
    */
   void revoke(EntityId entityId, final String requestingUser) {
-    Set<Role> allRoles = listAllRoles(requestingUser);
-    final List<TSentryPrivilege> allPrivileges = getAllPrivileges(allRoles, requestingUser);
+    Set<Role> allRoles = listAllRoles();
+    final List<TSentryPrivilege> allPrivileges = getAllPrivileges(allRoles);
     final List<TAuthorizable> tAuthorizables = toTAuthorizable(entityId);
     LOG.debug("Revoking all actions for all users from entity {}; Requesting user: {}", entityId, requestingUser);
     execute(new Command<Void>() {
@@ -249,13 +238,12 @@ class AuthBinding {
    * Lists {@link Privilege privileges} for the given {@link Principal}
    *
    * @param principal the principal for which the privileges has to be listed
-   * @param requestingUser the user executing this operation
    * @return {@link Set} of {@link Privilege privilege} for the given principal
    */
-  Set<Privilege> listPrivileges(Principal principal, String requestingUser) {
-    Set<Role> roles = getRoles(principal, requestingUser);
-    LOG.debug("Listing all privileges for {}; Requesting user: {}", principal, requestingUser);
-    List<TSentryPrivilege> allPrivileges = getAllPrivileges(roles, requestingUser);
+  Set<Privilege> listPrivileges(Principal principal) {
+    Set<Role> roles = getRoles(principal, sentryAdminGroup);
+    LOG.debug("Listing all privileges for {};", principal);
+    List<TSentryPrivilege> allPrivileges = getAllPrivileges(roles);
     return toPrivileges(allPrivileges);
   }
 
@@ -284,10 +272,6 @@ class AuthBinding {
    * @throws RoleAlreadyExistsException if the role already exists
    */
   void createRole(Role role) throws RoleAlreadyExistsException {
-    if (Strings.isNullOrEmpty(sentryAdminGroup)) {
-      LOG.warn("Skipping creation of role {}, because {} is not set.", role, AuthConf.SENTRY_ADMIN_GROUP);
-      return;
-    }
     createRole(role, sentryAdminGroup);
   }
 
@@ -299,7 +283,7 @@ class AuthBinding {
    * @throws RoleAlreadyExistsException if the specified role already exists
    */
   void createRole(final Role role, final String requestingUser) throws RoleAlreadyExistsException {
-    if (roleExists(role, requestingUser)) {
+    if (roleExists(role)) {
       throw new RoleAlreadyExistsException(role);
     }
     execute(new Command<Void>() {
@@ -320,10 +304,6 @@ class AuthBinding {
    * @throws RoleNotFoundException if the specified role does not exist
    */
   void dropRole(Role role) throws RoleNotFoundException {
-    if (Strings.isNullOrEmpty(sentryAdminGroup)) {
-      LOG.warn("Skipping deletion of role {}, because {} is not set.", role, AuthConf.SENTRY_ADMIN_GROUP);
-      return;
-    }
     dropRole(role, sentryAdminGroup);
   }
 
@@ -335,7 +315,7 @@ class AuthBinding {
    * @throws RoleNotFoundException if the role to be dropped does not exists
    */
   void dropRole(final Role role, final String requestingUser) throws RoleNotFoundException {
-    if (!roleExists(role, requestingUser)) {
+    if (!roleExists(role)) {
       throw new RoleNotFoundException(role);
     }
     execute(new Command<Void>() {
@@ -362,11 +342,10 @@ class AuthBinding {
   /**
    * Lists all roles
    *
-   * @param requestingUser the user executing this operation
    * @return {@link Set} of all {@link Role}
    */
-  Set<Role> listAllRoles(final String requestingUser) {
-    return getRoles(null, requestingUser);
+  Set<Role> listAllRoles() {
+    return getRoles(null, sentryAdminGroup);
   }
 
   /**
@@ -378,11 +357,6 @@ class AuthBinding {
    * @throws RoleNotFoundException if the role does not exist
    */
   void addRoleToGroup(Role role, Principal principal) throws RoleNotFoundException {
-    if (Strings.isNullOrEmpty(sentryAdminGroup)) {
-      LOG.warn("Skipping addition of role {} to group {}, because {} is not set.", role, principal,
-               AuthConf.SENTRY_ADMIN_GROUP);
-      return;
-    }
     addRoleToGroup(role, principal, sentryAdminGroup);
   }
 
@@ -396,7 +370,7 @@ class AuthBinding {
    */
   void addRoleToGroup(final Role role, final Principal principal,
                       final String requestingUser) throws RoleNotFoundException {
-    if (!roleExists(role, requestingUser)) {
+    if (!roleExists(role)) {
       throw new RoleNotFoundException(role);
     }
     execute(new Command<Void>() {
@@ -419,7 +393,7 @@ class AuthBinding {
    */
   void removeRoleFromGroup(final Role role, final Principal principal,
                            final String requestingUser) throws RoleNotFoundException {
-    if (!roleExists(role, requestingUser)) {
+    if (!roleExists(role)) {
       throw new RoleNotFoundException(role);
     }
     execute(new Command<Void>() {
@@ -474,11 +448,10 @@ class AuthBinding {
    * Checks if the given role exists
    *
    * @param role the role to be checked for existence
-   * @param requestingUser the user executing this operation
    * @return {@code true} if the specified role exists, {@code false} otherwise
    */
-  boolean roleExists(Role role, final String requestingUser) {
-    Set<Role> roles = listAllRoles(requestingUser);
+  boolean roleExists(Role role) {
+    Set<Role> roles = listAllRoles();
     // Sentry lowercases all roles, so while checking for existence, lower case the role as well
     Role lowerCaseRole = new Role(role.getName().toLowerCase());
     return roles.contains(lowerCaseRole);
@@ -568,13 +541,13 @@ class AuthBinding {
     }
   }
 
-  private List<TSentryPrivilege> getAllPrivileges(final Set<Role> roles, final String requestingUser) {
+  private List<TSentryPrivilege> getAllPrivileges(final Set<Role> roles) {
     return execute(new Command<List<TSentryPrivilege>>() {
       @Override
       public List<TSentryPrivilege> run(SentryGenericServiceClient client) throws Exception {
         final List<TSentryPrivilege> tSentryPrivileges = new ArrayList<>();
         for (Role role : roles) {
-          tSentryPrivileges.addAll(client.listPrivilegesByRoleName(requestingUser, role.getName(),
+          tSentryPrivileges.addAll(client.listPrivilegesByRoleName(sentryAdminGroup, role.getName(),
                                                                    COMPONENT_NAME, instanceName));
         }
         return ImmutableList.copyOf(tSentryPrivileges);
