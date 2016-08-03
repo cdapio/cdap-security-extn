@@ -125,6 +125,28 @@ ${shared.menubar(section='mytab')}
         </div>
 
         <div class="acl-management">
+            <span style="padding-left:8px; font-size: large; font-weight:bold;">ACLs
+              <a><div class="acl-add-button pull-right pointer" onclick="newACL()">
+                <i class="fa fa-plus create-acl"></i></div></a>
+            </span>
+          <div class="acl-listing">
+            <table class="table table-striped">
+              <thead>
+              <tr>
+                <th>Role</th>
+                <th>Action</th>
+                <th>Operation</th>
+              </tr>
+              </thead>
+              <tbody id="acl-table-body">
+              <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       % endif
     </div>
@@ -159,6 +181,42 @@ ${shared.menubar(section='mytab')}
   </div>
 </div>
 
+<div class="modal fade myModal" id="new-acl-popup" role="dialog">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal">&times;</button>
+    <h4 class="modal-title">Configure the ACL</h4>
+  </div>
+  <div class="modal-body">
+    <label for="role">Select a role:</label>
+    <select name="user-group" id="role" class="user-group">
+    </select><br/>
+    <label class="checkbox inline-block">
+      <input type="checkbox" data-bind="checked: read" value="READ">
+      Read <span class="muted">(r)</span>
+    </label>
+    <label class="checkbox inline-block">
+      <input type="checkbox" data-bind="checked: write" value="WRITE">
+      Write <span class="muted">(w)</span>
+    </label>
+    <label class="checkbox inline-block">
+      <input type="checkbox" data-bind="checked: execute" value="EXECUTE">
+      Execute <span class="muted">(x)</span>
+    </label>
+    <label class="checkbox inline-block">
+      <input type="checkbox" data-bind="checked: admin" value="ADMIN">
+      ADMIN <span class="muted">(admin)</span>
+    </label>
+    <label class="checkbox inline-block">
+      <input type="checkbox" data-bind="checked: all" value="ALL">
+      All <span class="muted">(all)</span>
+    </label>
+  </div>
+  <div class="modal-footer">
+    <button onclick="saveACL()" type="button" class="btn btn-default" data-dismiss="modal">Save</button>
+  </div>
+</div>
+
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
 <script type="text/javascript"
         src="https://cdnjs.cloudflare.com/ajax/libs/jquery-jsonview/1.2.3/jquery.jsonview.min.js"></script>
@@ -181,6 +239,10 @@ ${shared.menubar(section='mytab')}
     if ($(".is_authenticated").text() == "False") {
       $("#popup").modal();
     }
+
+    $(".user-group").on("change", function () {
+      setPrivCheckbox();
+    });
 
     $('#jstree').on('changed.jstree', function (e, data) {
       var r = data.instance.get_node(data.selected[data.selected.length - 1])

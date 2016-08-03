@@ -18,6 +18,16 @@
  * Global helper functions  *
  ****************************/
 
+/* Global helper functions */
+Array.prototype.unique = function () {
+  return this.reduce(function (accum, current) {
+    if (accum.indexOf(current) < 0) {
+      accum.push(current);
+    }
+    return accum;
+  }, []);
+};
+
 /* Pop up an error notification on top right corner with amaran.js */
 function popErrorNotification(message) {
   $.amaran({
@@ -32,6 +42,14 @@ function popErrorNotification(message) {
     'closeButton': true,
     'sticky': true,
   });
+}
+
+/* A template of the operation column in the ACL listing table*/
+function getACLOperationTemplate(role, actions) {
+  return '<td><a><i class="fa fa-pencil-square-o pointer" aria-hidden="true" ' +
+    'onclick="editACL(' +  role + ')"></i></a>' +
+    '<a><i class="fa fa-trash pointer" aria-hidden="true" ' +
+  'onclick="delACL(' + role + ',' + actions + ')" style="padding-left: 8px"></i></a></td>';
 }
 
 /* Authentication to cdap cluster */
@@ -100,7 +118,6 @@ function entityClicked(entity, data) {
     breadcrumbContent += "<li><a>" + entities[i] + " " + dividerSpan + "</a></li>";
   }
   breadcrumbContent += '<li class="active">' + entities[entities.length - 1] + '</li>';
-  console.log(breadcrumbContent);
   $('#acl-heading-breadcrumb').append(breadcrumbContent);
 
   // Update description
@@ -120,7 +137,110 @@ function refreshDetail(treeStructString) {
       }
     });
     $("#description-table-body").append(tableContent);
+
+    $("#acl-table-body").empty();
+    tableContent = "";
+    privileges = data["privileges"];
+    for (var role in privileges) {
+      var actions = privileges[role]["actions"].unique().join(",");
+      tableContent += "<tr><td>" + role + "</td><td>" + actions + "</td>" +
+        getACLOperationTemplate(role, actions) + "<td></td></tr>";
+    }
+    $("#acl-table-body").append(tableContent);
   }).fail(function (data) {
     popErrorNotification(data["responseText"]);
   });
+  // Fetch all the roles from backend
+  $.get("/cdap/list_roles_by_group/" + treeStructString, function (data) {
+    $(".user-group").empty();
+    for (var i = 0; i < data.length; i++) {
+      var option = document.createElement("option");
+      option.text = data[i]["name"];
+      $(".user-group").append(option);
+    }
+  }).fail(function (data) {
+    popErrorNotification(data["responseText"]);
+  });
+}
+
+function newACL() {
+  $("#new-acl-popup").modal();
+  setPrivCheckbox();
+}
+
+function delACL(role, actions) {
+  var path = $(".acl-heading").text();
+  // get data from backend
+  $("body").css("cursor", "progress");
+  $.ajax({
+    type: "POST",
+    url: "/cdap/revoke",
+    data: {"role": role, "actions": actions, "path": path},
+  }).done(function (data) {
+    refreshDetail("/" + path);
+    if (data.length > 0) {
+      popErrorNotification(("Can not revoke some privileges as they are defined on upper layer entites at: " + data));
+    }
+  }).fail(function (data) {
+    popErrorNotification(data["responseText"]);
+  }).always(function () {
+    $("body").css("cursor", "default");
+  });
+}
+
+function editACL(role) {
+  $(".user-group").val(role);
+  newACL();
+}
+
+function saveACL() {
+  var allActions = ["READ", "WRITE", "EXECUTE", "ADMIN", "ALL"];
+  var role = $(".user-group").find(":selected").text();
+  var path = $(".acl-heading").text();
+  var actions = [];
+  var checked = $("#new-acl-popup input:checked");
+  for (var i = 0; i < checked.length; i++) {
+    checked[i].checked = false;
+    actions.push(checked[i].value);
+  }
+  $("body").css("cursor", "progress");
+  $.ajax({
+    type: "POST",
+    url: "/cdap/revoke",
+    data: {"role": role, "actions": allActions, "path": path},
+  }).done(function () {
+    $.ajax({
+      type: "POST",
+      url: "/cdap/grant",
+      data: {"role": role, "actions": actions, "path": path},
+      success: function () {
+        refreshDetail("/" + path);
+        $("body").css("cursor", "default");
+      },
+    });
+  }).fail(function (data) {
+    popErrorNotification(data["responseText"]);
+  }).always(function () {
+    $("body").css("cursor", "default");
+  });
+}
+
+function setPrivCheckbox() {
+  var role = $(".user-group").find(":selected").text();
+  var tr = $("td").filter(function () {
+    return $(this).text() == role;
+  }).closest("tr");
+  if (tr.length > 0) {
+    var actions = tr.children()[1].textContent.split(",");
+  } else {
+    var actions = [];
+  }
+  // Set checkbox
+  var checkboxes = $("#new-acl-popup input:CHECKBOX");
+  for (var i = 0; i < checkboxes.length; i++) {
+    checkboxes[i].checked = false;
+    if (actions.indexOf(checkboxes[i].value) != -1) {
+      checkboxes[i].checked = true;
+    }
+  }
 }
