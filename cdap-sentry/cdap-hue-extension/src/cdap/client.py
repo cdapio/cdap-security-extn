@@ -21,12 +21,23 @@ import requests
 from cdap_auth_client import BasicAuthenticationClient
 
 
+class ExtendedAuthenticationClient(BasicAuthenticationClient):
+  def clear_config(self):
+    """
+    Clears the configs in the AuthenticationClient for use
+    where the user provides incorrect credentials the first time.
+    """
+    self._BasicAuthenticationClient__username = None
+    self._BasicAuthenticationClient__password = None
+
+
 class auth_client:
   """
-  An authorization Client to connect to CDAP rest service running on a secure cluster
-  It get initialized by client = auth_client("host:port/api_version")
+  A wrapper of the authentication client from the cdap_auth_client package for connecting to a secure CDAP cluster.
+  It is initialized using:
+    client = auth_client("http://host:port", api_version)
   And user should provide credentials by client.authenticate(username, password)
-   to get the access token of a secure cdap cluster
+    to get the access token of a secure cdap cluster
   Once the token expires, the client will get a new token from the server automatically
   """
 
@@ -35,8 +46,8 @@ class auth_client:
     self._cdap_password = None
     self._auth_header = None
     self.is_set_credentials = False
-    self.host_url = "%s/%s" % (cdap_router_uri, cdap_api_version)
-    self.client = BasicAuthenticationClient()
+    self.host_url = "%s/%s/" % (cdap_router_uri, cdap_api_version)
+    self.client = ExtendedAuthenticationClient()
     cdap_host, cdap_router_port = re.sub('^https?://', '', cdap_router_uri).strip('/').split(':')
     self.client.set_connection_info(cdap_host, int(cdap_router_port), False)
 
@@ -46,17 +57,19 @@ class auth_client:
     Leave all the excpetions to be caught outside this function.
     """
     if self.client.is_auth_enabled():
-      self._cdap_username = username
-      self._cdap_password = password
       properties = {
         'security_auth_client_username': username,
         'security_auth_client_password': password,
-        'security_ssl_cert_check': True
+        'security_ssl_cert_check': True,
       }
+      self.client.clear_config()
       self.client.configure(properties)
-      token = self.client.get_access_token()
-      self._auth_header = {'Authorization': token.token_type + ' ' + token.value}
+      self._set_access_token()
     self.is_set_credentials = True
+
+  def _set_access_token(self):
+    token = self.client.get_access_token()
+    self._auth_header = {'Authorization': token.token_type + ' ' + token.value}
 
   def get(self, url):
     """
@@ -65,5 +78,5 @@ class auth_client:
     """
     if self.client.is_token_expired():
       # Update the token if is expired
-      self.authenticate(self._cdap_username, self._cdap_password)
-    return json.loads(requests.get(self.host_url + url, headers=self._auth_header).text)
+      self._set_access_token()
+    return json.loads(requests.get(self.host_url + url.strip('/'), headers=self._auth_header).text)
