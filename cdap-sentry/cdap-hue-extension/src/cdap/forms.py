@@ -13,6 +13,6 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 #
-# This file is for http form class definations in Django.
+# This file is for http form class definitions in Django.
 # Might be used in future
 # Note: Even if no functions are defined here, Hue will need this file to start. Leave it blank here.
