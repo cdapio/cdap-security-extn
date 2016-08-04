@@ -51,7 +51,7 @@ class auth_client:
     cdap_host, cdap_router_port = re.sub('^https?://', '', cdap_router_uri).strip('/').split(':')
     self.client.set_connection_info(cdap_host, int(cdap_router_port), False)
 
-  def authenticate(self, username=None, password=None):
+  def authenticate(self, username, password):
     """
     Fetch access token using username and password. If on an insecure cluster, skip this process.
     Leave all the excpetions to be caught outside this function.

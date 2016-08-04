@@ -16,6 +16,7 @@
 #
 
 from desktop.lib.django_util import render
+from django.contrib.auth.models import Group
 from django.core.cache import get_cache
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponse, HttpResponseServerError
 from cdap.client import auth_client
@@ -59,7 +60,7 @@ def _call_cdap_api(url):
 def _get_sentry_api(user):
   """
   Get the API helper class of sentry
-  :param user: The user of the http request. Must be authorized in Hue to perform sentry operations.
+  :param user: The user of the http request. Must be authorized to perform sentry operations (in sentry-site.xml)
   :return: API helper class of sentry. Defined in libsentry/api2.py
   """
   # Here "cdap" stands for the component to be used in sentry.
@@ -314,4 +315,49 @@ def list_privileges_by_group(request, group):
   else:
     response = []
   return HttpResponse(json.dumps(response), content_type="application/json")
+
+
+@_cdap_error_handler
+def create_role(request, role_name):
+  """
+  :param role_name: The name of the role to create
+  """
+  _get_sentry_api(request.user).create_sentry_role(role_name)
+  return HttpResponse("Role %s successfully created." % role_name)
+
+
+@_cdap_error_handler
+def drop_role(request, role_name):
+  """
+  :param role_name: The name of the role to drop
+  """
+  _get_sentry_api(request.user).drop_sentry_role(role_name)
+  return HttpResponse("Role %s successfully deleted." % role_name)
+
+
+@_cdap_error_handler
+def list_all_groups(request):
+  """
+  List all groups in Django. Groups can be synced with LDAP/Unix groups with Hue's built-in group tools.
+  :return: a json array of all groups' name
+  """
+  return HttpResponse(json.dumps([group.name for group in Group.objects.all()]), content_type="application/json")
+
+
+@_cdap_error_handler
+def alter_role_by_group(request):
+  """
+  Alter the groups belonging to a role. Post data should contain the current groups of a role and this function will
+  update it in Sentry
+  :param request: Post data: {"role": role, "groups[]", [group1, group2, ...]}
+  """
+  role = request.POST.get("role")
+  post_groups = set(request.POST.getlist("groups[]"))
+  api = _get_sentry_api(request.user)
+  groups = set([item["groups"] for item in _filter_list_roles_by_group(api) if item["name"] == role][0])
+  # newly added groups
+  api.alter_sentry_role_add_groups(role, post_groups.difference(groups))
+  # deleted groups
+  api.alter_sentry_role_delete_groups(role, groups.difference(post_groups))
+  return HttpResponse("Successfully altered the role to " + str(post_groups))
 
