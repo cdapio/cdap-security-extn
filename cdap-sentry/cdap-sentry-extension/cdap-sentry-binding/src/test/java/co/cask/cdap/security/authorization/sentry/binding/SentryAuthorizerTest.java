@@ -66,7 +66,7 @@ public class SentryAuthorizerTest {
     this.authorizer = new SentryAuthorizer();
     authorizer.initialize(new AuthorizationContext() {
       @Override
-      public void putSecureData(String namespace, String key, byte[] data, String description,
+      public void putSecureData(String namespace, String key, String data, String description,
                                 Map<String, String> properties) throws IOException {
         // no-op
       }
