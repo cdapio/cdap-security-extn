@@ -30,7 +30,7 @@ final class AuthorizationDatasetKey {
   /**
    * @param key bytearray as constructed by {@link Builder}
    */
-  public AuthorizationDatasetKey(byte[] key) {
+  AuthorizationDatasetKey(byte[] key) {
     this.key = key;
   }
 
@@ -110,7 +110,7 @@ final class AuthorizationDatasetKey {
   public static final class Builder {
     private byte[] key;
 
-    public Builder() {
+    Builder() {
       key = new byte[0];
     }
 
