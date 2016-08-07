@@ -102,7 +102,7 @@ public class DatasetBasedAuthorizerTest extends AuthorizerTest {
                                                                      ImmutableMap.<String, String>of(), null, null);
     Admin admin = new DefaultAdmin(dsFramework, NamespaceId.DEFAULT, new SecureStoreManager() {
       @Override
-      public void putSecureData(String namespace, String key, byte[] data,
+      public void putSecureData(String namespace, String key, String data,
                                 String description, Map<String, String> properties) throws IOException {
         // no-op
       }
