@@ -151,14 +151,45 @@ ${shared.menubar(section='mytab')}
       % endif
     </div>
     </div>
+    </div>
       <div class="role-management">
+
         <div class="span4"><h3>Roles</h3>
+          <div id="toolbar" class="btn-group">
+            <button type="button" class="btn btn-default" onclick="$('#new-role-popup').modal();">
+              <i class="glyphicon glyphicon-plus"></i>
+            </button>
+            <button type="button" class="btn btn-default" onclick="editRole()">
+              <i class="glyphicon glyphicon-edit"></i>
+            </button>
+            <button type="button" class="btn btn-default" onclick="deleteRole()">
+              <i class="glyphicon glyphicon-trash"></i>
+            </button>
+          </div>
+          <table class="table table-condensed list-role-table " data-toolbar="#toolbar"
+                 data-search="true" data-show-toggle="true"
+                 data-minimum-count-columns="2">
+          </table>
         </div>
+
+
         <div class="span4">
           <h3 class="selected-role">ACLs</h3>
+          <div class="role-acl-listing">
+            <table class="table table-striped">
+              <thead>
+              <tr>
+                <th>Path</th>
+                <th>Action</th>
+                <th>Delete</th>
+              </tr>
+              </thead>
+              <tbody id="role-acl-table-body">
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-    </div>
 
     </div>
     </div>
@@ -216,6 +247,36 @@ ${shared.menubar(section='mytab')}
   </div>
 </div>
 
+<div class="modal fade myModal" id="new-role-popup" role="dialog">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal">&times;</button>
+    <h4 class="modal-title">Create a new role</h4>
+  </div>
+  <div class="modal-body">
+    <label for="new-rolename">Role Name:</label>
+    <input id="new-rolename" type="text"/>
+
+  </div>
+  <div class="modal-footer">
+    <button onclick="saveRole()" type="button" class="btn btn-default" data-dismiss="modal">Save</button>
+  </div>
+</div>
+
+<div class="modal fade myModal" id="edit-role-popup" role="dialog">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal">&times;</button>
+    <h4 class="modal-title" id="edit-role-modal-title">Edit Group for Role</h4>
+  </div>
+  <div class="modal-body">
+    <div id="edit-pop-role-name" type="text"/>
+    <select class="group-selector" data-placeholder="None..." style="width:350px;" multiple>;
+    </select>
+  </div>
+  <div class="modal-footer">
+    <button onclick="saveEditedRole()" type="button" class="btn btn-default" data-dismiss="modal">Save</button>
+  </div>
+</div>
+
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
 <script type="text/javascript"
@@ -228,6 +289,10 @@ ${shared.menubar(section='mytab')}
 
 <script>
   $(document).ready(function () {
+    $('.list-role-table').on('click-row.bs.table', function (event, row, element) {
+      updateRoleACL(row.role);
+    });
+
     $('.myModal').on('show.bs.modal', function (e) {
       $('.myModal').css("z-index", "100000");
     });

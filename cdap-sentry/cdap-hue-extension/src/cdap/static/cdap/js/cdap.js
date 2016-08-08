@@ -47,9 +47,16 @@ function popErrorNotification(message) {
 /* A template of the operation column in the ACL listing table*/
 function getACLOperationTemplate(role, actions) {
   return '<td><a><i class="fa fa-pencil-square-o pointer" aria-hidden="true" ' +
-    'onclick="editACL(' +  role + ')"></i></a>' +
+    'onclick="editACL(\'' +  role + '\')"></i></a>' +
     '<a><i class="fa fa-trash pointer" aria-hidden="true" ' +
-  'onclick="delACL(' + role + ',' + actions + ')" style="padding-left: 8px"></i></a></td>';
+  'onclick="delACL(\'' + role + '\',\'' + actions + '\')" style="padding-left: 8px"></i></a></td>';
+}
+
+/* */
+function getRoleACLTemplate(path, actions) {
+  return '<td><a><i class="fa fa-trash pointer" aria-hidden="true" ' +
+    'onclick="deletePrivilegeByRole(\'' + path + '\',\'' + actions + '\')" ' +
+    'style="padding-left: 8px"></i></a> </td>';
 }
 
 /* Authentication to cdap cluster */
@@ -175,7 +182,7 @@ function delACL(role, actions) {
   $.ajax({
     type: "POST",
     url: "/cdap/revoke",
-    data: {"role": role, "actions": actions, "path": path},
+    data: {"role": role, "actions": actions.split(","), "path": path},
   }).done(function (data) {
     refreshDetail("/" + path);
     if (data.length > 0) {
@@ -243,4 +250,156 @@ function setPrivCheckbox() {
       checkboxes[i].checked = true;
     }
   }
+}
+
+/* Role management */
+function getGroupMultiSelector(role) {
+  $.get("/cdap/list_all_groups", function (groups) {
+    var select = '<select class="group-selector" data-placeholder="None..." style="width:350px;" multiple>';
+    groups.forEach(function (group) {
+      select += $('<option></option>').val(group).html(group);
+    });
+    select += "</select>";
+  }).fail(function (data) {
+    popErrorNotification(data["responseText"]);
+  });
+}
+
+
+function refreshRoleTable() {
+  $(".list-role-table").bootstrapTable('destroy');
+  $.get("/cdap/list_roles_by_group", function (data) {
+    var dataField = [];
+    data.forEach(function (item) {
+      dataField.push({
+        state: false,
+        role: item.name,
+        group: item.groups.join(","),
+      });
+    });
+    $(".list-role-table").bootstrapTable({
+      columns: [{
+        field: 'state',
+        checkbox: true,
+        align: 'center',
+      }, {
+        field: 'role',
+        title: 'Name'
+      }, {
+        field: 'group',
+        title: 'Group'
+      }],
+      data: dataField
+    });
+  }).fail(function (data) {
+    popErrorNotification(data["responseText"]);
+  });
+}
+
+function deleteRole() {
+  var selections = $(".list-role-table").bootstrapTable('getAllSelections');
+  selections.forEach(function (item) {
+    $.get("/cdap/drop_role/" + item.role, function () {
+      $(".list-role-table").bootstrapTable('remove', {field: "role", values: [item.role]})
+    });
+  }).fail(function (data) {
+    popErrorNotification(data["responseText"]);
+  });
+}
+
+function saveRole() {
+  $.get("/cdap/create_role/" + $("#new-rolename").val(), function () {
+    $(".list-role-table").bootstrapTable('destroy');
+    refreshRoleTable();
+  }).fail(function (data) {
+    popErrorNotification(data["responseText"]);
+  });
+}
+
+function updateRoleACL(role) {
+  $(".selected-role").html(role);
+
+  $("#role-acl-table-body").empty();
+  $.get("/cdap/list_privileges_by_role/" + role, function (data) {
+    data.forEach(function (privilege) {
+      // The first three item will be instance/CDAP/namespace. Strip them.
+      var path = privilege.authorizables.split("/").slice(3).join("/");
+      $("#role-acl-table-body").append("<tr><td>" + path + "</td><td>"
+        + privilege.actions + "</td>" + getRoleACLTemplate(path, privilege.actions) + "<td></td></tr>");
+
+    });
+  }).fail(function (data) {
+    popErrorNotification(data["responseText"]);
+  });
+}
+
+function deletePrivilegeByRole(path, action) {
+  var role = $('.selected-role').text();
+  $("body").css("cursor", "progress");
+  $.ajax({
+    type: "POST",
+    url: "/cdap/revoke",
+    data: {"role": role, "actions": action.split(","), "path": path},
+  }).done(function (data) {
+    //tr.remove();
+    updateRoleACL(role);
+  }).fail(function (data) {
+    popErrorNotification(data["responseText"]);
+  }).always(function(){
+    $("body").css("cursor", "default");
+  });
+}
+
+
+function editRole() {
+  $(".group-selector").empty();
+  $(".group-selector").trigger("chosen:updated");
+
+  var selections = $(".list-role-table").bootstrapTable('getAllSelections');
+  if (selections.length == 0)  return;
+
+  var item = selections[0];
+  var affGroups = item.group.split(",");
+  $("#edit-role-modal-title").html(item.role);
+  $.get("/cdap/list_all_groups", function (groups) {
+    groups.forEach(function (group) {
+      if (affGroups.indexOf(group) == -1) {
+        var option = $('<option></option>').val(group).html(group);
+      } else {
+        var option = $('<option selected></option>').val(group).html(group);
+      }
+      $(".group-selector").append(option);
+    });
+
+    $('#edit-role-popup').on('shown.bs.modal', function () {
+      $(".group-selector").trigger("chosen:updated");
+      $(".group-selector").chosen();
+    });
+    $('#edit-role-popup').modal();
+  }).fail(function (data) {
+    popErrorNotification(data["responseText"]);
+  });
+}
+
+
+function saveEditedRole() {
+  role = $("#edit-role-modal-title").text();
+  var options = $(".group-selector")[0].options;
+  var selected = [];
+  for (var i = 0; i < options.length; i++) {
+    if (options[i].selected) {
+      console.log(options[i].text);
+      selected.push(options[i].text);
+    }
+  }
+  $.ajax({
+    type: "POST",
+    url: "/cdap/alter_role_by_group",
+    data: {"role": role, "groups": selected},
+  }).done(function () {
+      refreshRoleTable();
+    }
+  ).fail(function (data) {
+    popErrorNotification(data["responseText"]);
+  });
 }
