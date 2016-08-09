@@ -22,6 +22,8 @@ import co.cask.cdap.api.dataset.Dataset;
 import co.cask.cdap.api.dataset.DatasetManagementException;
 import co.cask.cdap.api.dataset.DatasetProperties;
 import co.cask.cdap.api.dataset.InstanceNotFoundException;
+import co.cask.cdap.api.security.store.SecureStoreData;
+import co.cask.cdap.api.security.store.SecureStoreMetadata;
 import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.ArtifactId;
@@ -42,7 +44,10 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Properties;
 
 /**
@@ -65,6 +70,16 @@ public class SentryAuthorizerTest {
     properties.put(AuthConf.SENTRY_ADMIN_GROUP, "cdap");
     this.authorizer = new SentryAuthorizer();
     authorizer.initialize(new AuthorizationContext() {
+      @Override
+      public List<SecureStoreMetadata> listSecureData(String namespace) throws Exception {
+        return Collections.emptyList();
+      }
+
+      @Override
+      public SecureStoreData getSecureData(String namespace, String name) throws Exception {
+        throw new NoSuchElementException(namespace + ":" + name);
+      }
+
       @Override
       public void putSecureData(String namespace, String key, String data, String description,
                                 Map<String, String> properties) throws IOException {
