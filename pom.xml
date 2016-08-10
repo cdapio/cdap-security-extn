@@ -26,6 +26,7 @@
   <modules>
     <module>cdap-sentry</module>
     <module>cdap-authorization-dataset-extn</module>
+    <module>cdap-authorization-ldap</module>
     <module>cdap-security-extensions-dist</module>
   </modules>
 
@@ -68,6 +69,7 @@
     <cdap.version>3.5.0-SNAPSHOT</cdap.version>
     <slf4j.version>1.7.5</slf4j.version>
     <junit.version>4.11</junit.version>
+    <logback.version>1.1.2</logback.version>
   </properties>
 
   <repositories>
@@ -90,16 +92,17 @@
         <scope>provided</scope>
       </dependency>
       <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>${slf4j.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
         <groupId>co.cask.cdap</groupId>
         <artifactId>cdap-security-spi</artifactId>
         <version>${cdap.version}</version>
         <type>test-jar</type>
         <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
-        <version>${slf4j.version}</version>
       </dependency>
       <dependency>
         <groupId>junit</groupId>
