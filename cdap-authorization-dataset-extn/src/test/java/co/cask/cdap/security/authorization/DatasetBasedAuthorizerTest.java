@@ -41,7 +41,7 @@ import co.cask.cdap.security.spi.authentication.AuthenticationContext;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.Authorizer;
 import co.cask.cdap.security.spi.authorization.AuthorizerTest;
-import co.cask.cdap.security.store.DummyKMSStore;
+import co.cask.cdap.security.store.DummySecureStore;
 import co.cask.tephra.TransactionContext;
 import co.cask.tephra.TransactionFailureException;
 import co.cask.tephra.TransactionManager;
@@ -89,9 +89,9 @@ public class DatasetBasedAuthorizerTest extends AuthorizerTest {
           bind(DatasetFramework.class).to(InMemoryDatasetFramework.class).in(Scopes.SINGLETON);
           bind(MetricsCollectionService.class).to(NoOpMetricsCollectionService.class);
 
-          DummyKMSStore dummyKMSStore = new DummyKMSStore();
-          bind(SecureStore.class).toInstance(dummyKMSStore);
-          bind(SecureStoreManager.class).toInstance(dummyKMSStore);
+          DummySecureStore dummySecureStore = new DummySecureStore();
+          bind(SecureStore.class).toInstance(dummySecureStore);
+          bind(SecureStoreManager.class).toInstance(dummySecureStore);
         }
       }
     );
