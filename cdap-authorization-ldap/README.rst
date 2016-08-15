@@ -35,7 +35,7 @@ known location on your CDAP Master host.
      - Value
    * - ``security.authorization.extension.jar.path``
      - Absolute path of the ``cdap-authorization-ldap-*.jar`` on the local file system of the CDAP Master.
-   * - ``security.authorization.extension.java.naming.provider.url``
+   * - ``security.authorization.extension.config.java.naming.provider.url``
      - The provider URL for the LDAP server to use. It must be in the form of ``ldap://host:port`` or ``ldaps://host:port``
    * - ``security.authorization.extension.config.namespaceBaseDn``
      - The base DN for namespace search
