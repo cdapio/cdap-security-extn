@@ -99,7 +99,7 @@ class AuthBinding {
   private final ActionFactory actionFactory;
   private final String sentryAdminGroup;
 
-  AuthBinding(String sentrySite, String instanceName, @Nullable String sentryAdminGroup) {
+  AuthBinding(String sentrySite, String instanceName, String sentryAdminGroup) {
     this.authConf = initAuthzConf(sentrySite);
     this.instanceName = instanceName;
     this.authProvider = createAuthProvider();

@@ -216,17 +216,6 @@ public class SentryAuthorizerTest {
   }
 
   @Test
-  public void testSuperUsers() throws Exception {
-    // hulk being an superuser can do anything
-    assertAuthorized(new StreamId("ns2", "stream1"), getUser(SUPERUSER_HULK), Action.READ);
-    assertAuthorized(new ProgramId("ns1", "app1", ProgramType.FLOW, "prog1"), getUser(SUPERUSER_HULK),
-                     Action.EXECUTE);
-    // and so does spiderman
-    assertAuthorized(new StreamId("ns1", "stream1"), getUser(SUPERUSER_SPIDERMAN), Action.READ);
-    assertAuthorized(new StreamId("ns2", "stream1"), getUser(SUPERUSER_SPIDERMAN), Action.ADMIN);
-  }
-
-  @Test
   public void testHierarchy() throws Exception {
     // admin1 has ADMIN on ns1
     assertAuthorized(new NamespaceId("ns1"), getUser("admin1"), Action.ADMIN);

@@ -92,27 +92,31 @@ The CDAP Master, which is also a client for the Sentry service requires the CDAP
 - Set the following properties in in the ``cdap-site.xml`` that the Master uses:
 
 .. list-table::
-   :widths: 20 80
+   :widths: 20 70 10
    :header-rows: 1
 
    * - Parameter
-     - Value
+     - Description
+     - Default Value
    * - ``security.authorization.extension.jar.path``
      - Absolute path of the ``cdap-sentry-binding-*.jar`` on the local file system of the CDAP Master.
+     - -
    * - ``security.authorization.extension.config.sentry.site.url``
      - Absolute path of the client-side ``sentry-site.xml`` on the local file system of the CDAP Master. Note, if
        Apache Sentry is managed via Cloudera Manager, you can download this file from the Actions -> Download Client
        Configuration drop down link in the "Configuration" tab of the Sentry Service.
+     - -
    * - ``security.authorization.extension.config.sentry.admin.group``
      - A unix group configured as an admin group in the Sentry Service (identified by ``sentry.service.admin.group``
        in the ``sentry-site.xml`` used by the Sentry Service). This group is used while granting ``ALL`` privileges
        to a user when he/she successfully creates an entity, as well as revoking privileges when an entity is deleted.
        It is also required to list privileges and roles in Sentry for enforcing authorization on CDAP entities.
-   * - ``security.authorization.extension.config.superusers``
-     - Comma-separated list of super users. Super users are authorized to perform all operations on all entities.
-       They can also manage roles.
+       It is recommended that the ``cdap`` user (which runs the CDAP Master) be added to the
+       ``sentry.service.admin.group`` configuration, but any other user is also acceptable.
+     - ``cdap``
    * - ``security.authorization.extension.config.instance.name``
-     - String to use to identify the CDAP Instance. Defaults to 'cdap'.
+     - String to use to identify the CDAP Instance.
+     - ``cdap``
 
 - Restart CDAP Master.
 
