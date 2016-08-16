@@ -17,6 +17,7 @@
 package co.cask.cdap.security.authorization.ldap;
 
 import co.cask.cdap.proto.id.EntityId;
+import co.cask.cdap.proto.id.InstanceId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.NamespacedId;
 import co.cask.cdap.proto.security.Action;
@@ -52,6 +53,12 @@ public class LDAPAuthorizer extends AbstractAuthorizer {
 
   private static final String VERIFY_SSL_CERT_PROPERTY = "sslVerifyCertificate";
   private static final String CREDENTIALS_KEY_NAME = "credentialsKeyName";
+
+  private static final String INSTANCE_BASE_DN = "instanceBaseDn";
+  private static final String INSTANCE_OBJECT_CLASS = "instanceObjectClass";
+  private static final String INSTANCE_MEMBER_ATTRIBUTE = "instanceMemberAttribute";
+  private static final String INSTANCE_NAME_ATTRIBUTE = "instanceNameAttribute";
+
   private static final String USER_BASE_DN = "userBaseDn";
   private static final String USER_RDN_ATTRIBUTE = "userRdnAttribute";
   private static final String NAMESPACE_BASE_DN = "namespaceBaseDn";
@@ -61,6 +68,10 @@ public class LDAPAuthorizer extends AbstractAuthorizer {
   private static final String SEARCH_RECURSIVE = "searchRecursive";
 
   private DirContext dirContext;
+  private String instanceBaseDn;
+  private String instanceObjectClass;
+  private String instanceMemberAttribute;
+  private String instanceNameAttribute;
   private String userBaseDn;
   private String userRdnAttribute;
   private String namespaceBaseDn;
@@ -81,6 +92,11 @@ public class LDAPAuthorizer extends AbstractAuthorizer {
     if (!providerUrl.startsWith("ldap://") && !providerUrl.startsWith("ldaps://")) {
       throw new IllegalArgumentException("Unsupported provider '" + providerUrl + "'. Only LDAP is supported.");
     }
+
+    instanceBaseDn = checkAndGet(properties, INSTANCE_BASE_DN);
+    instanceObjectClass = checkAndGet(properties, INSTANCE_OBJECT_CLASS);
+    instanceMemberAttribute = checkAndGet(properties, INSTANCE_MEMBER_ATTRIBUTE);
+    instanceNameAttribute = checkAndGet(properties, INSTANCE_NAME_ATTRIBUTE);
 
     userBaseDn = checkAndGet(properties, USER_BASE_DN);
     userRdnAttribute = checkAndGet(properties, USER_RDN_ATTRIBUTE);
@@ -123,18 +139,31 @@ public class LDAPAuthorizer extends AbstractAuthorizer {
 
   @Override
   public void enforce(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
-    if (!(entityId instanceof NamespacedId)) {
-      throw new IllegalArgumentException("Unsupported entity type '" + entityId.getClass() +
-                                           "' of entity '" + entityId + "'. Only entity with namespace is supported.");
-    }
-
-    // Query for the membership of the given principal in the namespace
     String filter = "(&({0}={1})(objectClass={2})({3}={4}))";
-    Object[] filterArgs = new Object[] {
-      namespaceNameAttribute, ((NamespacedId) entityId).getNamespace(),
-      namespaceObjectClass, namespaceMemberAttribute,
-      String.format("%s=%s,%s", userRdnAttribute, principal.getName(), userBaseDn)
-    };
+    Object[] filterArgs;
+    String baseDn;
+
+    if (entityId instanceof InstanceId) {
+      // Query for memebership of the given principal in the instance
+      filterArgs = new Object[] {
+        instanceNameAttribute, ((InstanceId) entityId).getInstance(),
+        instanceObjectClass, instanceMemberAttribute,
+        String.format("%s=%s,%s", userRdnAttribute, principal.getName(), userBaseDn)
+      };
+      baseDn = namespaceBaseDn;
+    } else if (entityId instanceof NamespacedId) {
+      // Query for the membership of the given principal in the namespace
+      filterArgs = new Object[] {
+        namespaceNameAttribute, ((NamespacedId) entityId).getNamespace(),
+        namespaceObjectClass, namespaceMemberAttribute,
+        String.format("%s=%s,%s", userRdnAttribute, principal.getName(), userBaseDn)
+      };
+      baseDn = instanceBaseDn;
+    } else {
+
+      throw new IllegalArgumentException("Unsupported entity type '" + entityId.getClass() +
+                                           "' of entity '" + entityId + "'.");
+    }
 
     SearchControls searchControls = new SearchControls();
     searchControls.setDerefLinkFlag(true);
@@ -142,7 +171,7 @@ public class LDAPAuthorizer extends AbstractAuthorizer {
       searchControls.setSearchScope(SearchControls.SUBTREE_SCOPE);
     }
 
-    NamingEnumeration<SearchResult> results = dirContext.search(namespaceBaseDn, filter, filterArgs, searchControls);
+    NamingEnumeration<SearchResult> results = dirContext.search(baseDn, filter, filterArgs, searchControls);
     if (!results.hasMore()) {
       throw new UnauthorizedException(principal, actions, entityId);
     }
@@ -168,16 +197,41 @@ public class LDAPAuthorizer extends AbstractAuthorizer {
 
     Set<Privilege> privileges = new LinkedHashSet<>();
     NamingEnumeration<SearchResult> results = dirContext.search(namespaceBaseDn, filter, filterArgs, searchControls);
-
-    // When a user is in a given namespace, then he is allowed to perform all action in that namespace
-    while (results.hasMore()) {
-      SearchResult result = results.next();
-      Attribute attribute = result.getAttributes().get(namespaceNameAttribute);
-      if (attribute != null) {
-        for (Action action : Action.values()) {
-          privileges.add(new Privilege(new NamespaceId(attribute.get().toString()), action));
+    try {
+      // When a user is in a given namespace, then he is allowed to perform all action in that namespace
+      while (results.hasMore()) {
+        SearchResult result = results.next();
+        Attribute attribute = result.getAttributes().get(namespaceNameAttribute);
+        if (attribute != null) {
+          for (Action action : Action.values()) {
+            privileges.add(new Privilege(new NamespaceId(attribute.get().toString()), action));
+          }
         }
       }
+    } finally {
+      results.close();
+    }
+
+    // Also query for all instance privileges
+    filterArgs = new Object[] {
+      instanceObjectClass, instanceMemberAttribute,
+      String.format("%s=%s,%s", userRdnAttribute, principal.getName(), userBaseDn)
+    };
+
+    results = dirContext.search(instanceBaseDn, filter, filterArgs, searchControls);
+    try {
+      // When a user is in a given namespace, then he is allowed to perform all action in that namespace
+      while (results.hasMore()) {
+        SearchResult result = results.next();
+        Attribute attribute = result.getAttributes().get(namespaceNameAttribute);
+        if (attribute != null) {
+          for (Action action : Action.values()) {
+            privileges.add(new Privilege(new InstanceId(attribute.get().toString()), action));
+          }
+        }
+      }
+    } finally {
+      results.close();
     }
 
     return privileges;
