@@ -66,13 +66,13 @@ known location on your CDAP Master host.
 
    * - Parameter
      - Value
-   * - ``security.authorization.extension.sslVerifyCertificate``
+   * - ``security.authorization.extension.config.sslVerifyCertificate``
      - If SSL is used, set to ``true`` to have SSL certificate verification or ``false`` to disable it. The default value is ``true``.
-   * - ``security.authorization.extension.java.naming.security.principal``
+   * - ``security.authorization.extension.config.java.naming.security.principal``
      - Specifying the identity of the principal for LDAP authentication
-   * - ``security.authorization.extension.credentialsKeyName``
+   * - ``security.authorization.extension.config.credentialsKeyName``
      - Specifying the key in the CDAP secure store to fetch the credentials to be used for LDAP authentication
-   * - ``security.authorization.extension.searchRecursive``
+   * - ``security.authorization.extension.config.searchRecursive``
      - If set to ``true``, entire subtree rooted at ``namespaceBaseDn`` will be searched. By default, only one level of subtree will be searched.
 
 - Restart CDAP Master.
