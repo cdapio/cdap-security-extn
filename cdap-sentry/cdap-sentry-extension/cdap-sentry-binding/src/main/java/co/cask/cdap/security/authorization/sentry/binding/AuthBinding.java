@@ -322,7 +322,7 @@ class AuthBinding {
       @Override
       public Void run(SentryGenericServiceClient client) throws Exception {
         client.dropRole(requestingUser, role.getName(), COMPONENT_NAME);
-        LOG.info("Dropped role {}; Requesting user: {}", role, requestingUser);
+        LOG.debug("Dropped role {}; Requesting user: {}", role, requestingUser);
         return null;
       }
     });
