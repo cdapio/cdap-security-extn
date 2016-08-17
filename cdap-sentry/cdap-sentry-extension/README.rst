@@ -86,7 +86,8 @@ After updating these jars and settings, please restart the Sentry Service.
 
 CDAP Master side deployment
 ---------------------------
-The CDAP Master, which is also a client for the Sentry service requires the CDAP Sentry Binding classes as well as its    dependencies. To deploy the cdap-sentry authorization extension:
+The CDAP Master, which is also a client for the Sentry service requires the CDAP Sentry Binding classes as well as its
+dependencies. To deploy the cdap-sentry authorization extension:
 
 - Install the ``cdap-sentry-extension/cdap-sentry-binding/target/cdap-sentry-binding-*.jar`` at a known location on your CDAP Master host.
 - Set the following properties in in the ``cdap-site.xml`` that the Master uses:
