@@ -211,7 +211,6 @@ public class SentryAuthorizerTest {
     // admin1 cannot read/write/all/execute on
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.READ);
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.WRITE);
-    assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.ALL);
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.EXECUTE);
   }
 

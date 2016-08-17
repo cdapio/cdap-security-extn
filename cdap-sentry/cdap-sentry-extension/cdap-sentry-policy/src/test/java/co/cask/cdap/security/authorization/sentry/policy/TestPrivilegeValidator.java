@@ -53,7 +53,7 @@ public class TestPrivilegeValidator {
     testValidPrivilege("instance=instance1->namespace=namespace1->artifact=artifact1.0->action=write");
 
     // stream
-    testValidPrivilege("instance=instance1->namespace=namespace1->stream=stream1->action=all");
+    testValidPrivilege("instance=instance1->namespace=namespace1->stream=stream1->action=all_hidden");
 
     // dataset
     testValidPrivilege("instance=instance1->namespace=namespace1->dataset=dataset1->action=write");
@@ -79,7 +79,7 @@ public class TestPrivilegeValidator {
     testInvalidPrivileges("instance=instance1->namespace=namespace1->artTifact=arttifact1.0->action=write");
 
     // stream
-    testInvalidPrivileges("instance=instance1->namespace=namespace1->streEam=stream1->action=all");
+    testInvalidPrivileges("instance=instance1->namespace=namespace1->streEam=stream1->action=all_hidden");
 
     // dataset
     testInvalidPrivileges("instance=instance1->namespace=namespace1->dataAset=dataset1->action=write");

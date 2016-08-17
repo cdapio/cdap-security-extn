@@ -24,7 +24,7 @@ public class ActionConstant {
   public static final String WRITE = "write";
   public static final String EXECUTE = "execute";
   public static final String ADMIN = "admin";
-  public static final String ALL = "*";         // read + write + execute + admin
-  public static final String ALL_NAME = "all";  // read + write + execute + admin
+  // hiding the all action since it is not supported by CDAP
+  public static final String ALL = "all_hidden";         // read + write + execute + admin
   public static final String ACTION_NAME = "action";
 }

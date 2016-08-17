@@ -99,7 +99,7 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
         AuthorizationDataset dataset = dsSupplier.get();
         for (EntityId current : entity.getHierarchy()) {
           Set<Action> allowedActions = dataset.search(current, principal);
-          if (allowedActions.contains(Action.ALL) || allowedActions.containsAll(actions)) {
+          if (allowedActions.containsAll(actions)) {
             result.set(true);
             return;
           }
