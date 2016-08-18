@@ -154,9 +154,6 @@ public class ActionFactory extends BitFieldActionFactory {
    */
   @Override
   public Action getActionByName(String name) {
-    if (ActionConstant.ALL_NAME.equalsIgnoreCase(name)) {
-      return new Action(ActionType.ALL);
-    }
     return new Action(name);
   }
 }
