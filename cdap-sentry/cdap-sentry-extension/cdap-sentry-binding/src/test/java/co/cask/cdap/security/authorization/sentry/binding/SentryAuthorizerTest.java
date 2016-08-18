@@ -37,8 +37,8 @@ import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
-import co.cask.tephra.TransactionFailureException;
 import com.google.common.base.Joiner;
+import org.apache.tephra.TransactionFailureException;
 import org.junit.Assert;
 import org.junit.Test;
 
