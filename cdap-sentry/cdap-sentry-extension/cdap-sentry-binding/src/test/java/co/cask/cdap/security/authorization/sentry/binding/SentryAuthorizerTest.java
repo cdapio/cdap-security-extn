@@ -71,8 +71,8 @@ public class SentryAuthorizerTest {
     this.authorizer = new SentryAuthorizer();
     authorizer.initialize(new AuthorizationContext() {
       @Override
-      public List<SecureStoreMetadata> listSecureData(String namespace) throws Exception {
-        return Collections.emptyList();
+      public Map<String, String> listSecureData(String namespace) throws Exception {
+        return Collections.emptyMap();
       }
 
       @Override
