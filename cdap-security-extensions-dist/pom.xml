@@ -53,11 +53,6 @@
   <dependencies>
     <dependency>
       <groupId>co.cask.cdap</groupId>
-      <artifactId>cdap-authorization-dataset-extn</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>co.cask.cdap</groupId>
       <artifactId>cdap-sentry-binding</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -148,14 +143,6 @@
                 </goals>
                 <configuration>
                   <artifactItems>
-                    <artifactItem>
-                      <groupId>co.cask.cdap</groupId>
-                      <artifactId>cdap-authorization-dataset-extn</artifactId>
-                      <version>${project.version}</version>
-                      <type>jar</type>
-                      <overWrite>true</overWrite>
-                      <outputDirectory>${package.cdap.libs}</outputDirectory>
-                    </artifactItem>
                     <artifactItem>
                       <groupId>co.cask.cdap</groupId>
                       <artifactId>cdap-sentry-binding</artifactId>
