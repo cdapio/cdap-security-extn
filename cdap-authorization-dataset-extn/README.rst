@@ -41,7 +41,7 @@ known location on your CDAP Master host.
      - Value
    * - ``security.authorization.extension.jar.path``
      - Absolute path of the ``cdap-authorization-dataset-extension-*.jar`` on the local file system of the CDAP Master.
-   * - ``security.authorization.extension.config.cdap.superusers``
+   * - ``security.authorization.extension.config.superusers``
      - Comma-separated list of super users. Super users are authorized to perform all operations on all entities.
 
 - Restart CDAP Master.
