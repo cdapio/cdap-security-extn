@@ -25,7 +25,6 @@
 
   <modules>
     <module>cdap-sentry</module>
-    <module>cdap-authorization-dataset-extn</module>
     <module>cdap-security-extensions-dist</module>
   </modules>
 
