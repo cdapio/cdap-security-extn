@@ -53,11 +53,6 @@
   <dependencies>
     <dependency>
       <groupId>co.cask.cdap</groupId>
-      <artifactId>cdap-authorization-dataset-extn</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>co.cask.cdap</groupId>
       <artifactId>cdap-sentry-binding</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -150,14 +145,6 @@
                   <artifactItems>
                     <artifactItem>
                       <groupId>co.cask.cdap</groupId>
-                      <artifactId>cdap-authorization-dataset-extn</artifactId>
-                      <version>${project.version}</version>
-                      <type>jar</type>
-                      <overWrite>true</overWrite>
-                      <outputDirectory>${package.cdap.libs}</outputDirectory>
-                    </artifactItem>
-                    <artifactItem>
-                      <groupId>co.cask.cdap</groupId>
                       <artifactId>cdap-sentry-binding</artifactId>
                       <version>${project.version}</version>
                       <type>jar</type>
@@ -186,147 +173,6 @@
                 </configuration>
               </execution>
             </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-
-    <profile>
-      <id>deb</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>exec-maven-plugin</artifactId>
-            <version>1.4.0</version>
-            <executions>
-              <execution>
-                <id>cdap-deb-package</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>exec</goal>
-                </goals>
-                <configuration>
-                  <workingDirectory>${project.build.directory}</workingDirectory>
-                  <executable>fpm</executable>
-                  <commandlineArgs>
-                    --name "${package.cdap.name}"
-                    --vendor "Cask Data, Inc."
-                    --license "Copyright ${package.build.year} Cask Data, Inc. Licensed under the Apache License,
-                    Version 2.0."
-                    --description "${project.description}"
-                    -s dir
-                    -t deb
-                    -f
-                    -x "*antrun*"
-                    --deb-use-file-permissions
-                    --deb-no-default-config-files
-                    --version "${package.version}"
-                    --architecture all
-                    --url "http://cask.co"
-                    ${package.cdap.dirs}
-                  </commandlineArgs>
-                </configuration>
-              </execution>
-              <execution>
-                <id>sentry-deb-package</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>exec</goal>
-                </goals>
-                <configuration>
-                  <workingDirectory>${project.build.directory}</workingDirectory>
-                  <executable>fpm</executable>
-                  <commandlineArgs>
-                    --name "${package.sentry.name}"
-                    --vendor "Cask Data, Inc."
-                    --license "Copyright ${package.build.year} Cask Data, Inc. Licensed under the Apache License,
-                    Version 2.0."
-                    --description "${project.description}"
-                    -s dir
-                    -t deb
-                    -f
-                    -x "*antrun*"
-                    --deb-use-file-permissions
-                    --deb-no-default-config-files
-                    --version "${package.version}"
-                    --architecture all
-                    --url "http://cask.co"
-                    ${package.sentry.dirs}
-                  </commandlineArgs>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-
-    <profile>
-      <id>rpm</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>exec-maven-plugin</artifactId>
-            <version>1.4.0</version>
-            <executions>
-              <execution>
-                <id>cdap-rpm-package</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>exec</goal>
-                </goals>
-                <configuration>
-                  <workingDirectory>${project.build.directory}</workingDirectory>
-                  <executable>fpm</executable>
-                  <commandlineArgs>
-                    --name "${package.cdap.name}"
-                    --vendor "Cask Data, Inc."
-                    --license "Copyright ${package.build.year} Cask Data, Inc. Licensed under the Apache License,
-                    Version 2.0."
-                    --description "${project.description}"
-                    -s dir
-                    -t rpm
-                    -f
-                    -x "*antrun*"
-                    --rpm-use-file-permissions
-                    --version "${package.version}"
-                    --architecture all
-                    --url "http://cask.co"
-                    ${package.cdap.dirs}
-                  </commandlineArgs>
-                </configuration>
-              </execution>
-              <execution>
-                <id>sentry-rpm-package</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>exec</goal>
-                </goals>
-                <configuration>
-                  <workingDirectory>${project.build.directory}</workingDirectory>
-                  <executable>fpm</executable>
-                  <commandlineArgs>
-                    --name "${package.sentry.name}"
-                    --vendor "Cask Data, Inc."
-                    --license "Copyright ${package.build.year} Cask Data, Inc. Licensed under the Apache License,
-                    Version 2.0."
-                    --description "${project.description}"
-                    -s dir
-                    -t rpm
-                    -f
-                    -x "*antrun*"
-                    --rpm-use-file-permissions
-                    --version "${package.version}"
-                    --architecture all
-                    --url "http://cask.co"
-                    ${package.sentry.dirs}
-                  </commandlineArgs>
-                </configuration>
-              </execution>
-            </executions>
-
           </plugin>
         </plugins>
       </build>

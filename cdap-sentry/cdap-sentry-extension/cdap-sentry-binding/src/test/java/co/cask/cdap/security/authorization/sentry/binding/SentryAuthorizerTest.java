@@ -37,8 +37,8 @@ import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
-import co.cask.tephra.TransactionFailureException;
 import com.google.common.base.Joiner;
+import org.apache.tephra.TransactionFailureException;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -71,8 +71,8 @@ public class SentryAuthorizerTest {
     this.authorizer = new SentryAuthorizer();
     authorizer.initialize(new AuthorizationContext() {
       @Override
-      public List<SecureStoreMetadata> listSecureData(String namespace) throws Exception {
-        return Collections.emptyList();
+      public Map<String, String> listSecureData(String namespace) throws Exception {
+        return Collections.emptyMap();
       }
 
       @Override
@@ -211,19 +211,7 @@ public class SentryAuthorizerTest {
     // admin1 cannot read/write/all/execute on
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.READ);
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.WRITE);
-    assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.ALL);
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.EXECUTE);
-  }
-
-  @Test
-  public void testSuperUsers() throws Exception {
-    // hulk being an superuser can do anything
-    assertAuthorized(new StreamId("ns2", "stream1"), getUser(SUPERUSER_HULK), Action.READ);
-    assertAuthorized(new ProgramId("ns1", "app1", ProgramType.FLOW, "prog1"), getUser(SUPERUSER_HULK),
-                     Action.EXECUTE);
-    // and so does spiderman
-    assertAuthorized(new StreamId("ns1", "stream1"), getUser(SUPERUSER_SPIDERMAN), Action.READ);
-    assertAuthorized(new StreamId("ns2", "stream1"), getUser(SUPERUSER_SPIDERMAN), Action.ADMIN);
   }
 
   @Test

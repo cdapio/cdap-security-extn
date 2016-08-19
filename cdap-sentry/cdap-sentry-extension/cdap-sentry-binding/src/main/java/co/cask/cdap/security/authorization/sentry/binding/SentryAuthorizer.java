@@ -16,7 +16,6 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
-import co.cask.cdap.api.Predicate;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
@@ -30,13 +29,10 @@ import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 
@@ -49,7 +45,6 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   private static final Logger LOG = LoggerFactory.getLogger(SentryAuthorizer.class);
   private static final String ENTITY_ROLE_PREFIX = ".";
   private AuthBinding binding;
-  private Set<Principal> superUsers;
   private AuthorizationContext context;
 
   @Override
@@ -60,19 +55,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
                                 "Path to sentry-site.xml path is not specified in cdap-site.xml. Please provide the " +
                                   "path to sentry-site.xml in cdap-site.xml with property name %s",
                                 AuthConf.SENTRY_SITE_URL);
-    String superUsers = properties.getProperty(AuthConf.SUPERUSERS);
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(superUsers),
-                                "No superusers defined in cdap-site.xml. Please provide a comma separated list of " +
-                                  "users who will be superusers with property name %s. Example: user1,user2",
-                                AuthConf.SUPERUSERS);
-
-    String sentryAdminGroup = properties.getProperty(AuthConf.SENTRY_ADMIN_GROUP);
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(sentryAdminGroup),
-      "No Sentry admin group defined in cdap-site.xml. This group is used to grant access to users after they " +
-        "have successfully created entities in CDAP. It is also necessary to list privileges of users during " +
-        "enforcement To use this feature and fix this warning, please set %s in cdap-site.xml to a single admin " +
-        "group defined in the sentry service as the property sentry.service.admin.group.", AuthConf.SENTRY_ADMIN_GROUP);
-
+    String sentryAdminGroup = properties.getProperty(AuthConf.SENTRY_ADMIN_GROUP,
+                                                     AuthConf.AuthzConfVars.AUTHZ_SENTRY_ADMIN_GROUP.getDefault());
     Preconditions.checkArgument(!sentryAdminGroup.contains(","),
                                 "Please provide exactly one Sentry admin group at %s in cdap-site.xml. Found '%s'.",
                                 AuthConf.SENTRY_ADMIN_GROUP, sentryAdminGroup);
@@ -80,9 +64,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       properties.getProperty(AuthConf.INSTANCE_NAME) :
       AuthConf.AuthzConfVars.getDefault(AuthConf.INSTANCE_NAME);
 
-    LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {}, cdap instance name {} and superusers: {}",
-               sentrySiteUrl, instanceName, superUsers);
-    this.superUsers = getSuperUsers(superUsers);
+    LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {}, CDAP instance {} and Sentry Admin Group: {}",
+               sentrySiteUrl, instanceName, sentryAdminGroup);
     this.binding = new AuthBinding(sentrySiteUrl, instanceName, sentryAdminGroup);
     this.context = context;
   }
@@ -170,34 +153,12 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     Preconditions.checkArgument(Principal.PrincipalType.USER == principal.getType(), "The given principal '%s' is of " +
                                 "type '%s'. In Sentry authorization checks can only be performed on principal type " +
                                 "'%s'.", principal.getName(), principal.getType(), Principal.PrincipalType.USER);
-    if (superUsers.contains(principal)) {
-      // superusers are allowed to perform any action on all entities so need to authorize
-      LOG.debug("Authorizing superuser with principal {} for actions {} on entity {}", principal, actions, entityId);
-      return;
-    }
-
     if (!binding.authorize(entityId, principal, actions)) {
       throw new UnauthorizedException(principal, actions, entityId);
     }
   }
 
-  @Override
-  public Predicate<EntityId> createFilter(Principal principal) throws Exception {
-    LOG.info("superusers: {}, current user to filter: {}", superUsers, principal);
-    if (superUsers.contains(principal)) {
-      // superusers are allowed to perform any action on all entities so need to filter
-      LOG.debug("No filtering necessary for superuser {}. Returning an allow-all filter.", principal);
-      return ALLOW_ALL;
-    }
-    return super.createFilter(principal);
-  }
-
   private synchronized void performUserBasedGrant(EntityId entityId, Principal principal, Set<Action> actions) {
-    // make sure that the request is part of a larger request for creating an entity
-    if (!Collections.singleton(Action.ALL).equals(actions)) {
-      throw new IllegalArgumentException("Grants for users are only supported in Sentry as part of a create " +
-                                           "operation.");
-    }
     Role dotRole = new Role(ENTITY_ROLE_PREFIX + entityId.toString());
     try {
       binding.createRole(dotRole);
@@ -214,20 +175,6 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       // Not possible, since we just made sure it exists, and this method is synchronized
       LOG.debug("Role {} not found. This is unexpected since its existence was just ensured.", dotRole);
     }
-  }
-
-  /**
-   * Gets a {@link Set} of {@link Principal} of superusers which is provided through
-   * {@link AuthConf#SUPERUSERS}
-   *
-   * @return {@link Set} of {@link Principal} of superusers
-   */
-  private Set<Principal> getSuperUsers(String superUsers) {
-    Set<Principal> result = new HashSet<>();
-    for (String curUser : Splitter.on(",").trimResults().split(superUsers)) {
-      result.add(new Principal(curUser, Principal.PrincipalType.USER));
-    }
-    return result;
   }
 
   private String getRequestingUser() throws IllegalArgumentException {

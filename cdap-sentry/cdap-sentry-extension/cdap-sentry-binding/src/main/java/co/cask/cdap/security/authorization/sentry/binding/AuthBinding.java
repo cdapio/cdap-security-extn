@@ -79,6 +79,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -99,7 +100,7 @@ class AuthBinding {
   private final ActionFactory actionFactory;
   private final String sentryAdminGroup;
 
-  AuthBinding(String sentrySite, String instanceName, @Nullable String sentryAdminGroup) {
+  AuthBinding(String sentrySite, String instanceName, String sentryAdminGroup) {
     this.authConf = initAuthzConf(sentrySite);
     this.instanceName = instanceName;
     this.authProvider = createAuthProvider();
@@ -322,7 +323,7 @@ class AuthBinding {
       @Override
       public Void run(SentryGenericServiceClient client) throws Exception {
         client.dropRole(requestingUser, role.getName(), COMPONENT_NAME);
-        LOG.info("Dropped role {}; Requesting user: {}", role, requestingUser);
+        LOG.debug("Dropped role {}; Requesting user: {}", role, requestingUser);
         return null;
       }
     });
@@ -566,7 +567,11 @@ class AuthBinding {
   }
 
   private List<TAuthorizable> toTAuthorizable(EntityId entityId) {
-    return toTSentryPrivilege(entityId, Action.ALL).getAuthorizables();
+    List<TAuthorizable> tAuthorizables = new ArrayList<>();
+    for (Action action : EnumSet.allOf(Action.class)) {
+      tAuthorizables.addAll(toTSentryPrivilege(entityId, action).getAuthorizables());
+    }
+    return tAuthorizables;
   }
 
   private <T> T execute(Command<T> cmd) {
