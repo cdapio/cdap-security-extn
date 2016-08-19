@@ -154,6 +154,9 @@ public class ActionFactory extends BitFieldActionFactory {
    */
   @Override
   public Action getActionByName(String name) {
+    if ("*".equals(name)) {
+      return new Action(ActionType.ALL);
+    }
     return new Action(name);
   }
 }

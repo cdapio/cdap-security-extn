@@ -100,12 +100,15 @@ dependencies. To deploy the cdap-sentry authorization extension:
      - Description
      - Default Value
    * - ``security.authorization.extension.jar.path``
-     - Absolute path of the ``cdap-sentry-binding-*.jar`` on the local file system of the CDAP Master.
+     - Absolute path, including the filename, of the ``cdap-sentry-binding-*.jar`` JAR file on the local file system
+       of the CDAP Master.
      - -
    * - ``security.authorization.extension.config.sentry.site.url``
      - Absolute path of the client-side ``sentry-site.xml`` on the local file system of the CDAP Master. Note, if
-       Apache Sentry is managed via Cloudera Manager, you can download this file from the Actions -> Download Client
-       Configuration drop down link in the "Configuration" tab of the Sentry Service.
+       Apache Sentry is managed via Cloudera Manager, you can add a Sentry Gateway role to the CDAP Master host, and the
+       file will be available at ``/etc/sentry/conf/sentry-site.xml`` on the CDAP Master host. Alternatively, you can
+       also download this file from the Actions -> Download Client Configuration drop down link in the "Configuration"
+       tab of the Sentry Service, and copy it to a location of your choice on the CDAP Master Host.
      - -
    * - ``security.authorization.extension.config.sentry.admin.group``
      - A unix group configured as an admin group in the Sentry Service (identified by ``sentry.service.admin.group``
