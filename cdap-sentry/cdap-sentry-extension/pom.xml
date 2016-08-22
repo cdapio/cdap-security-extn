@@ -26,7 +26,6 @@
   </parent>
 
   <artifactId>cdap-sentry-extension</artifactId>
-  <version>0.2.0</version>
 
   <modules>
     <module>cdap-sentry-model</module>

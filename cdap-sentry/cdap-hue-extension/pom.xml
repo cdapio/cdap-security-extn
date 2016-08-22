@@ -26,7 +26,6 @@
   </parent>
 
   <artifactId>cdap-hue-extension</artifactId>
-  <version>0.2.0</version>
 
   <packaging>pom</packaging>
 
