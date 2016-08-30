@@ -121,7 +121,7 @@ extension:
      * - ``security.authorization.extension.config.sentry.admin.group``
        - A UNIX group configured as an admin group in the Sentry Service (identified by
          ``sentry.service.admin.group`` in the ``sentry-site.xml`` used by the Sentry
-         Service). This group is used when granting ``ALL`` privileges to a user when they
+         Service). This group is used when granting all privileges to a user when they
          have successfully created an entity, as well as for revoking privileges when an
          entity is deleted. It is required to list privileges and roles in Sentry for
          enforcing authorization on CDAP entities. It is recommended that the ``cdap`` user
