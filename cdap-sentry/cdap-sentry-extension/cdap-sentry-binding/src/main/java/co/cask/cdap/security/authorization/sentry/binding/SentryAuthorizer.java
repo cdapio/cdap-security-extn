@@ -28,6 +28,7 @@ import co.cask.cdap.security.spi.authorization.Authorizer;
 import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
@@ -159,7 +160,11 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   }
 
   private synchronized void performUserBasedGrant(EntityId entityId, Principal principal, Set<Action> actions) {
-    Role dotRole = new Role(ENTITY_ROLE_PREFIX + entityId.toString());
+    Role dotRole = new Role(
+      Joiner.on(ENTITY_ROLE_PREFIX).join(
+        "", entityId.toString(), principal.getType().name().toLowerCase().charAt(0), principal.getName()
+      )
+    );
     try {
       binding.createRole(dotRole);
       LOG.debug("Created role {}", dotRole);
