@@ -5,7 +5,7 @@ CDAP Authorization Extension using Datasets
 Overview
 ========
 
-This project contains a CDAP authorization extension using a custom dataset - ACLDataset - to store authorization
+This project contains a CDAP authorization extension using a custom dataset (``ACLDataset``) to store authorization
 policies. It implements the CDAP
 `Authorizer <https://github.com/caskdata/cdap/blob/develop/cdap-security/src/main/java/co/cask/cdap/security/authorization/Authorizer.java>`_
 interface to achieve this integration. The ACLDataset is created in the ``cdap_system`` HBase namespace.
@@ -16,12 +16,12 @@ Building
 To build the CDAP Authorization Dataset Extension and run tests, execute the following command from the
 ``cdap-authorization-dataset-extn`` root directory::
 
-  mvn clean package
+  $ mvn clean package
 
 
 To skip tests, execute::
 
-   mvn clean package -DskipTests
+   $ mvn clean package -DskipTests
 
 
 Deploying
@@ -31,7 +31,7 @@ To deploy this authorization extension:
 
 - Install the ``cdap-authorization-dataset-extn/target/cdap-authorization-dataset-extension-*.jar`` at a
 known location on your CDAP Master host.
-- Set the following properties in in the ``cdap-site.xml`` that the Master uses:
+- Set these properties in the ``cdap-site.xml`` that CDAP Master uses:
 
 .. list-table::
    :widths: 20 80
