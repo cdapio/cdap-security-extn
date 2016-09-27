@@ -39,20 +39,20 @@ Since Apache Sentry releases are source-only, this project assumes that Apache S
 1.7.0 has been pre-built and installed in the local Maven repo. To do this, in the Apache
 Sentry source root directory, run::
 
-  git fetch origin
-  git checkout branch-1.7.0
-  mvn clean install -DskipTests
+  $ git fetch origin
+  $ git checkout branch-1.7.0
+  $ mvn clean install -DskipTests
 
 
 To build the CDAP Sentry Extension and run tests, execute this command from the ``cdap-sentry``
 root directory::
 
-  mvn clean package
+  $ mvn clean package
 
 
 To skip tests, execute::
 
-   mvn clean package -DskipTests
+   $ mvn clean package -DskipTests
 
 
 Deploying
