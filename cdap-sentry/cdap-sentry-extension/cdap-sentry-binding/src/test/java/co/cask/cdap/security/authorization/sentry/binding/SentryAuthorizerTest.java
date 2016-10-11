@@ -23,7 +23,6 @@ import co.cask.cdap.api.dataset.DatasetManagementException;
 import co.cask.cdap.api.dataset.DatasetProperties;
 import co.cask.cdap.api.dataset.InstanceNotFoundException;
 import co.cask.cdap.api.security.store.SecureStoreData;
-import co.cask.cdap.api.security.store.SecureStoreMetadata;
 import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.ArtifactId;
@@ -45,7 +44,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
@@ -171,6 +169,11 @@ public class SentryAuthorizerTest {
 
       @Override
       public void execute(TxRunnable txRunnable) throws TransactionFailureException {
+        // no-op
+      }
+
+      @Override
+      public void execute(int timeout, TxRunnable txRunnable) throws TransactionFailureException {
         // no-op
       }
     });
