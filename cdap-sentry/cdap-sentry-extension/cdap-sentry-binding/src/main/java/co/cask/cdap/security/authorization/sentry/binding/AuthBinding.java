@@ -79,7 +79,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -558,18 +557,15 @@ class AuthBinding {
 
   @VisibleForTesting
   TSentryPrivilege toTSentryPrivilege(EntityId entityId, Action action) {
-    List<org.apache.sentry.core.common.Authorizable> authorizables = toSentryAuthorizables(entityId);
-    List<TAuthorizable> tAuthorizables = new ArrayList<>();
-    for (org.apache.sentry.core.common.Authorizable authorizable : authorizables) {
-      tAuthorizables.add(new TAuthorizable(authorizable.getTypeName(), authorizable.getName()));
-    }
+    List<TAuthorizable> tAuthorizables = toTAuthorizable(entityId);
     return new TSentryPrivilege(COMPONENT_NAME, instanceName, tAuthorizables, action.name());
   }
 
   private List<TAuthorizable> toTAuthorizable(EntityId entityId) {
+    List<org.apache.sentry.core.common.Authorizable> authorizables = toSentryAuthorizables(entityId);
     List<TAuthorizable> tAuthorizables = new ArrayList<>();
-    for (Action action : EnumSet.allOf(Action.class)) {
-      tAuthorizables.addAll(toTSentryPrivilege(entityId, action).getAuthorizables());
+    for (org.apache.sentry.core.common.Authorizable authorizable : authorizables) {
+      tAuthorizables.add(new TAuthorizable(authorizable.getTypeName(), authorizable.getName()));
     }
     return tAuthorizables;
   }
