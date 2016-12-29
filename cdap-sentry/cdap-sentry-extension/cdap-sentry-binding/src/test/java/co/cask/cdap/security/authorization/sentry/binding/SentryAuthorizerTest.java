@@ -22,6 +22,8 @@ import co.cask.cdap.api.dataset.Dataset;
 import co.cask.cdap.api.dataset.DatasetManagementException;
 import co.cask.cdap.api.dataset.DatasetProperties;
 import co.cask.cdap.api.dataset.InstanceNotFoundException;
+import co.cask.cdap.api.messaging.TopicAlreadyExistsException;
+import co.cask.cdap.api.messaging.TopicNotFoundException;
 import co.cask.cdap.api.security.store.SecureStoreData;
 import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.id.ApplicationId;
@@ -97,6 +99,32 @@ public class SentryAuthorizerTest {
       @Override
       public Properties getExtensionProperties() {
         return properties;
+      }
+
+      @Override
+      public void createTopic(String s) throws TopicAlreadyExistsException, IOException {
+        // no-op
+      }
+
+      @Override
+      public void createTopic(String s, Map<String, String> map) throws TopicAlreadyExistsException, IOException {
+        // no-op
+      }
+
+      @Override
+      public Map<String, String> getTopicProperties(String s) throws TopicNotFoundException, IOException {
+        // no-op
+        return Collections.EMPTY_MAP;
+      }
+
+      @Override
+      public void updateTopic(String s, Map<String, String> map) throws TopicNotFoundException, IOException {
+        // no-op
+      }
+
+      @Override
+      public void deleteTopic(String s) throws TopicNotFoundException, IOException {
+        // no-op
       }
 
       @Override
