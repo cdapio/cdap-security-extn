@@ -430,8 +430,24 @@ class AuthBinding {
     Set<TSentryRole> tSentryRoles = execute(new Command<Set<TSentryRole>>() {
       @Override
       public Set<TSentryRole> run(SentryGenericServiceClient client) throws Exception {
-        return principal == null ? client.listAllRoles(requestingUser, COMPONENT_NAME) :
-          client.listRolesByGroupName(requestingUser, principal.getName(), COMPONENT_NAME);
+        if (principal == null) {
+          return client.listAllRoles(requestingUser, COMPONENT_NAME);
+        }
+        if (principal.getType().equals(Principal.PrincipalType.USER)) {
+          // for a user get all the groups and their roles
+          Set<String> groups = authProvider.getGroupMapping().getGroups(principal.getName());
+          Set<TSentryRole> roles = new HashSet<>();
+          for (String group : groups) {
+            roles.addAll(client.listRolesByGroupName(requestingUser, group, COMPONENT_NAME));
+          }
+          return roles;
+        }
+        if (principal.getType().equals(Principal.PrincipalType.GROUP)) {
+          return client.listRolesByGroupName(requestingUser, principal.getName(), COMPONENT_NAME);
+        }
+        throw new IllegalArgumentException(String.format("Cannot list roles for %s. Roles can only listed for %s or %s",
+                                                         principal, Principal.PrincipalType.USER,
+                                                         Principal.PrincipalType.GROUP));
       }
     });
     for (TSentryRole tSentryRole : tSentryRoles) {
