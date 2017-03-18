@@ -69,6 +69,7 @@ import org.apache.sentry.provider.db.generic.SentryGenericProviderBackend;
 import org.apache.sentry.provider.db.generic.service.thrift.SentryGenericServiceClient;
 import org.apache.sentry.provider.db.generic.service.thrift.SentryGenericServiceClientFactory;
 import org.apache.sentry.provider.db.generic.service.thrift.TAuthorizable;
+import org.apache.sentry.provider.db.generic.service.thrift.TSentryGrantOption;
 import org.apache.sentry.provider.db.generic.service.thrift.TSentryPrivilege;
 import org.apache.sentry.provider.db.generic.service.thrift.TSentryRole;
 import org.slf4j.Logger;
@@ -558,7 +559,13 @@ class AuthBinding {
   @VisibleForTesting
   TSentryPrivilege toTSentryPrivilege(EntityId entityId, Action action) {
     List<TAuthorizable> tAuthorizables = toTAuthorizable(entityId);
-    return new TSentryPrivilege(COMPONENT_NAME, instanceName, tAuthorizables, action.name());
+    TSentryPrivilege tSentryPrivilege = new TSentryPrivilege(COMPONENT_NAME, instanceName,
+                                                             tAuthorizables, action.name());
+    // CDAP-9029 Set grant options to true so that sentry will allow the privileges to be passed on to some other user
+    // Setting it true for all privileges gives to a user is fine as we don't rely on this setting. While doing
+    // grant CDAP enforces ADMIN on the entity.
+    tSentryPrivilege.setGrantOption(TSentryGrantOption.TRUE);
+    return tSentryPrivilege;
   }
 
   private List<TAuthorizable> toTAuthorizable(EntityId entityId) {
