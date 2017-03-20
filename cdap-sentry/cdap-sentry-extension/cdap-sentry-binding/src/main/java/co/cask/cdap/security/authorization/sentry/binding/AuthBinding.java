@@ -170,7 +170,7 @@ class AuthBinding {
       execute(new Command<Void>() {
         @Override
         public Void run(SentryGenericServiceClient client) throws Exception {
-          client.dropPrivilege(requestingUser, role.getName(), toTSentryPrivilege(entityId, action));
+          client.revokePrivilege(requestingUser, role.getName(), COMPONENT_NAME, toTSentryPrivilege(entityId, action));
           return null;
         }
       });
