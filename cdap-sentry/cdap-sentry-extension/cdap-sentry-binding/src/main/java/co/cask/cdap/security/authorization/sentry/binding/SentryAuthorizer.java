@@ -78,22 +78,43 @@ public class SentryAuthorizer extends AbstractAuthorizer {
         binding.grant(entityId, new Role(principal.getName()), actions, getRequestingUser());
         break;
       case USER:
-        performUserBasedGrant(entityId, principal, actions);
+        // get the group for the user to perform group based grant
+        performGroupBasedGrant(entityId, getGroupPrincipal(principal), actions);
+        break;
+      case GROUP:
+        performGroupBasedGrant(entityId, principal, actions);
         break;
       default:
         throw new IllegalArgumentException(
-          String.format("The given principal '%s' is of type '%s'. In Sentry grants can only be done on " +
-                          "roles. Please add the '%s':'%s' to a role and perform grant on the role.",
-                        principal.getName(), principal.getType(), principal.getType(), principal.getName()));
+          String.format("The given principal '%s' is of unsupported type '%s'.", principal.getName(),
+                        principal.getType()));
     }
   }
 
   @Override
   public void revoke(EntityId entityId, Principal principal, Set<Action> actions) throws RoleNotFoundException {
-    Preconditions.checkArgument(principal.getType() == Principal.PrincipalType.ROLE, "The given principal '%s' is of " +
-                                  "type '%s'. In Sentry revoke can only be done on roles.",
-                                principal.getName(), principal.getType());
-    binding.revoke(entityId, new Role(principal.getName()), actions, getRequestingUser());
+    Role entityRole;
+    switch (principal.getType()) {
+      case ROLE:
+        binding.revoke(entityId, new Role(principal.getName()), actions, getRequestingUser());
+        break;
+      case USER:
+        // get the group for the user and the role associated with entity and perform revoke
+        entityRole = getEntityUserRole(entityId, getGroupPrincipal(principal));
+        binding.revoke(entityId, entityRole, actions, getRequestingUser());
+        cleanUpRole(entityRole);
+        break;
+      case GROUP:
+        // get the role associated with the entity for the group and perform revoke
+        entityRole = getEntityUserRole(entityId, principal);
+        binding.revoke(entityId, entityRole, actions, getRequestingUser());
+        cleanUpRole(entityRole);
+        break;
+      default:
+        throw new IllegalArgumentException(
+          String.format("The given principal '%s' is of unsupported type '%s'.", principal.getName(),
+                        principal.getType()));
+    }
   }
 
   @Override
@@ -159,12 +180,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     }
   }
 
-  private synchronized void performUserBasedGrant(EntityId entityId, Principal principal, Set<Action> actions) {
-    Role dotRole = new Role(
-      Joiner.on(ENTITY_ROLE_PREFIX).join(
-        "", entityId.toString(), principal.getType().name().toLowerCase().charAt(0), principal.getName()
-      )
-    );
+  private synchronized void performGroupBasedGrant(EntityId entityId, Principal principal, Set<Action> actions) {
+    Role dotRole = getEntityUserRole(entityId, principal);
     try {
       binding.createRole(dotRole);
       LOG.debug("Created role {}", dotRole);
@@ -172,7 +189,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       LOG.debug("Dot role {} already exists.", dotRole);
     }
     try {
-      binding.addRoleToGroup(dotRole, new Principal(principal.getName(), Principal.PrincipalType.GROUP));
+      binding.addRoleToGroup(dotRole, principal);
       LOG.debug("Added role {} to group {}", dotRole, principal);
       binding.grant(entityId, dotRole, actions);
       LOG.debug("Granted actions {} to role {} on entity {}", actions, dotRole, entityId);
@@ -180,6 +197,38 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       // Not possible, since we just made sure it exists, and this method is synchronized
       LOG.debug("Role {} not found. This is unexpected since its existence was just ensured.", dotRole);
     }
+  }
+
+  /**
+   * Drops a role if it was created by cdap i.e. it starts with ENTITY_ROLE_PREFIX if there is no privileges
+   * associated with it
+   * @param entityRole the role which needs to be dropped if empty
+   * @throws RoleNotFoundException if the given role does not exists
+   */
+  private void cleanUpRole(Role entityRole) throws RoleNotFoundException {
+    if (entityRole.getName().startsWith(ENTITY_ROLE_PREFIX) && listPrivileges(entityRole).isEmpty()) {
+      binding.dropRole(entityRole);
+    }
+  }
+
+  /**
+   * Returns the groups for a user. We just take the user's name and return that as the group for the user as our
+   * current assumption is that every user will have their own group to which only they will belong and the group name
+   * will be same as the user name. Note: This assumption will not be true in all scenarios See CDAP-9125 for details.
+   *
+   * @param principal the user's principal
+   * @return {@link Principal} of type {@link Principal.PrincipalType#GROUP} where the name is same as user name
+   */
+  private Principal getGroupPrincipal(Principal principal) {
+    return new Principal(principal.getName(), Principal.PrincipalType.GROUP);
+  }
+
+  private Role getEntityUserRole(EntityId entityId, Principal principal) {
+    return new Role(
+      Joiner.on(ENTITY_ROLE_PREFIX).join(
+        "", entityId.toString(), principal.getType().name().toLowerCase().charAt(0), principal.getName()
+      )
+    );
   }
 
   private String getRequestingUser() throws IllegalArgumentException {
