@@ -584,6 +584,15 @@ class AuthBinding {
     return tSentryPrivilege;
   }
 
+  /**
+   * Performs revoke as sentry admin. This is needed since in sentry revoke is kind of role
+   * management command and can only be done by sentry admin group. In CDAP when a revoke is done
+   * CDAP already checks that the user who is requesting revoke has ADMIN on the entity.
+   */
+  protected void revoke(final EntityId entityId, final Role role, Set<Action> actions) throws RoleNotFoundException {
+    revoke(entityId, role, actions, sentryAdminGroup);
+  }
+
   private List<TAuthorizable> toTAuthorizable(EntityId entityId) {
     List<org.apache.sentry.core.common.Authorizable> authorizables = toSentryAuthorizables(entityId);
     List<TAuthorizable> tAuthorizables = new ArrayList<>();
