@@ -30,10 +30,14 @@ import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.collect.Collections2;
+import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 
@@ -101,14 +105,18 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       case USER:
         // get the group for the user and the role associated with entity and perform revoke
         entityRole = getEntityUserRole(entityId, getGroupPrincipal(principal));
-        binding.revoke(entityId, entityRole, actions, getRequestingUser());
-        cleanUpRole(entityRole);
+        binding.revoke(entityId, entityRole, actions);
+        // true because if there are other privileges associated with this role then we don't want to cleanup the role
+        // at this point
+        cleanUpEntityRole(entityRole, true);
         break;
       case GROUP:
         // get the role associated with the entity for the group and perform revoke
         entityRole = getEntityUserRole(entityId, principal);
-        binding.revoke(entityId, entityRole, actions, getRequestingUser());
-        cleanUpRole(entityRole);
+        binding.revoke(entityId, entityRole, actions);
+        // true because if there are other privileges associated with this role then we don't want to cleanup the role
+        // at this point
+        cleanUpEntityRole(entityRole, true);
         break;
       default:
         throw new IllegalArgumentException(
@@ -120,14 +128,11 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   @Override
   public void revoke(EntityId entityId) {
     binding.revoke(entityId);
-    // remove the role created for this entity
-    Role role = new Role(ENTITY_ROLE_PREFIX + entityId.toString());
-    try {
-      binding.dropRole(role);
-    } catch (RoleNotFoundException e) {
-      // This is a dot role. It should be ok for deletion to fail. This happens because while creating a new entity,
-      // we first revoke any orphaned privileges on the entity. During that operation this role may not exist.
-      LOG.debug("Trying to delete role {}, but it was not found. Ignoring.", role);
+    // remove the roles created for this entity
+    for (Role entityRole : getEntityRoles(entityId)) {
+      // false as we don't want to check if there are privileges associated with the entity role or not
+      // since the entity itself is deleted we want to delete all roles associated with it
+      cleanUpEntityRole(entityRole, false);
     }
   }
 
@@ -200,15 +205,52 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   }
 
   /**
-   * Drops a role if it was created by cdap i.e. it starts with ENTITY_ROLE_PREFIX if there is no privileges
+   * Drops a role if it was created by cdap i.e. it starts with ENTITY_ROLE_PREFIX and there is no privileges
    * associated with it
    * @param entityRole the role which needs to be dropped if empty
-   * @throws RoleNotFoundException if the given role does not exists
+   * @param checkPrivilege whether to check if the role has privileges associated with it before
+   * deleting or not. If set to true then the role will not be deleted if there are privileges associated with the role
    */
-  private void cleanUpRole(Role entityRole) throws RoleNotFoundException {
-    if (entityRole.getName().startsWith(ENTITY_ROLE_PREFIX) && listPrivileges(entityRole).isEmpty()) {
-      binding.dropRole(entityRole);
+  private void cleanUpEntityRole(Role entityRole, boolean checkPrivilege) {
+    // this should not be called for any other role except entity roles i.e. the ones which start with
+    // ENTITY_ROLE_PREFIX
+    if (!entityRole.getName().startsWith(ENTITY_ROLE_PREFIX)) {
+      throw new IllegalArgumentException(String.format("The given role %s is not an entity role. " +
+                                                         "Please use drop role to remove this role.", entityRole));
     }
+    // if check privilege was set to true and there are privileges associated with this role then
+    // don't clean it up
+    if (checkPrivilege && !listPrivileges(entityRole).isEmpty()) {
+      LOG.debug("Skipping role cleanup for role {}", entityRole);
+      return;
+    }
+    try {
+      binding.dropRole(entityRole);
+      LOG.debug("Successfully dropped role {}", entityRole);
+    } catch (RoleNotFoundException e) {
+      // This is a dot role. It should be ok for deletion to fail. This happens because while creating a new entity,
+      // we first revoke any orphaned privileges on the entity. During that operation this role may not exist.
+      LOG.debug("Trying to delete role {}, but it was not found. Ignoring since it's an entity role.", entityRole);
+    }
+  }
+
+  /**
+   * Gets all the entity roles associated with the given {@link EntityId}
+   * @param entityId the entity for which roles need to be obtained
+   * @return {@link Set} of {@link Role} for the given entity
+   */
+  private Set<Role> getEntityRoles (final EntityId entityId) {
+    final String curEntityRolePrefix = Joiner.on(ENTITY_ROLE_PREFIX).join("", entityId.toString());
+
+    Predicate<Role> filter = new Predicate<Role>() {
+      public boolean apply(Role role) {
+        return role.getName().startsWith(curEntityRolePrefix);
+      }
+    };
+
+    // get all roles and filter roles which belongs to this this entity
+    Set<Role> allRoles = listAllRoles();
+    return Sets.newHashSet(Collections2.filter(allRoles, filter));
   }
 
   /**
