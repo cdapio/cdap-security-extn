@@ -21,7 +21,7 @@
 
   <groupId>co.cask.cdap</groupId>
   <artifactId>cdap-security-extensions</artifactId>
-  <version>0.4.0</version>
+  <version>0.4.1</version>
 
   <modules>
     <module>cdap-sentry</module>
