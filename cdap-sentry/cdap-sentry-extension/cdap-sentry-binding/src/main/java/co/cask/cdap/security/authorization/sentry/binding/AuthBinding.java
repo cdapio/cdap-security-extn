@@ -69,6 +69,7 @@ import org.apache.sentry.provider.db.generic.SentryGenericProviderBackend;
 import org.apache.sentry.provider.db.generic.service.thrift.SentryGenericServiceClient;
 import org.apache.sentry.provider.db.generic.service.thrift.SentryGenericServiceClientFactory;
 import org.apache.sentry.provider.db.generic.service.thrift.TAuthorizable;
+import org.apache.sentry.provider.db.generic.service.thrift.TSentryGrantOption;
 import org.apache.sentry.provider.db.generic.service.thrift.TSentryPrivilege;
 import org.apache.sentry.provider.db.generic.service.thrift.TSentryRole;
 import org.slf4j.Logger;
@@ -169,7 +170,7 @@ class AuthBinding {
       execute(new Command<Void>() {
         @Override
         public Void run(SentryGenericServiceClient client) throws Exception {
-          client.dropPrivilege(requestingUser, role.getName(), toTSentryPrivilege(entityId, action));
+          client.revokePrivilege(requestingUser, role.getName(), COMPONENT_NAME, toTSentryPrivilege(entityId, action));
           return null;
         }
       });
@@ -429,8 +430,24 @@ class AuthBinding {
     Set<TSentryRole> tSentryRoles = execute(new Command<Set<TSentryRole>>() {
       @Override
       public Set<TSentryRole> run(SentryGenericServiceClient client) throws Exception {
-        return principal == null ? client.listAllRoles(requestingUser, COMPONENT_NAME) :
-          client.listRolesByGroupName(requestingUser, principal.getName(), COMPONENT_NAME);
+        if (principal == null) {
+          return client.listAllRoles(requestingUser, COMPONENT_NAME);
+        }
+        if (principal.getType().equals(Principal.PrincipalType.USER)) {
+          // for a user get all the groups and their roles
+          Set<String> groups = authProvider.getGroupMapping().getGroups(principal.getName());
+          Set<TSentryRole> roles = new HashSet<>();
+          for (String group : groups) {
+            roles.addAll(client.listRolesByGroupName(requestingUser, group, COMPONENT_NAME));
+          }
+          return ImmutableSet.copyOf(roles);
+        }
+        if (principal.getType().equals(Principal.PrincipalType.GROUP)) {
+          return client.listRolesByGroupName(requestingUser, principal.getName(), COMPONENT_NAME);
+        }
+        throw new IllegalArgumentException(String.format("Cannot list roles for %s. Roles can only listed for %s or %s",
+                                                         principal, Principal.PrincipalType.USER,
+                                                         Principal.PrincipalType.GROUP));
       }
     });
     for (TSentryRole tSentryRole : tSentryRoles) {
@@ -558,7 +575,22 @@ class AuthBinding {
   @VisibleForTesting
   TSentryPrivilege toTSentryPrivilege(EntityId entityId, Action action) {
     List<TAuthorizable> tAuthorizables = toTAuthorizable(entityId);
-    return new TSentryPrivilege(COMPONENT_NAME, instanceName, tAuthorizables, action.name());
+    TSentryPrivilege tSentryPrivilege = new TSentryPrivilege(COMPONENT_NAME, instanceName,
+                                                             tAuthorizables, action.name());
+    // CDAP-9029 Set grant options to true so that sentry will allow the privileges to be passed on to some other user
+    // Setting it true for all privileges gives to a user is fine as we don't rely on this setting. While doing
+    // grant CDAP enforces ADMIN on the entity.
+    tSentryPrivilege.setGrantOption(TSentryGrantOption.TRUE);
+    return tSentryPrivilege;
+  }
+
+  /**
+   * Performs revoke as sentry admin. This is needed since in sentry revoke is kind of role
+   * management command and can only be done by sentry admin group. In CDAP when a revoke is done
+   * CDAP already checks that the user who is requesting revoke has ADMIN on the entity.
+   */
+  protected void revoke(final EntityId entityId, final Role role, Set<Action> actions) throws RoleNotFoundException {
+    revoke(entityId, role, actions, sentryAdminGroup);
   }
 
   private List<TAuthorizable> toTAuthorizable(EntityId entityId) {
