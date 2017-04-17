@@ -1,0 +1,125 @@
+{
+  "id": 11,
+  "name": "cdap",
+  "implClass": "co.cask.cdap.security.authorization.ranger.lookup.RangerLookupService",
+  "label": "CDAP",
+  "description": "CDAP",
+  "resources": [
+    {
+      "itemId": 1,
+      "name": "instance",
+      "type": "string",
+      "level": 10,
+      "parent": "",
+      "mandatory": true,
+      "lookupSupported": true,
+      "recursiveSupported": false,
+      "excludesSupported": true,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": false
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "CDAP Instance",
+      "description": "CDAP Instance"
+    },
+    {
+      "itemId": 2,
+      "name": "namespace",
+      "type": "string",
+      "level": 20,
+      "parent": "instance",
+      "mandatory": false,
+      "lookupSupported": true,
+      "recursiveSupported": false,
+      "excludesSupported": false,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": false
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Namespace",
+      "description": "CDAP Namespace"
+    }
+  ],
+  "accessTypes": [
+    {
+      "itemId": 1,
+      "name": "read",
+      "label": "Read"
+    },
+    {
+      "itemId": 2,
+      "name": "write",
+      "label": "Write"
+    },
+    {
+      "itemId": 3,
+      "name": "execute",
+      "label": "execute"
+    },
+    {
+      "itemId": 4,
+      "name": "admin",
+      "label": "Admin"
+    },
+    {
+      "itemId": 5,
+      "name": "all",
+      "label": "All",
+      "impliedGrants": [
+        "read",
+        "write",
+        "execute",
+        "admin"
+      ]
+    }
+  ],
+  "configs": [
+    {
+      "itemId": 1,
+      "name": "username",
+      "type": "string",
+      "subType": "",
+      "mandatory": false,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Username"
+    },
+    {
+      "itemId": 2,
+      "name": "password",
+      "type": "password",
+      "subType": "",
+      "mandatory": false,
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Password"
+    },
+    {
+      "itemId": 3,
+      "name": "instance.url",
+      "type": "string",
+      "subType": "",
+      "mandatory": true,
+      "label": "Instance URL",
+      "defaultValue": "",
+      "validationRegEx": "",
+      "validationMessage": ""
+    }
+  ],
+  "enums": [
+  ],
+  "contextEnrichers": [
+  ],
+  "policyConditions": [
+  ]
+}

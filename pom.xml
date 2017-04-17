@@ -24,6 +24,7 @@
   <version>0.6.0-SNAPSHOT</version>
 
   <modules>
+    <module>cdap-ranger</module>
     <module>cdap-sentry</module>
     <module>cdap-security-extensions-dist</module>
   </modules>
@@ -120,6 +121,23 @@
         <artifactId>junit</artifactId>
         <version>${junit.version}</version>
         <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>co.cask.cdap</groupId>
+        <artifactId>cdap-client</artifactId>
+        <version>${cdap.version}</version>
+        <!--TOOO rohit: This is probably not needed-->
+        <!--<exclusions>-->
+          <!--<exclusion>-->
+            <!--<groupId>com.google.guava</groupId>-->
+            <!--<artifactId>guava</artifactId>-->
+          <!--</exclusion>-->
+        <!--</exclusions>-->
+      </dependency>
+      <dependency>
+        <groupId>co.cask.cdap</groupId>
+        <artifactId>cdap-cli</artifactId>
+        <version>${cdap.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
