@@ -9,9 +9,9 @@ import java.util.Map;
  */
 public class CDAPConnectionMgr {
 
-  private static final String INSTANCE_URL = "instance.url";
-  private static final String USERNAME = "username";
-  private static final String PASSWORD = "password";
+  private static final String INSTANCE_URL = "cdap.instance.url";
+  private static final String USERNAME = "cdap.username";
+  private static final String PASSWORD = "cdap.password";
 
 
   public static CDAPClient getCDAPClient(String serviceName, Map<String, String> configs) throws Exception {
