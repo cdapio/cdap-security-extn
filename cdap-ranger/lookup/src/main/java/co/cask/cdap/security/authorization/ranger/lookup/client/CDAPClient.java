@@ -13,12 +13,14 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.ranger.plugin.client.BaseClient;
 import org.apache.ranger.plugin.service.ResourceLookupContext;
+import org.apache.ranger.plugin.util.TimedEventUtil;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -30,7 +32,12 @@ import java.util.concurrent.TimeoutException;
 public class CDAPClient {
 
   private static final Log LOG = LogFactory.getLog(CDAPClient.class);
-  private static final long SERVICE_CHECK_TIMEOUT_SECONDS = TimeUnit.MINUTES.toSeconds(30);
+  private static final long SERVICE_TIMEOUT_SECONDS = TimeUnit.MINUTES.toSeconds(30);
+  private enum ResourceType {
+    INSTANCE, NAMESPACE, DATASET, STREAM, APPLICATION, ARTIFACT, PROGRAM
+  }
+  private static final String INSTANCE = "instance";
+  private static final String NAMESPACE = "namespace";
   private AccessToken accessToken;
   private final String serviceName;
   private final String instanceURL;
@@ -63,38 +70,28 @@ public class CDAPClient {
     }
   }
 
-  private List<String> getNamespaceList(String nsMatching, List<String> nsList) throws Exception {
+  private List<String> getNamespaces(List<String> nsList) throws Exception {
     if (LOG.isDebugEnabled()) {
-      LOG.debug("==> CDAPClient getDBList databaseMatching : " + nsMatching + " ExcludedbList :" + nsList);
+      LOG.debug("==> CDAPClient getNamespaceList ExcludeNamespaceList :" + nsList);
     }
 
     List<String> ret = new ArrayList<>();
     if (nsClient != null) {
       for (NamespaceMeta namespaceMeta : nsClient.list()) {
+
         String name = namespaceMeta.getName();
-        if (!name.startsWith(nsMatching) && !nsList.contains(name)) {
-          continue;
+        System.out.println("### name is " + name);
+        if (nsList == null || !nsList.contains(name)) {
+          ret.add(name);
         }
-        ret.add(name);
       }
     }
 
     if (LOG.isDebugEnabled()) {
       LOG.debug("<== CDApClient.getDBList(): " + ret);
     }
-
+    System.out.println("lis tis " + ret);
     return ret;
-  }
-
-  public List<String> getNamespaces(final String nsMatching, final List<String> namespaces) {
-
-    try {
-      return getNamespaceList(nsMatching, namespaces);
-    } catch (Exception he) {
-      LOG.error("<== HiveClient getDatabaseList() :Unable to get the Database List and access token was: " +
-                  accessToken, he);
-      throw Throwables.propagate(he);
-    }
   }
 
   public HashMap<String, Object> connectionTest() throws Exception {
@@ -102,7 +99,7 @@ public class CDAPClient {
     boolean connectivityStatus = false;
     List<String> testResult;
     try {
-      testResult = getNamespaces("", null);
+      testResult = getNamespaces(null);
       if (testResult != null && testResult.size() != 0) {
         connectivityStatus = true;
       }
@@ -164,7 +161,7 @@ public class CDAPClient {
     ConnectionConfig connectionConfig = getClientConfig().getConnectionConfig();
     authClient.setConnectionInfo(connectionConfig.getHostname(), connectionConfig.getPort(), false);
 
-    LOG.info("##### Yooooo here ####");
+    System.out.println("Usernmae " + username + "password " + password);
     System.out.println("##### Yooooo here ####");
 
     checkServicesWithRetry(new Callable<Boolean>() {
@@ -197,13 +194,105 @@ public class CDAPClient {
         }
       }
       TimeUnit.SECONDS.sleep(1);
-    } while (System.currentTimeMillis() <= startingTime + SERVICE_CHECK_TIMEOUT_SECONDS * 1000);
+    } while (System.currentTimeMillis() <= startingTime + SERVICE_TIMEOUT_SECONDS * 1000);
 
     // when we have passed the timeout and the check for services is not successful
     throw new TimeoutException(exceptionMessage);
   }
 
   public List<String> getResources(ResourceLookupContext context) {
-    return new ArrayList<>();
+    final String userInput = context.getUserInput();
+    String resource = context.getResourceName();
+    Map<String, List<String>> resourceMap = context.getResources();
+    List<String> resultList = null;
+    List<String> instanceList = null;
+    List<String> namespaceList = null;
+    String instanceName = null;
+    String namespaceName = null;
+
+    ResourceType lookupResource = ResourceType.INSTANCE;
+
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== CDAPResourceMgr.getResources()  UserInput: \"" + userInput + "\" resource : " + resource +
+                  " resourceMap: " + resourceMap);
+    }
+
+    if (userInput != null && resource != null) {
+      if (resourceMap != null && !resourceMap.isEmpty()) {
+        instanceList = resourceMap.get(INSTANCE);
+        namespaceList = resourceMap.get(NAMESPACE);
+      }
+      switch (resource.trim().toLowerCase()) {
+        case INSTANCE:
+          lookupResource = ResourceType.INSTANCE;
+          break;
+        case NAMESPACE:
+          lookupResource = ResourceType.NAMESPACE;
+          LOG.info("#### set the namespace name to : " + userInput);
+          break;
+        default:
+          break;
+      }
+    }
+
+    if (serviceName != null && userInput != null) {
+      try {
+//          LOG.info("==> CDAPResourceMgr.getResources() UserInput: " + userInput + " configs: " + configs + " " +
+//                      "instanceList: " + instanceList + " namespaceList: " + namespaceList);
+
+
+
+        Callable<List<String>> callableObj = null;
+        final String userInputFinal = userInput;
+
+
+        final List<String> finalinstanceList = instanceList;
+        final List<String> finalnamespaceList = namespaceList;
+
+          if (lookupResource == ResourceType.NAMESPACE) {
+            // get the DBList for given Input
+            callableObj = new Callable<List<String>>() {
+              @Override
+              public List<String> call() {
+                List<String> retList = new ArrayList<String>();
+                try {
+                  List<String> list = getNamespaces(finalnamespaceList);
+                  if (userInputFinal != null
+                    && !userInputFinal.isEmpty()) {
+                    for (String value : list) {
+                      if (value.startsWith(userInputFinal)) {
+                        retList.add(value);
+                      }
+                    }
+                  } else {
+                    retList.addAll(list);
+                  }
+                } catch (Exception ex) {
+                  LOG.error("Error getting resource.", ex);
+                }
+                return retList;
+              }
+            };
+          }
+          if (callableObj != null) {
+            synchronized (this) {
+              resultList = TimedEventUtil.timedTask(callableObj, SERVICE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            }
+          }
+      } catch (Exception e) {
+        LOG.error("Unable to get CDAP resources.", e);
+      }
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== CDAPResourceMgr.getCDAPResources() UserInput: " + userInput + " " +
+                  "instanceList: " + instanceList + " namespaceList: "
+                  + namespaceList + "Result :" + resultList);
+
+    }
+    return resultList;
+
   }
+
 }

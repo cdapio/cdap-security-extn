@@ -84,7 +84,7 @@
   "configs": [
     {
       "itemId": 1,
-      "name": "username",
+      "name": "cdap.username",
       "type": "string",
       "subType": "",
       "mandatory": false,
@@ -95,7 +95,7 @@
     },
     {
       "itemId": 2,
-      "name": "password",
+      "name": "cdap.password",
       "type": "password",
       "subType": "",
       "mandatory": false,
@@ -106,7 +106,7 @@
     },
     {
       "itemId": 3,
-      "name": "instance.url",
+      "name": "cdap.instance.url",
       "type": "string",
       "subType": "",
       "mandatory": true,
