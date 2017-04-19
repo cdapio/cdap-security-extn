@@ -107,7 +107,7 @@ extension:
        - Default Value
      * - ``security.authorization.enabled``
        - Set it to ``true`` to turn on CDAP Authorization
-       - *false*
+       - ``false``
      * - ``security.authorization.extension.jar.path``
        - The absolute path, including the filename, of the ``cdap-sentry-binding-*.jar``
          file on the local file system of the CDAP Master
