@@ -121,7 +121,7 @@ public class DatasetBasedAuthorizerTest extends AuthorizerTest {
 
       @Override
       public void execute(TxRunnable runnable) throws TransactionFailureException {
-        execute(0, runnable);
+        execute(15, runnable);
       }
 
     };
