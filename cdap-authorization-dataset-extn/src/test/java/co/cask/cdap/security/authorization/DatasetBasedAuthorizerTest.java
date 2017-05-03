@@ -42,11 +42,6 @@ import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.Authorizer;
 import co.cask.cdap.security.spi.authorization.AuthorizerTest;
 import co.cask.cdap.security.store.DummySecureStore;
-import co.cask.tephra.TransactionContext;
-import co.cask.tephra.TransactionFailureException;
-import co.cask.tephra.TransactionManager;
-import co.cask.tephra.TransactionSystemClient;
-import co.cask.tephra.runtime.TransactionInMemoryModule;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
@@ -55,12 +50,16 @@ import com.google.inject.Scopes;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.google.inject.multibindings.MapBinder;
 import com.google.inject.name.Names;
+import org.apache.tephra.TransactionContext;
+import org.apache.tephra.TransactionFailureException;
+import org.apache.tephra.TransactionManager;
+import org.apache.tephra.TransactionSystemClient;
+import org.apache.tephra.runtime.TransactionInMemoryModule;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Properties;
-
 /**
  * Tests for {@link DatasetBasedAuthorizer}.
  */
@@ -107,7 +106,7 @@ public class DatasetBasedAuthorizerTest extends AuthorizerTest {
     Admin admin = new DefaultAdmin(dsFramework, NamespaceId.DEFAULT, injector.getInstance(SecureStoreManager.class));
     Transactional txnl = new Transactional() {
       @Override
-      public void execute(TxRunnable runnable) throws TransactionFailureException {
+      public void execute(int timeoutInSeconds, TxRunnable runnable) throws TransactionFailureException {
         TransactionContext transactionContext = dsCache.get();
         transactionContext.start();
         try {
@@ -119,6 +118,12 @@ public class DatasetBasedAuthorizerTest extends AuthorizerTest {
         }
         transactionContext.finish();
       }
+
+      @Override
+      public void execute(TxRunnable runnable) throws TransactionFailureException {
+        execute(15, runnable);
+      }
+
     };
     AuthorizationContext authContext = new DefaultAuthorizationContext(
       new Properties(), dsCache, admin, txnl, injector.getInstance(AuthenticationContext.class),
