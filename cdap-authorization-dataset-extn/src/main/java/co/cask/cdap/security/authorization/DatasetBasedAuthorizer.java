@@ -34,10 +34,10 @@ import co.cask.cdap.security.spi.authorization.Authorizer;
 import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
-import co.cask.tephra.TransactionFailureException;
 import com.google.common.base.Splitter;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
+import org.apache.tephra.TransactionFailureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
