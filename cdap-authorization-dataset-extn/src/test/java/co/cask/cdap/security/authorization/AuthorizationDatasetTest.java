@@ -25,9 +25,9 @@ import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.proto.security.Privilege;
-import co.cask.tephra.TransactionExecutor;
-import co.cask.tephra.TransactionFailureException;
 import com.google.common.collect.ImmutableSet;
+import org.apache.tephra.TransactionExecutor;
+import org.apache.tephra.TransactionFailureException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -47,13 +47,13 @@ public class AuthorizationDatasetTest {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    dsFrameworkUtil.createInstance("table", tabInstance.toId(), DatasetProperties.EMPTY);
-    table = new AuthorizationDataset((Table) dsFrameworkUtil.getInstance(tabInstance.toId()));
+    dsFrameworkUtil.createInstance("table", tabInstance, DatasetProperties.EMPTY);
+    table = new AuthorizationDataset((Table) dsFrameworkUtil.getInstance(tabInstance));
   }
 
   @AfterClass
   public static void afterClass() throws Exception {
-    dsFrameworkUtil.deleteInstance(tabInstance.toId());
+    dsFrameworkUtil.deleteInstance(tabInstance);
   }
 
   @Test
