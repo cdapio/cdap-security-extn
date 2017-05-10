@@ -690,7 +690,7 @@ class AuthBinding {
    * add authorizables to
    */
   private void toAuthorizables(EntityId entityId, List<org.apache.sentry.core.common.Authorizable> authorizables) {
-    EntityType entityType = entityId.getEntity();
+    EntityType entityType = entityId.getEntityType();
     switch (entityType) {
       case INSTANCE:
         authorizables.add(new Instance(((InstanceId) entityId).getInstance()));
