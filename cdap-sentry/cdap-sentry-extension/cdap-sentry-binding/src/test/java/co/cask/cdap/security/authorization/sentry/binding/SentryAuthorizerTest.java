@@ -37,8 +37,10 @@ import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
+import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
 import org.apache.tephra.TransactionFailureException;
 import org.junit.Assert;
 import org.junit.Test;
@@ -49,6 +51,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Test for {@link SentryAuthorizer}
@@ -58,6 +61,7 @@ public class SentryAuthorizerTest {
   private final SentryAuthorizer authorizer;
   private static final String SUPERUSER_HULK = "hulk";
   private static final String SUPERUSER_SPIDERMAN = "spiderman";
+  private static final int CACHE_TTL_SECS = 3;
 
   public SentryAuthorizerTest() throws Exception {
     URL resource = getClass().getClassLoader().getResource("sentry-site.xml");
@@ -68,6 +72,8 @@ public class SentryAuthorizerTest {
     properties.put(AuthConf.INSTANCE_NAME, "cdap");
     properties.put(AuthConf.SUPERUSERS, Joiner.on(",").join(SUPERUSER_HULK, SUPERUSER_SPIDERMAN));
     properties.put(AuthConf.SENTRY_ADMIN_GROUP, "cdap");
+    properties.put(AuthConf.CACHE_MAX_ENTRIES, "100");
+    properties.put(AuthConf.CACHE_TTL_SECS, String.valueOf(CACHE_TTL_SECS));
     this.authorizer = new SentryAuthorizer();
     authorizer.initialize(new AuthorizationContext() {
       @Override
@@ -270,6 +276,46 @@ public class SentryAuthorizerTest {
     // configured in authz-provider.ini
     assertAuthorized(new ProgramId("ns1", "app1", ProgramType.MAPREDUCE, "notconfigured"),
                      getUser("readers1"), Action.READ);
+  }
+
+  @Test
+  public void testCache() throws Exception {
+    final NamespaceId ns1 = new NamespaceId("ns1");
+    final Principal alice = getUser("alice");
+    final Principal admin1 = getUser("admin1");
+    try {
+      assertUnauthorized(ns1, alice, Action.READ);
+      assertAuthorized(ns1, admin1, Action.ADMIN);
+    } catch (UnauthorizedException ignored) {
+      // expected
+    }
+    Assert.assertTrue(2 == authorizer.cacheAsMap().size());
+    Assert.assertTrue(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(alice, ns1,
+                                                                                                       Action.READ)));
+    Assert.assertTrue(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(admin1, ns1,
+                                                                                                      Action.ADMIN)));
+    Assert.assertFalse(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(admin1, ns1,
+                                                                                                      Action.READ)));
+    Assert.assertFalse(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(admin1, ns1,
+                                                                                                       Action.WRITE)));
+    Assert.assertFalse(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(
+      admin1, ns1, Action.EXECUTE)));
+    TimeUnit.SECONDS.sleep(CACHE_TTL_SECS);
+    Assert.assertFalse(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(alice, ns1,
+                                                                                                       Action.READ)));
+    Assert.assertFalse(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(admin1, ns1,
+                                                                                                       Action.ADMIN)));
+    try {
+      assertUnauthorized(ns1, admin1, Action.READ);
+    } catch (UnauthorizedException ignored) {
+      //
+    }
+    Assert.assertTrue(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(admin1, ns1,
+                                                                                                       Action.READ)));
+    Assert.assertFalse(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(admin1, ns1,
+                                                                                                      Action.ADMIN)));
+    Assert.assertFalse(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(admin1, ns1,
+                                                                                                       Action.WRITE)));
   }
 
   private void testAuthorized(EntityId entityId) throws Exception {
