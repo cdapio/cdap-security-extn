@@ -286,9 +286,14 @@ ${shared.menubar(section='mytab')}
         src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.5.1/chosen.jquery.min.js"></script>
 <script src="//cdn.jsdelivr.net/jquery.amaran/0.5.4/jquery.amaran.min.js"></script>
 <script type="text/javascript" src="/static/cdap/js/cdap.js"></script>
+<script type="text/javascript" src="/static/cdap/js/js.cookie.js"></script>
 
 <script>
   $(document).ready(function () {
+
+    //getting global csrftoken for later usage
+    var csrftoken = Cookies.get('csrftoken');
+
     $('.list-role-table').on('click-row.bs.table', function (event, row, element) {
       updateRoleACL(row.role);
     });
@@ -352,5 +357,7 @@ ${shared.menubar(section='mytab')}
     $('#jstree').jstree("open_node", $(".jstree-anchor"));
   });
 </script>
+
+{% csrf_token %}
 
 ${commonfooter(request, messages) | n,unicode}

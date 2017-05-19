@@ -28,6 +28,24 @@ Array.prototype.unique = function () {
   }, []);
 };
 
+/* Protecting CSRF token being sent to other domains */
+function csrfSafeMethod(method) {
+    // these HTTP methods do not require CSRF protection
+    return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+}
+
+/* Acquiring the token if CSRF_USE_SESSIONS is True */
+csrftoken = jQuery("[name=csrfmiddlewaretoken]").val();
+
+/* Global setup csrf tokening for AJAX request*/
+$.ajaxSetup({
+    beforeSend: function(xhr, settings) {
+        if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+            xhr.setRequestHeader("X-CSRFToken", csrftoken);
+        }
+    }
+});
+
 /* Pop up an error notification on top right corner with amaran.js */
 function popErrorNotification(message) {
   $.amaran({
