@@ -19,7 +19,10 @@
 
 ${commonheader("cdap", "cdap", user) | n,unicode}
 ${shared.menubar(section='mytab')}
-
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="style-src http://cloudflare.com;">
+<meta http-equiv="Content-Security-Policy" content="style-src http://bootstrapcdn.com;">
+<meta http-equiv="Content-Security-Policy" content="style-src http://jsdelivr.net;">
 <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css"/>
 <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/jquery-jsonview/1.2.3/jquery.jsonview.css">
 <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.10.1/bootstrap-table.min.css">
@@ -280,7 +283,8 @@ ${shared.menubar(section='mytab')}
   </div>
 </div>
 
-
+<meta http-equiv="Content-Security-Policy" content="script-src http://cloudflare.com;">
+<meta http-equiv="Content-Security-Policy" content="script-src http://jsdelivr.net;">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
 <script type="text/javascript"
         src="https://cdnjs.cloudflare.com/ajax/libs/jquery-jsonview/1.2.3/jquery.jsonview.min.js"></script>
