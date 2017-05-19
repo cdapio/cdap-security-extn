@@ -1,3 +1,4 @@
+<!--
 ## Copyright 2016 Cask Data, Inc.
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -11,6 +12,7 @@
 ## WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 ## License for the specific language governing permissions and limitations under
 ## the License.
+-->
 
 <%!from desktop.views import commonheader, commonfooter %>
 <%namespace name="shared" file="shared_components.mako" />
@@ -26,9 +28,10 @@ ${shared.menubar(section='mytab')}
 <link rel="stylesheet" href="//cdn.jsdelivr.net/jquery.amaran/0.5.4/amaran.min.css">
 <link rel="stylesheet" href="/static/cdap/css/cdap.css">
 
+<!--
 ## Use double hashes for a mako template comment
 ## Main body
-
+-->
 <div class="container-fluid">
   <div class="card">
     <div class="card-body">
