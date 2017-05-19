@@ -19,16 +19,18 @@
 
 ${commonheader("cdap", "cdap", user) | n,unicode}
 ${shared.menubar(section='mytab')}
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+
+<!--<meta http-equiv="Content-Security-Policy" content="default-src 'self'">
 <meta http-equiv="Content-Security-Policy" content="style-src http://cloudflare.com;">
 <meta http-equiv="Content-Security-Policy" content="style-src http://bootstrapcdn.com;">
-<meta http-equiv="Content-Security-Policy" content="style-src http://jsdelivr.net;">
-<link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css"/>
-<link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/jquery-jsonview/1.2.3/jquery.jsonview.css">
-<link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.10.1/bootstrap-table.min.css">
-<link href="http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css" rel="stylesheet">
-<link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/chosen/1.5.1/chosen.min.css">
-<link rel="stylesheet" href="http://cdn.jsdelivr.net/jquery.amaran/0.5.4/amaran.min.css">
+<meta http-equiv="Content-Security-Policy" content="style-src http://jsdelivr.net;"> -->
+
+<link rel="stylesheet" href="///cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css"/>
+<link rel="stylesheet" href="///cdnjs.cloudflare.com/ajax/libs/jquery-jsonview/1.2.3/jquery.jsonview.css">
+<link rel="stylesheet" href="///cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.10.1/bootstrap-table.min.css">
+<link href="///netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css" rel="stylesheet">
+<link rel="stylesheet" href="///cdnjs.cloudflare.com/ajax/libs/chosen/1.5.1/chosen.min.css">
+<link rel="stylesheet" href="///cdn.jsdelivr.net/jquery.amaran/0.5.4/amaran.min.css">
 <link rel="stylesheet" href="/static/cdap/css/cdap.css">
 
 <!--
@@ -283,15 +285,16 @@ ${shared.menubar(section='mytab')}
   </div>
 </div>
 
-<meta http-equiv="Content-Security-Policy" content="script-src http://cloudflare.com;">
-<meta http-equiv="Content-Security-Policy" content="script-src http://jsdelivr.net;">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+<!--<meta http-equiv="Content-Security-Policy" content="script-src http://cloudflare.com;">
+<meta http-equiv="Content-Security-Policy" content="script-src http://jsdelivr.net;">-->
+
+<script src="///cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
 <script type="text/javascript"
-        src="https://cdnjs.cloudflare.com/ajax/libs/jquery-jsonview/1.2.3/jquery.jsonview.min.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.10.1/bootstrap-table.min.js"></script>
+        src="///cdnjs.cloudflare.com/ajax/libs/jquery-jsonview/1.2.3/jquery.jsonview.min.js"></script>
+<script src="///cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.10.1/bootstrap-table.min.js"></script>
 <script type="text/javascript"
-        src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.5.1/chosen.jquery.min.js"></script>
-<script src="//cdn.jsdelivr.net/jquery.amaran/0.5.4/jquery.amaran.min.js"></script>
+        src="///cdnjs.cloudflare.com/ajax/libs/chosen/1.5.1/chosen.jquery.min.js"></script>
+<script src="///cdn.jsdelivr.net/jquery.amaran/0.5.4/jquery.amaran.min.js"></script>
 <script type="text/javascript" src="/static/cdap/js/cdap.js"></script>
 <script type="text/javascript" src="/static/cdap/js/js.cookie.js"></script>
 
