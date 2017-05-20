@@ -300,10 +300,6 @@ ${shared.menubar(section='mytab')}
 
 <script>
   $(document).ready(function () {
-
-    //getting global csrftoken for later usage
-    var csrftoken = Cookies.get('csrftoken');
-
     $('.list-role-table').on('click-row.bs.table', function (event, row, element) {
       updateRoleACL(row.role);
     });
@@ -367,7 +363,5 @@ ${shared.menubar(section='mytab')}
     $('#jstree').jstree("open_node", $(".jstree-anchor"));
   });
 </script>
-
-{% csrf_token %}
 
 ${commonfooter(request, messages) | n,unicode}

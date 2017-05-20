@@ -34,8 +34,8 @@ function csrfSafeMethod(method) {
     return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
 }
 
-/* Acquiring the token if CSRF_USE_SESSIONS is True */
-csrftoken = jQuery("[name=csrfmiddlewaretoken]").val();
+//getting global csrftoken for later usage
+var csrftoken = Cookies.get('csrftoken');
 
 /* Global setup csrf tokening for AJAX request*/
 $.ajaxSetup({
