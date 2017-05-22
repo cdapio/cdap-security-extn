@@ -48,7 +48,8 @@ class auth_client:
     self.is_set_credentials = False
     self.host_url = "%s/%s/" % (cdap_router_uri, cdap_api_version)
     self.client = ExtendedAuthenticationClient()
-    cdap_host, cdap_router_port = 11015
+    cdap_host, cdap_router_port = re.sub('^https?://', '', cdap_router_uri).strip('/').split(':')
+    cdap_router_port = 11015
     self.client.set_connection_info(cdap_host, int(cdap_router_port), False)
 
   def authenticate(self, username, password):
