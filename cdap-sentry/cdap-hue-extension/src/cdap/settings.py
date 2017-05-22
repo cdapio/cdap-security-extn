@@ -20,3 +20,12 @@ DJANGO_APPS = ['cdap']
 REQUIRES_HADOOP = False
 MENU_INDEX = 100
 ICON = 'cdap/art/icon_cdap_48.png'
+
+MIDDLEWARE_CLASSES = (
+    'django.middleware.common.CommonMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+)
+
