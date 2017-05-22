@@ -181,7 +181,6 @@ def cdap_authenticate(request):
   CDAP_CLIENT.authenticate(request.POST['username'], request.POST['password'])
   return HttpResponse()
 
-@requires_csrf_token
 @_cdap_error_handler
 def index(request):
   """
