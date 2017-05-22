@@ -17,7 +17,7 @@
 
 #from desktop.lib.django_util import render
 #from django.shortcuts import render, redirect
-from desktop.lib.django_util import render
+#from desktop.lib.django_util import render
 from django.contrib.auth.models import Group
 from django.core.cache import get_cache
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponse, HttpResponseServerError
