@@ -362,7 +362,7 @@ ${shared.menubar(section='mytab')}
 
     ## Open first level of jstree
     $('#jstree').jstree("open_node", $(".jstree-anchor"));
-    ("#login-container").hide();
+    $("#login-container").hide();
   });
 </script>
 
