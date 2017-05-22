@@ -30,6 +30,9 @@ import os
 import json
 import logging
 
+from django.views.decorators.csrf import requires_csrf_token
+from django.shortcuts import render
+
 LOG = logging.getLogger(__name__)
 CDAP_CLIENT = auth_client(CDAP_ROUTER_URI.get(), CDAP_API_VERSION.get())
 CACHE = get_cache('default')
@@ -178,7 +181,7 @@ def cdap_authenticate(request):
   CDAP_CLIENT.authenticate(request.POST['username'], request.POST['password'])
   return HttpResponse()
 
-
+@requires_csrf_token
 @_cdap_error_handler
 def index(request):
   """
@@ -200,7 +203,8 @@ def index(request):
   entities, entities_detail = _fetch_entites_from_cdap(entities, entities_detail)
   # Detail informations are stored in entites_detail. Cache it for future requests.
   CACHE.set(ENTITIES_DETAIL_CACHE_KEY, entities_detail)
-  return render('index.mako', request, dict(date2='testjson', entities=entities))
+  #return render('index.mako', request, dict(date2='testjson', entities=entities))
+  return render(request, "index.mako", dict(date2='testjson', entities=entities))
 
 
 @_cdap_error_handler

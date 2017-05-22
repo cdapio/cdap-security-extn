@@ -19,8 +19,11 @@ import json
 import re
 import requests
 from cdap_auth_client import BasicAuthenticationClient
-from django.shortcuts import render
+
 from django.core.context_processors import csrf
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import requires_csrf_token
+from django.shortcuts import render
 
 class ExtendedAuthenticationClient(BasicAuthenticationClient):
   def clear_config(self):
