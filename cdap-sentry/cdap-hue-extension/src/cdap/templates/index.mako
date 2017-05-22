@@ -295,8 +295,9 @@ ${shared.menubar(section='mytab')}
 <script type="text/javascript"
         src="///cdnjs.cloudflare.com/ajax/libs/chosen/1.5.1/chosen.jquery.min.js"></script>
 <script src="///cdn.jsdelivr.net/jquery.amaran/0.5.4/jquery.amaran.min.js"></script>
-<script type="text/javascript" src="/static/cdap/js/cdap.js"></script>
 <script type="text/javascript" src="/static/cdap/js/js.cookie.js"></script>
+<script type="text/javascript" src="/static/cdap/js/cdap.js"></script>
+
 
 <script>
   $(document).ready(function () {
