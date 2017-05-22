@@ -182,6 +182,7 @@ def cdap_authenticate(request):
   return HttpResponse()
 
 @_cdap_error_handler
+@csrf_protect
 def index(request):
   """
   Request handler for the index page. As the CDAP RESTful service does not provide an API to fetch all of the
