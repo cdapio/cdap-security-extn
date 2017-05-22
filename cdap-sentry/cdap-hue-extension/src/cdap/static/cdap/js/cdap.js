@@ -28,14 +28,15 @@ Array.prototype.unique = function () {
   }, []);
 };
 
+//getting global csrftoken for later usage
+//var csrftoken = Cookies.get('csrftoken');
+var csrftoken = $.cookie('csrftoken');
+
 /* Protecting CSRF token being sent to other domains */
 function csrfSafeMethod(method) {
     // these HTTP methods do not require CSRF protection
     return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
 }
-
-//getting global csrftoken for later usage
-var csrftoken = Cookies.get('csrftoken');
 
 /* Global setup csrf tokening for AJAX request*/
 $.ajaxSetup({
