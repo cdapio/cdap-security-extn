@@ -194,7 +194,8 @@ def index(request):
   """
   # If not yet authenticated, render a template to ask for the username / password
   if not CDAP_CLIENT.is_set_credentials:
-    return render('index.mako', request, dict(date2='testjson', unauthenticated=True))
+    return render(request, "index.mako", dict(date2='testjson', entities=entities))
+    #return render('index.mako', request, dict(date2='testjson', unauthenticated=True))
   # Fetch all the namespaces first
   namespaces = _call_cdap_api('namespaces')
   entities = dict((ns['name'], dict()) for ns in namespaces)
