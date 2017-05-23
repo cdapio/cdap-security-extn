@@ -56,15 +56,15 @@ class auth_client:
     Fetch access token using username and password. If on an insecure cluster, skip this process.
     Leave all the excpetions to be caught outside this function.
     """
-    if self.client.is_auth_enabled():
-      properties = {
-        'security_auth_client_username': username,
-        'security_auth_client_password': password,
-        'security_ssl_cert_check': True,
-      }
-      self.client.clear_config()
-      self.client.configure(properties)
-      self._set_access_token()
+    #if self.client.is_auth_enabled():
+    properties = {
+      'security_auth_client_username': username,
+      'security_auth_client_password': password,
+      'security_ssl_cert_check': True,
+    }
+    self.client.clear_config()
+    self.client.configure(properties)
+    self._set_access_token()
     self.is_set_credentials = True
 
   def _set_access_token(self):
