@@ -17,7 +17,7 @@
 
 #from desktop.lib.django_util import render
 #from django.shortcuts import render, redirect
-#from desktop.lib.django_util import render
+from desktop.lib.django_util import render
 from django.contrib.auth.models import Group
 from django.core.cache import get_cache
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponse, HttpResponseServerError
@@ -32,7 +32,6 @@ import logging
 
 from django.views.decorators.csrf import requires_csrf_token
 from django.views.decorators.csrf import csrf_protect
-from django.shortcuts import render
 from django.core.context_processors import csrf
 
 
@@ -202,7 +201,7 @@ def index(request):
   # Fetch all the namespaces first
 
   if not CDAP_CLIENT.is_set_credentials:
-    return render(request, "index.mako", dict(date2='testjson', unauthenticated=True))
+    return render("index.mako", request, dict(date2='testjson', unauthenticated=True))
 
   namespaces = _call_cdap_api('namespaces')
   entities = dict((ns['name'], dict()) for ns in namespaces)
@@ -212,7 +211,7 @@ def index(request):
   # Detail informations are stored in entites_detail. Cache it for future requests.
   CACHE.set(ENTITIES_DETAIL_CACHE_KEY, entities_detail)
   #return render('index.mako', request, dict(date2='testjson', entities=entities))
-  return render(request, "index.mako", dict(date2='testjson', entities=entities))
+  return render("index.mako", request, dict(date2='testjson', entities=entities))
 
 
 @_cdap_error_handler
