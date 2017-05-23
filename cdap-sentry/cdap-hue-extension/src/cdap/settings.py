@@ -22,10 +22,12 @@ MENU_INDEX = 100
 ICON = 'cdap/art/icon_cdap_48.png'
 
 MIDDLEWARE_CLASSES = [
-    'django.middleware.common.CommonMiddleware',
+    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
 ]
+
 

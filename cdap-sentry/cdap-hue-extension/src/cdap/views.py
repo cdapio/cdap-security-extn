@@ -34,7 +34,6 @@ from django.views.decorators.csrf import requires_csrf_token
 from django.views.decorators.csrf import csrf_protect
 from django.core.context_processors import csrf
 
-
 LOG = logging.getLogger(__name__)
 CDAP_CLIENT = auth_client(CDAP_ROUTER_URI.get(), CDAP_API_VERSION.get())
 CACHE = get_cache('default')
@@ -184,6 +183,7 @@ def cdap_authenticate(request):
   return HttpResponse()
 
 @_cdap_error_handler
+@ensure_csrf_cookie
 @csrf_protect
 def index(request):
   """
