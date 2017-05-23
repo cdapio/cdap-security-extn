@@ -34,6 +34,7 @@ from django.views.decorators.csrf import requires_csrf_token
 from django.views.decorators.csrf import csrf_protect
 from django.core.context_processors import csrf
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_exempt
 
 LOG = logging.getLogger(__name__)
 CDAP_CLIENT = auth_client(CDAP_ROUTER_URI.get(), CDAP_API_VERSION.get())
@@ -44,7 +45,7 @@ ENTITIES_DETAIL_CACHE_KEY = "entities_detail_key"
 ##############################################################
 # Localized helper functions defined here
 ##############################################################
-
+@csrf_exempt
 def _cdap_error_handler(func):
   """
   Decorator to handle exceptions for a controller function
@@ -59,11 +60,11 @@ def _cdap_error_handler(func):
 
   return wrapped_func
 
-
+@csrf_exempt
 def _call_cdap_api(url):
   return CDAP_CLIENT.get(url)
 
-
+@csrf_exempt
 def _get_sentry_api(user):
   """
   Get the API helper class of sentry
@@ -74,7 +75,7 @@ def _get_sentry_api(user):
   # Since here the CDAP plugin only deals with CDAP related ACLs, it is hard coded as "cdap" here
   return get_api(user, "cdap")
 
-
+@csrf_exempt
 def _fetch_entites_from_cdap(entities, entities_detail):
   # Iter through entities and fetch the name and description
   for namespace in entities:
@@ -105,7 +106,7 @@ def _fetch_entites_from_cdap(entities, entities_detail):
         entities_detail[namespace][entity_type] = dict((item['name'], item) for item in items)
   return entities, entities_detail
 
-
+@csrf_exempt
 def _match_authorizables(base_authorizables, authorizables):
   """
   Method to check if authorizables (entity in CDAP) is contained (the children) of base_authorizables
@@ -177,15 +178,16 @@ def _get_privileges_for_path(user, path):
 # Controller functions
 # Routers are defined in urls.py
 ##############################################################
-
+@csrf_exempt
 @_cdap_error_handler
 def cdap_authenticate(request):
   CDAP_CLIENT.authenticate(request.POST['username'], request.POST['password'])
   return HttpResponse()
 
+@csrf_exempt
 @_cdap_error_handler
-@ensure_csrf_cookie
-@csrf_protect
+#@ensure_csrf_cookie
+#@csrf_protect
 def index(request):
   """
   Request handler for the index page. As the CDAP RESTful service does not provide an API to fetch all of the
@@ -214,7 +216,7 @@ def index(request):
   #return render('index.mako', request, dict(date2='testjson', entities=entities))
   return render("index.mako", request, dict(date2='testjson', entities=entities))
 
-
+@csrf_exempt
 @_cdap_error_handler
 def details(request, path):
   """
@@ -231,7 +233,7 @@ def details(request, path):
   item["privileges"] = _get_privileges_for_path(request.user, path)
   return HttpResponse(json.dumps(item), content_type='application/json')
 
-
+@csrf_exempt
 @_cdap_error_handler
 def grant_privileges(request):
   """
@@ -251,7 +253,7 @@ def grant_privileges(request):
     api.alter_sentry_role_grant_privilege(role, tSentryPrivilege)
   return HttpResponse()
 
-
+@csrf_exempt
 @_cdap_error_handler
 def revoke_privileges(request):
   """
@@ -277,7 +279,7 @@ def revoke_privileges(request):
                    if _match_authorizables(privilege["authorizables"], authorizables)]
   return HttpResponse(json.dumps(response_msgs), content_type="application/json")
 
-
+@csrf_exempt
 @_cdap_error_handler
 def list_roles_by_group(request):
   """
@@ -292,7 +294,7 @@ def list_roles_by_group(request):
   sentry_privileges = _filter_list_roles_by_group(_get_sentry_api(request.user))
   return HttpResponse(json.dumps(sentry_privileges), content_type="application/json")
 
-
+@csrf_exempt
 @_cdap_error_handler
 def list_privileges_by_role(request, role):
   """
@@ -306,7 +308,7 @@ def list_privileges_by_role(request, role):
                        for p in sentry_privileges]
   return HttpResponse(json.dumps(sentry_privileges), content_type="application/json")
 
-
+@csrf_exempt
 @_cdap_error_handler
 def list_privileges_by_group(request, group):
   """
@@ -330,7 +332,7 @@ def list_privileges_by_group(request, group):
     response = []
   return HttpResponse(json.dumps(response), content_type="application/json")
 
-
+@csrf_exempt
 @_cdap_error_handler
 def create_role(request, role_name):
   """
@@ -339,7 +341,7 @@ def create_role(request, role_name):
   _get_sentry_api(request.user).create_sentry_role(role_name)
   return HttpResponse("Role %s successfully created." % role_name)
 
-
+@csrf_exempt
 @_cdap_error_handler
 def drop_role(request, role_name):
   """
@@ -348,7 +350,7 @@ def drop_role(request, role_name):
   _get_sentry_api(request.user).drop_sentry_role(role_name)
   return HttpResponse("Role %s successfully deleted." % role_name)
 
-
+@csrf_exempt
 @_cdap_error_handler
 def list_all_groups(request):
   """
@@ -357,7 +359,7 @@ def list_all_groups(request):
   """
   return HttpResponse(json.dumps([group.name for group in Group.objects.all()]), content_type="application/json")
 
-
+@csrf_exempt
 @_cdap_error_handler
 def alter_role_by_group(request):
   """
