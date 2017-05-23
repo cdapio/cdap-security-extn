@@ -33,6 +33,7 @@ import logging
 from django.views.decorators.csrf import requires_csrf_token
 from django.views.decorators.csrf import csrf_protect
 from django.core.context_processors import csrf
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 LOG = logging.getLogger(__name__)
 CDAP_CLIENT = auth_client(CDAP_ROUTER_URI.get(), CDAP_API_VERSION.get())
