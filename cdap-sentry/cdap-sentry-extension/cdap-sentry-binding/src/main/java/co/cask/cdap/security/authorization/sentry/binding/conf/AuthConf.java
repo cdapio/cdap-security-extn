@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016 Cask Data, Inc.
+ * Copyright © 2016-2017 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -37,6 +37,13 @@ public class AuthConf extends Configuration {
   public static final String INSTANCE_NAME = "instance.name";
   // a comma separated list of users who will be superusers
   public static final String SUPERUSERS = "superusers";
+  // TTL for authorization cache entries
+  public static final String CACHE_TTL_SECS = "cache.ttl.secs";
+  public static final String CACHE_TTL_SECS_DEFAULT = "300";
+  // Maximum number of entries to keep in the cache. An entry of <= 0 would disable caching.
+  public static final String CACHE_MAX_ENTRIES = "cache.max.entries";
+  public static final String CACHE_MAX_ENTRIES_DEFAULT = "100000";
+
 
   /**
    * Config setting definitions

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016 Cask Data, Inc.
+ * Copyright © 2016-2017 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -28,18 +28,26 @@ import co.cask.cdap.security.spi.authorization.Authorizer;
 import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class implements {@link Authorizer} from CDAP and is responsible for interacting with Sentry to manage
@@ -49,6 +57,14 @@ public class SentryAuthorizer extends AbstractAuthorizer {
 
   private static final Logger LOG = LoggerFactory.getLogger(SentryAuthorizer.class);
   private static final String ENTITY_ROLE_PREFIX = ".";
+
+  // Cache for privileges. It stores the result of an enforce call.
+  // [Principal, Entity, Action] -> Boolean
+  // Both positive and negative results are stored. The cache entry is added/invalidated
+  // in case of a grant/revoke call for a principal.
+  private static LoadingCache<AuthorizationPrivilege, Boolean> authPolicyCache;
+
+  private boolean cacheEnabled;
   private AuthBinding binding;
   private AuthorizationContext context;
 
@@ -69,6 +85,28 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       properties.getProperty(AuthConf.INSTANCE_NAME) :
       AuthConf.AuthzConfVars.getDefault(AuthConf.INSTANCE_NAME);
 
+    int cacheTtlSecs = Integer.parseInt(properties.getProperty(AuthConf.CACHE_TTL_SECS,
+                                                               AuthConf.CACHE_TTL_SECS_DEFAULT));
+    int cacheMaxEntries = Integer.parseInt(properties.getProperty(AuthConf.CACHE_MAX_ENTRIES,
+                                                                  AuthConf.CACHE_MAX_ENTRIES_DEFAULT));
+    this.cacheEnabled = cacheMaxEntries > 0;
+
+    if (cacheEnabled) {
+      authPolicyCache = CacheBuilder.newBuilder()
+        .expireAfterWrite(cacheTtlSecs, TimeUnit.SECONDS)
+        .maximumSize(cacheMaxEntries)
+        .build(new CacheLoader<AuthorizationPrivilege, Boolean>() {
+          @SuppressWarnings("NullableProblems")
+          @Override
+          public Boolean load(AuthorizationPrivilege authorizationPrivilege) throws Exception {
+            LOG.trace("Cache miss for {}", authorizationPrivilege);
+            return doEnforce(authorizationPrivilege);
+          }
+        });
+    } else {
+      authPolicyCache = null;
+    }
+
     LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {}, CDAP instance {} and Sentry Admin Group: {}",
                sentrySiteUrl, instanceName, sentryAdminGroup);
     this.binding = new AuthBinding(sentrySiteUrl, instanceName, sentryAdminGroup);
@@ -77,6 +115,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
 
   @Override
   public void grant(EntityId entityId, Principal principal, Set<Action> actions) throws RoleNotFoundException {
+    invalidateCache(entityId, principal, actions);
     switch (principal.getType()) {
       case ROLE:
         binding.grant(entityId, new Role(principal.getName()), actions, getRequestingUser());
@@ -93,10 +132,12 @@ public class SentryAuthorizer extends AbstractAuthorizer {
           String.format("The given principal '%s' is of unsupported type '%s'.", principal.getName(),
                         principal.getType()));
     }
+    LOG.trace("Granted {} on {} to {}", actions, entityId, principal);
   }
 
   @Override
   public void revoke(EntityId entityId, Principal principal, Set<Action> actions) throws RoleNotFoundException {
+    invalidateCache(entityId, principal, actions);
     Role entityRole;
     switch (principal.getType()) {
       case ROLE:
@@ -123,16 +164,27 @@ public class SentryAuthorizer extends AbstractAuthorizer {
           String.format("The given principal '%s' is of unsupported type '%s'.", principal.getName(),
                         principal.getType()));
     }
+    LOG.trace("Revoked {} on {} to {}", actions, entityId, principal);
   }
 
   @Override
   public void revoke(EntityId entityId) {
+    invalidateCacheForEntity(entityId);
     binding.revoke(entityId);
     // remove the roles created for this entity
     for (Role entityRole : getEntityRoles(entityId)) {
       // false as we don't want to check if there are privileges associated with the entity role or not
       // since the entity itself is deleted we want to delete all roles associated with it
       cleanUpEntityRole(entityRole, false);
+    }
+    LOG.debug("Revoked all privileges on {}", entityId);
+  }
+
+  private void invalidateCacheForEntity(EntityId entityId) {
+    for (AuthorizationPrivilege privilege : authPolicyCache.asMap().keySet()) {
+      if (entityId.equals(privilege.getEntityId())) {
+        authPolicyCache.invalidate(privilege);
+      }
     }
   }
 
@@ -180,8 +232,30 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     Preconditions.checkArgument(Principal.PrincipalType.USER == principal.getType(), "The given principal '%s' is of " +
                                 "type '%s'. In Sentry authorization checks can only be performed on principal type " +
                                 "'%s'.", principal.getName(), principal.getType(), Principal.PrincipalType.USER);
-    if (!binding.authorize(entityId, principal, actions)) {
-      throw new UnauthorizedException(principal, actions, entityId);
+    Set<Action> disallowed = EnumSet.noneOf(Action.class);
+    for (Action action : actions) {
+      AuthorizationPrivilege authorizationPrivilege = new AuthorizationPrivilege(principal, entityId, action);
+      boolean allowed = cacheEnabled ? authPolicyCache.get(authorizationPrivilege) : doEnforce(authorizationPrivilege);
+      LOG.debug("Authorization enforcement for {} on {} for action {} is {}", principal, entityId, action, allowed);
+      if (!allowed) {
+        disallowed.add(action);
+      }
+    }
+    if (!disallowed.isEmpty()) {
+      throw new UnauthorizedException(principal, disallowed, entityId);
+    }
+  }
+
+  // Used to load the Authorization cache, when caching is enabled.
+  private Boolean doEnforce(AuthorizationPrivilege authorizationPrivilege) {
+    return binding.authorize(authorizationPrivilege.getEntityId(), authorizationPrivilege.getPrincipal(),
+                      Collections.singleton(authorizationPrivilege.getAction()));
+  }
+
+  private void invalidateCache(EntityId entityId, Principal principal, Set<Action> actions) {
+    for (Action action : actions) {
+      AuthorizationPrivilege authorizationPrivilege = new AuthorizationPrivilege(principal, entityId, action);
+      authPolicyCache.invalidate(authorizationPrivilege);
     }
   }
 
@@ -277,5 +351,67 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     Principal principal = context.getPrincipal();
     LOG.trace("Got requesting principal {}", principal);
     return principal.getName();
+  }
+
+  @VisibleForTesting
+  public Map<AuthorizationPrivilege, Boolean> cacheAsMap() {
+    return Collections.unmodifiableMap(authPolicyCache.asMap());
+  }
+
+  /**
+   * Key for caching Privileges. This represents a specific privilege on which authorization can be
+   * enforced. The cache stores whether the enforce succeeded or failed.
+   */
+  public static class AuthorizationPrivilege {
+
+    private final Principal principal;
+    private final EntityId entityId;
+    private final Action action;
+
+    public AuthorizationPrivilege(Principal principal, EntityId entityId, Action action) {
+      this.principal = principal;
+      this.entityId = entityId;
+      this.action = action;
+    }
+
+    public Principal getPrincipal() {
+      return principal;
+    }
+
+    public EntityId getEntityId() {
+      return entityId;
+    }
+
+    public Action getAction() {
+      return action;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      AuthorizationPrivilege that = (AuthorizationPrivilege) o;
+      return Objects.equals(principal, that.principal) &&
+        Objects.equals(entityId, that.entityId) &&
+        action == that.action;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(principal, entityId, action);
+    }
+
+    @Override
+    public String toString() {
+      return "AuthorizationPrivilege{" +
+        "principal=" + principal +
+        ", entityId=" + entityId +
+        ", action=" + action +
+        '}';
+    }
   }
 }
