@@ -48,8 +48,12 @@ import co.cask.cdap.security.authorization.sentry.model.SecureKey;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
 import co.cask.cdap.security.authorization.sentry.policy.ModelAuthorizables;
 import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
+import co.cask.cdap.security.spi.authorization.AlreadyExistsException;
+import co.cask.cdap.security.spi.authorization.BadRequestException;
+import co.cask.cdap.security.spi.authorization.NotFoundException;
 import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
+import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -60,11 +64,17 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.sentry.SentryUserException;
 import org.apache.sentry.core.common.ActiveRoleSet;
 import org.apache.sentry.core.common.Subject;
 import org.apache.sentry.policy.common.PolicyEngine;
 import org.apache.sentry.provider.common.AuthorizationProvider;
 import org.apache.sentry.provider.common.ProviderBackend;
+import org.apache.sentry.provider.common.SentryGroupNotFoundException;
+import org.apache.sentry.provider.db.SentryAccessDeniedException;
+import org.apache.sentry.provider.db.SentryAlreadyExistsException;
+import org.apache.sentry.provider.db.SentryGrantDeniedException;
+import org.apache.sentry.provider.db.SentryNoSuchObjectException;
 import org.apache.sentry.provider.db.generic.SentryGenericProviderBackend;
 import org.apache.sentry.provider.db.generic.service.thrift.SentryGenericServiceClient;
 import org.apache.sentry.provider.db.generic.service.thrift.SentryGenericServiceClientFactory;
@@ -616,7 +626,18 @@ class AuthBinding {
         client.close();
       }
     } catch (Exception e) {
-      throw Throwables.propagate(e);
+      // map sentry exceptions to appropriate cdap-security exceptions
+      if (e instanceof SentryAccessDeniedException || e instanceof SentryGrantDeniedException) {
+        throw Throwables.propagate(new UnauthorizedException(e.getMessage()));
+      } else if (e instanceof SentryGroupNotFoundException || e instanceof SentryNoSuchObjectException) {
+        throw Throwables.propagate(new NotFoundException(e.getMessage()));
+      } else if (e instanceof SentryAlreadyExistsException) {
+        throw Throwables.propagate(new AlreadyExistsException(e.getMessage()));
+      } else if (e instanceof SentryUserException) {
+        throw Throwables.propagate(new BadRequestException(e.getMessage()));
+      } else {
+        throw Throwables.propagate(e);
+      }
     }
   }
 
