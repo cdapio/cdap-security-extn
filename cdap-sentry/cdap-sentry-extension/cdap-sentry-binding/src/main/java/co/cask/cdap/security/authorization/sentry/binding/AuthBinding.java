@@ -232,7 +232,10 @@ class AuthBinding {
           return actionFactory.getActionByName(action.name());
         }
       }));
-    return authProvider.hasAccess(new Subject(principal.getName()), authorizables, sentryActions, ActiveRoleSet.ALL);
+    boolean hasAccess =
+      authProvider.hasAccess(new Subject(principal.getName()), authorizables, sentryActions, ActiveRoleSet.ALL);
+    LOG.debug("Authorize for {} on {} for actions {} is {}", principal, entityId, actions, hasAccess);
+    return hasAccess;
   }
 
   /**
@@ -379,6 +382,7 @@ class AuthBinding {
       public Void run(SentryGenericServiceClient client) throws Exception {
         client.addRoleToGroups(requestingUser, role.getName(), COMPONENT_NAME,
                                ImmutableSet.of(principal.getName()));
+        LOG.debug("Added role {} to group {} for the requested user {}", role, principal, requestingUser);
         return null;
       }
     });
@@ -402,6 +406,7 @@ class AuthBinding {
       public Void run(SentryGenericServiceClient client) throws Exception {
         client.deleteRoleToGroups(requestingUser, role.getName(), COMPONENT_NAME,
                                   ImmutableSet.of(principal.getName()));
+        LOG.debug("Dropped role {} from group {} for the requested user {}", role, principal, requestingUser);
         return null;
       }
     });
