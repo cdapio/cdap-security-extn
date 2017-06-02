@@ -132,7 +132,6 @@ public class SentryAuthorizer extends AbstractAuthorizer {
           String.format("The given principal '%s' is of unsupported type '%s'.", principal.getName(),
                         principal.getType()));
     }
-    loadCache(entityId, principal, actions, true);
     LOG.trace("Granted {} on {} to {}", actions, entityId, principal);
   }
 
@@ -165,7 +164,6 @@ public class SentryAuthorizer extends AbstractAuthorizer {
           String.format("The given principal '%s' is of unsupported type '%s'.", principal.getName(),
                         principal.getType()));
     }
-    loadCache(entityId, principal, actions, false);
     LOG.trace("Revoked {} on {} to {}", actions, entityId, principal);
   }
 
@@ -258,13 +256,6 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     for (Action action : actions) {
       AuthorizationPrivilege authorizationPrivilege = new AuthorizationPrivilege(principal, entityId, action);
       authPolicyCache.invalidate(authorizationPrivilege);
-    }
-  }
-
-  private void loadCache(EntityId entityId, Principal principal, Set<Action> actions, Boolean allowed) {
-    for (Action action : actions) {
-      AuthorizationPrivilege authorizationPrivilege = new AuthorizationPrivilege(principal, entityId, action);
-      authPolicyCache.put(authorizationPrivilege, allowed);
     }
   }
 
