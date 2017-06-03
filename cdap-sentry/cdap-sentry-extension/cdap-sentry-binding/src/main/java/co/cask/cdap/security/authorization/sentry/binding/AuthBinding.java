@@ -701,7 +701,7 @@ class AuthBinding {
         authorizables.add(new Instance(((InstanceId) entityId).getInstance()));
         break;
       case NAMESPACE:
-        toAuthorizables(new InstanceId(instanceName), authorizables);
+        authorizables.add(new Instance(encodeInstance(instanceName)));
         authorizables.add(new Namespace(((NamespaceId) entityId).getNamespace()));
         break;
       case ARTIFACT:
@@ -747,5 +747,16 @@ class AuthBinding {
       default:
         throw new IllegalArgumentException(String.format("The entity %s is of unknown type %s", entityId, entityType));
     }
+  }
+
+  /**
+   * Encodes the instanceName by adding 1 as the first character to the given instanceName.
+   * This is done so that the privileges on the instance is not propagated to namespace. See CDAP-11792 for details
+   *
+   * @param instanceName the instanceName that needs to be encoded
+   * @return an encoded instanceName
+   */
+  private String encodeInstance(String instanceName) {
+    return "1" + instanceName;
   }
 }
