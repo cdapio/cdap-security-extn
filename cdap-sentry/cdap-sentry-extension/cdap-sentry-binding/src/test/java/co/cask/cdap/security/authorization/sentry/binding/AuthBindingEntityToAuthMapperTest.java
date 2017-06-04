@@ -165,7 +165,8 @@ public class AuthBindingEntityToAuthMapperTest {
         authorizableList.add(new Instance(INSTANCE));
         break;
       case NAMESPACE:
-        getAuthorizablesList(AuthorizableType.INSTANCE, authorizableList);
+        // we add 1 here since instance will be encoded
+        authorizableList.add(new Instance("1" + INSTANCE));
         authorizableList.add(new Namespace(NAMESPACE));
         break;
       case ARTIFACT:
