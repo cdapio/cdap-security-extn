@@ -114,7 +114,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public void grant(EntityId entityId, Principal principal, Set<Action> actions) throws RoleNotFoundException {
+  public void grant(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
     invalidateCache(entityId, principal, actions);
     switch (principal.getType()) {
       case ROLE:
@@ -136,7 +136,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public void revoke(EntityId entityId, Principal principal, Set<Action> actions) throws RoleNotFoundException {
+  public void revoke(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
     invalidateCache(entityId, principal, actions);
     Role entityRole;
     switch (principal.getType()) {
@@ -168,7 +168,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public void revoke(EntityId entityId) {
+  public void revoke(EntityId entityId) throws Exception {
     invalidateCacheForEntity(entityId);
     binding.revoke(entityId);
     // remove the roles created for this entity
@@ -189,32 +189,32 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public Set<Privilege> listPrivileges(Principal principal) {
+  public Set<Privilege> listPrivileges(Principal principal) throws Exception {
     return binding.listPrivileges(principal);
   }
 
   @Override
-  public void createRole(Role role) throws RoleAlreadyExistsException {
+  public void createRole(Role role) throws Exception {
     binding.createRole(role, getRequestingUser());
   }
 
   @Override
-  public void dropRole(Role role) throws RoleNotFoundException {
+  public void dropRole(Role role) throws Exception {
     binding.dropRole(role, getRequestingUser());
   }
 
   @Override
-  public void addRoleToPrincipal(Role role, Principal principal) throws RoleNotFoundException {
+  public void addRoleToPrincipal(Role role, Principal principal) throws Exception {
     binding.addRoleToGroup(role, principal, getRequestingUser());
   }
 
   @Override
-  public void removeRoleFromPrincipal(Role role, Principal principal) throws RoleNotFoundException {
+  public void removeRoleFromPrincipal(Role role, Principal principal) throws Exception {
     binding.removeRoleFromGroup(role, principal, getRequestingUser());
   }
 
   @Override
-  public Set<Role> listRoles(Principal principal) {
+  public Set<Role> listRoles(Principal principal) throws Exception {
     Preconditions.checkArgument(principal.getType() != Principal.PrincipalType.ROLE, "The given principal '%s' is of " +
                                 "type '%s'. In Sentry revoke roles can only be listed for '%s' and '%s'",
                                 principal.getName(), principal.getType(), Principal.PrincipalType.USER,
@@ -223,7 +223,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public Set<Role> listAllRoles() {
+  public Set<Role> listAllRoles() throws Exception {
     return binding.listAllRoles();
   }
 
@@ -259,7 +259,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     }
   }
 
-  private synchronized void performGroupBasedGrant(EntityId entityId, Principal principal, Set<Action> actions) {
+  private synchronized void performGroupBasedGrant(EntityId entityId, Principal principal,
+                                                   Set<Action> actions) throws Exception {
     Role dotRole = getEntityUserRole(entityId, principal);
     try {
       binding.createRole(dotRole);
@@ -285,7 +286,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
    * @param checkPrivilege whether to check if the role has privileges associated with it before
    * deleting or not. If set to true then the role will not be deleted if there are privileges associated with the role
    */
-  private void cleanUpEntityRole(Role entityRole, boolean checkPrivilege) {
+  private void cleanUpEntityRole(Role entityRole, boolean checkPrivilege) throws Exception {
     // this should not be called for any other role except entity roles i.e. the ones which start with
     // ENTITY_ROLE_PREFIX
     if (!entityRole.getName().startsWith(ENTITY_ROLE_PREFIX)) {
@@ -313,7 +314,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
    * @param entityId the entity for which roles need to be obtained
    * @return {@link Set} of {@link Role} for the given entity
    */
-  private Set<Role> getEntityRoles (final EntityId entityId) {
+  private Set<Role> getEntityRoles (final EntityId entityId) throws Exception {
     final String curEntityRolePrefix = Joiner.on(ENTITY_ROLE_PREFIX).join("", entityId.toString());
 
     Predicate<Role> filter = new Predicate<Role>() {
