@@ -34,7 +34,6 @@ import co.cask.cdap.proto.security.Privilege;
 import co.cask.cdap.proto.security.Role;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf.AuthzConfVars;
-import co.cask.cdap.security.authorization.sentry.model.ActionFactory;
 import co.cask.cdap.security.authorization.sentry.model.Application;
 import co.cask.cdap.security.authorization.sentry.model.Artifact;
 import co.cask.cdap.security.authorization.sentry.model.Authorizable;
@@ -55,22 +54,15 @@ import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.sentry.SentryUserException;
-import org.apache.sentry.core.common.ActiveRoleSet;
-import org.apache.sentry.core.common.Subject;
 import org.apache.sentry.policy.common.PolicyEngine;
 import org.apache.sentry.provider.common.AuthorizationProvider;
 import org.apache.sentry.provider.common.ProviderBackend;
-import org.apache.sentry.provider.common.SentryGroupNotFoundException;
 import org.apache.sentry.provider.db.SentryAccessDeniedException;
 import org.apache.sentry.provider.db.SentryAlreadyExistsException;
 import org.apache.sentry.provider.db.SentryGrantDeniedException;
@@ -109,14 +101,12 @@ class AuthBinding {
   private final AuthConf authConf;
   private final AuthorizationProvider authProvider;
   private final String instanceName;
-  private final ActionFactory actionFactory;
   private final String sentryAdminGroup;
 
   AuthBinding(String sentrySite, String instanceName, String sentryAdminGroup) {
     this.authConf = initAuthzConf(sentrySite);
     this.instanceName = instanceName;
     this.authProvider = createAuthProvider();
-    this.actionFactory = new ActionFactory();
     this.sentryAdminGroup = sentryAdminGroup;
   }
 
@@ -209,7 +199,7 @@ class AuthBinding {
    * @param requestingUser the user executing this operation
    * @throws Exception if there was any exception while running the client command for dropping privileges
    */
-  void revoke(EntityId entityId, final String requestingUser) throws Exception {
+  private void revoke(EntityId entityId, final String requestingUser) throws Exception {
     Set<Role> allRoles = listAllRoles();
     final List<TSentryPrivilege> allPrivileges = getAllPrivileges(allRoles);
     final List<TAuthorizable> tAuthorizables = toTAuthorizable(entityId);
@@ -226,30 +216,6 @@ class AuthBinding {
         return null;
       }
     });
-  }
-
-  /**
-   * Check if the given {@link Principal} is allowed to perform the given {@link Action} on the {@link EntityId}
-   *
-   * @param entityId {@link EntityId} of the entity on which the action is being performed
-   * @param principal the {@link Principal} who needs to perform this action
-   * @param actions {@link Action actions} that need to be checked for authorization
-   * @return true if the given {@link Principal} can perform the given {@link Action} on the given {@link EntityId}
-   * else false
-   */
-  boolean authorize(EntityId entityId, Principal principal, Set<Action> actions) {
-    List<org.apache.sentry.core.common.Authorizable> authorizables = toSentryAuthorizables(entityId);
-    Set<ActionFactory.Action> sentryActions = Sets.newHashSet(
-      Collections2.transform(actions, new Function<Action, ActionFactory.Action>() {
-        @Override
-        public ActionFactory.Action apply(Action action) {
-          return actionFactory.getActionByName(action.name());
-        }
-      }));
-    boolean hasAccess =
-      authProvider.hasAccess(new Subject(principal.getName()), authorizables, sentryActions, ActiveRoleSet.ALL);
-    LOG.debug("Authorize for {} on {} for actions {} is {}", principal, entityId, actions, hasAccess);
-    return hasAccess;
   }
 
   /**
@@ -491,7 +457,7 @@ class AuthBinding {
    * @return {@code true} if the specified role exists, {@code false} otherwise
    * @throws Exception if there were any exception while running client command to check role existence
    */
-  boolean roleExists(Role role) throws Exception {
+  private boolean roleExists(Role role) throws Exception {
     Set<Role> roles = listAllRoles();
     // Sentry lowercases all roles, so while checking for existence, lower case the role as well
     Role lowerCaseRole = new Role(role.getName().toLowerCase());
@@ -638,7 +604,7 @@ class AuthBinding {
       }
     } catch (Exception e) {
       // map sentry exceptions to appropriate cdap-security exceptions
-      if (e instanceof SentryAccessDeniedException || e instanceof SentryGrantDeniedException) {
+      if (e instanceof SentryAccessDeniedException) {
         throw new UnauthorizedException(e.getMessage());
       } else if (e instanceof SentryNoSuchObjectException) {
         throw new NotFoundException(e.getMessage());
@@ -681,41 +647,45 @@ class AuthBinding {
         return new NamespaceId(namespace.getName());
       case ARTIFACT:
         Artifact artifact = (Artifact) authorizable;
-        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.ARTIFACT);
+        assertNonNullParent(parent, Authorizable.AuthorizableType.ARTIFACT);
         return ((NamespaceId) parent).artifact(artifact.getArtifactName(), artifact.getArtifactVersion());
       case APPLICATION:
         Application application = (Application) authorizable;
-        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.APPLICATION);
+        assertNonNullParent(parent, Authorizable.AuthorizableType.APPLICATION);
         return ((NamespaceId) parent).app(application.getName());
       case PROGRAM:
         Program program = (Program) authorizable;
-        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.PROGRAM);
+        assertNonNullParent(parent, Authorizable.AuthorizableType.PROGRAM);
         ApplicationId applicationId = (ApplicationId) parent;
         return applicationId.program(program.getProgramType(), program.getProgramName());
       case DATASET:
         Dataset dataset = (Dataset) authorizable;
-        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.DATASET);
+        assertNonNullParent(parent, Authorizable.AuthorizableType.DATASET);
         return ((NamespaceId) parent).dataset(dataset.getName());
       case DATASET_MODULE:
         DatasetModule datasetModule = (DatasetModule) authorizable;
-        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.DATASET_MODULE);
+        assertNonNullParent(parent, Authorizable.AuthorizableType.DATASET_MODULE);
         return ((NamespaceId) parent).datasetModule(datasetModule.getName());
       case DATASET_TYPE:
         DatasetType datasetType = (DatasetType) authorizable;
-        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.DATASET_TYPE);
+        assertNonNullParent(parent, Authorizable.AuthorizableType.DATASET_TYPE);
         return ((NamespaceId) parent).datasetType(datasetType.getName());
       case STREAM:
         Stream stream = (Stream) authorizable;
-        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.STREAM);
+        assertNonNullParent(parent, Authorizable.AuthorizableType.STREAM);
         return ((NamespaceId) parent).stream(stream.getName());
       case SECUREKEY:
         SecureKey secureKey = (SecureKey) authorizable;
-        Preconditions.checkNotNull(parent, "%s must have a parent", Authorizable.AuthorizableType.SECUREKEY);
+        assertNonNullParent(parent, Authorizable.AuthorizableType.SECUREKEY);
         return ((NamespaceId) parent).secureKey(secureKey.getName());
       default:
         throw new IllegalArgumentException(String.format("Sentry Authorizable %s has invalid type %s",
                                                          tAuthorizable.getName(), tAuthorizable.getType()));
     }
+  }
+
+  private void assertNonNullParent(EntityId parent, Authorizable.AuthorizableType authorizableType) {
+    Preconditions.checkNotNull(parent, "%s must have a parent", authorizableType);
   }
 
   /**

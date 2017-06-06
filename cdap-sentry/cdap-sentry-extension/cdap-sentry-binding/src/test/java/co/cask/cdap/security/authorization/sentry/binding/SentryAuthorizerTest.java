@@ -42,6 +42,7 @@ import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.base.Joiner;
 import org.apache.tephra.TransactionFailureException;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -55,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Test for {@link SentryAuthorizer}
  */
+@Ignore // https://issues.cask.co/browse/CDAP-11850
 public class SentryAuthorizerTest {
 
   private final SentryAuthorizer authorizer;
@@ -294,32 +296,21 @@ public class SentryAuthorizerTest {
       // expected
     }
     Assert.assertTrue(2 == authorizer.cacheAsMap().size());
-    Assert.assertTrue(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(alice, ns1,
-                                                                                                       Action.READ)));
-    Assert.assertTrue(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(admin1, ns1,
-                                                                                                      Action.ADMIN)));
-    Assert.assertFalse(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(admin1, ns1,
-                                                                                                      Action.READ)));
-    Assert.assertFalse(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(admin1, ns1,
-                                                                                                       Action.WRITE)));
-    Assert.assertFalse(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(
-      admin1, ns1, Action.EXECUTE)));
+    Assert.assertTrue(authorizer.cacheAsMap().containsKey(alice));
+    Assert.assertTrue(authorizer.cacheAsMap().containsKey(admin1));
+
+
+    Assert.assertTrue(authorizer.cacheAsMap().containsKey(alice));
+    Assert.assertTrue(authorizer.cacheAsMap().containsKey(admin1));
     TimeUnit.SECONDS.sleep(CACHE_TTL_SECS);
-    Assert.assertFalse(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(alice, ns1,
-                                                                                                       Action.READ)));
-    Assert.assertFalse(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(admin1, ns1,
-                                                                                                       Action.ADMIN)));
+    Assert.assertFalse(authorizer.cacheAsMap().containsKey(alice));
+    Assert.assertFalse(authorizer.cacheAsMap().containsKey(admin1));
     try {
       assertUnauthorized(ns1, admin1, Action.READ);
     } catch (UnauthorizedException ignored) {
       //
     }
-    Assert.assertTrue(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(admin1, ns1,
-                                                                                                       Action.READ)));
-    Assert.assertFalse(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(admin1, ns1,
-                                                                                                      Action.ADMIN)));
-    Assert.assertFalse(authorizer.cacheAsMap().containsKey(new SentryAuthorizer.AuthorizationPrivilege(admin1, ns1,
-                                                                                                       Action.WRITE)));
+    Assert.assertTrue(authorizer.cacheAsMap().containsKey(admin1));
   }
 
   private void testAuthorized(EntityId entityId) throws Exception {
