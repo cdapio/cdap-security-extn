@@ -48,8 +48,12 @@ import co.cask.cdap.security.authorization.sentry.model.SecureKey;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
 import co.cask.cdap.security.authorization.sentry.policy.ModelAuthorizables;
 import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
+import co.cask.cdap.security.spi.authorization.AlreadyExistsException;
+import co.cask.cdap.security.spi.authorization.BadRequestException;
+import co.cask.cdap.security.spi.authorization.NotFoundException;
 import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
+import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -60,11 +64,19 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.sentry.SentryUserException;
 import org.apache.sentry.core.common.ActiveRoleSet;
 import org.apache.sentry.core.common.Subject;
 import org.apache.sentry.policy.common.PolicyEngine;
 import org.apache.sentry.provider.common.AuthorizationProvider;
 import org.apache.sentry.provider.common.ProviderBackend;
+import org.apache.sentry.provider.common.SentryGroupNotFoundException;
+import org.apache.sentry.provider.db.SentryAccessDeniedException;
+import org.apache.sentry.provider.db.SentryAlreadyExistsException;
+import org.apache.sentry.provider.db.SentryGrantDeniedException;
+import org.apache.sentry.provider.db.SentryInvalidInputException;
+import org.apache.sentry.provider.db.SentryNoSuchObjectException;
+import org.apache.sentry.provider.db.SentryThriftAPIMismatchException;
 import org.apache.sentry.provider.db.generic.SentryGenericProviderBackend;
 import org.apache.sentry.provider.db.generic.service.thrift.SentryGenericServiceClient;
 import org.apache.sentry.provider.db.generic.service.thrift.SentryGenericServiceClientFactory;
@@ -115,9 +127,9 @@ class AuthBinding {
    * @param entityId the entity on which the actions need to be granted
    * @param role the role to which the actions need to granted
    * @param actions the actions which need to be granted
-   * @throws RoleNotFoundException if the given role does not exist
+   * @throws Exception when there is any exception while running the client command to grant
    */
-  void grant(EntityId entityId, Role role, Set<Action> actions) throws RoleNotFoundException {
+  void grant(EntityId entityId, Role role, Set<Action> actions) throws Exception {
     grant(entityId, role, actions, sentryAdminGroup);
   }
 
@@ -129,10 +141,10 @@ class AuthBinding {
    * @param role the role to which the actions need to granted
    * @param actions the actions which need to be granted
    * @param requestingUser the user executing this operation
-   * @throws RoleNotFoundException if the given role does not exist
+   * @throws Exception when there is any exception while running the client command to grant for user
    */
   void grant(final EntityId entityId, final Role role, Set<Action> actions,
-             final String requestingUser) throws RoleNotFoundException {
+             final String requestingUser) throws Exception {
     if (!roleExists(role)) {
       throw new RoleNotFoundException(role);
     }
@@ -157,10 +169,10 @@ class AuthBinding {
    * @param role the {@link Role} from which the actions needs to be revoked
    * @param actions the set of {@link Action actions} to revoke
    * @param requestingUser the user executing this operation
-   * @throws RoleNotFoundException if the given role does not exist
+   * @throws Exception if there was any exception while running the client command for dropping privileges
    */
   void revoke(final EntityId entityId, final Role role, Set<Action> actions,
-              final String requestingUser) throws RoleNotFoundException {
+              final String requestingUser) throws Exception {
     if (!roleExists(role)) {
       throw new RoleNotFoundException(role);
     }
@@ -183,8 +195,9 @@ class AuthBinding {
    * This operation is executed as the {@link #sentryAdminGroup}.
    *
    * @param entityId the {@link EntityId} on which all privileges have to be revoked
+   * @throws Exception if there was any exception while running the client command for dropping privileges
    */
-  void revoke(EntityId entityId) {
+  void revoke(EntityId entityId) throws Exception {
     revoke(entityId, sentryAdminGroup);
   }
 
@@ -194,8 +207,9 @@ class AuthBinding {
    *
    * @param entityId the {@link EntityId} on which all {@link Action actions} are to be revoked
    * @param requestingUser the user executing this operation
+   * @throws Exception if there was any exception while running the client command for dropping privileges
    */
-  void revoke(EntityId entityId, final String requestingUser) {
+  void revoke(EntityId entityId, final String requestingUser) throws Exception {
     Set<Role> allRoles = listAllRoles();
     final List<TSentryPrivilege> allPrivileges = getAllPrivileges(allRoles);
     final List<TAuthorizable> tAuthorizables = toTAuthorizable(entityId);
@@ -243,8 +257,9 @@ class AuthBinding {
    *
    * @param principal the principal for which the privileges has to be listed
    * @return {@link Set} of {@link Privilege privilege} for the given principal
+   * @throws Exception if there was any exception while running the client command getting roles and privileges
    */
-  Set<Privilege> listPrivileges(Principal principal) {
+  Set<Privilege> listPrivileges(Principal principal) throws Exception {
     Set<Role> roles = getRoles(principal, sentryAdminGroup);
     LOG.debug("Listing all privileges for {};", principal);
     List<TSentryPrivilege> allPrivileges = getAllPrivileges(roles);
@@ -274,8 +289,9 @@ class AuthBinding {
    *
    * @param role the role to create
    * @throws RoleAlreadyExistsException if the role already exists
+   * @throws Exception if there was any exception while running the client command for creating the role
    */
-  void createRole(Role role) throws RoleAlreadyExistsException {
+  void createRole(Role role) throws Exception {
     createRole(role, sentryAdminGroup);
   }
 
@@ -284,9 +300,9 @@ class AuthBinding {
    *
    * @param role the role to be created
    * @param requestingUser the user executing this operation
-   * @throws RoleAlreadyExistsException if the specified role already exists
+   * @throws Exception if there was any exception while running the client command for creating role for user
    */
-  void createRole(final Role role, final String requestingUser) throws RoleAlreadyExistsException {
+  void createRole(final Role role, final String requestingUser) throws Exception {
     if (roleExists(role)) {
       throw new RoleAlreadyExistsException(role);
     }
@@ -305,9 +321,9 @@ class AuthBinding {
    * when it was first created.
    *
    * @param role the role to drop
-   * @throws RoleNotFoundException if the specified role does not exist
+   * @throws Exception if there was any exception while running the client command for dropping the role
    */
-  void dropRole(Role role) throws RoleNotFoundException {
+  void dropRole(Role role) throws Exception {
     dropRole(role, sentryAdminGroup);
   }
 
@@ -316,9 +332,9 @@ class AuthBinding {
    *
    * @param role the role to dropped
    * @param requestingUser the user executing this operation
-   * @throws RoleNotFoundException if the role to be dropped does not exists
+   * @throws Exception if there was any exception while running the client command for dropping the role for user
    */
-  void dropRole(final Role role, final String requestingUser) throws RoleNotFoundException {
+  void dropRole(final Role role, final String requestingUser) throws Exception {
     if (!roleExists(role)) {
       throw new RoleNotFoundException(role);
     }
@@ -338,8 +354,9 @@ class AuthBinding {
    * @param principal the principal for which roles need to be listed
    * @param requestingUser the user executing this operation
    * @return {@link Set} of {@link Role} to which this principal belongs to
+   * @throws Exception if there was any exception while running the client command for listing roles
    */
-  Set<Role> listRolesForGroup(Principal principal, final String requestingUser) {
+  Set<Role> listRolesForGroup(Principal principal, final String requestingUser) throws Exception {
     return getRoles(principal, requestingUser);
   }
 
@@ -347,8 +364,9 @@ class AuthBinding {
    * Lists all roles
    *
    * @return {@link Set} of all {@link Role}
+   * @throws Exception if there were any exception while running client commdn to listing all roles
    */
-  Set<Role> listAllRoles() {
+  Set<Role> listAllRoles() throws Exception {
     return getRoles(null, sentryAdminGroup);
   }
 
@@ -358,9 +376,9 @@ class AuthBinding {
    *
    * @param role the dot role to add to the group
    * @param principal the group to add the dot role to
-   * @throws RoleNotFoundException if the role does not exist
+   * @throws Exception if there was any exception while running the client command for adding role to group
    */
-  void addRoleToGroup(Role role, Principal principal) throws RoleNotFoundException {
+  void addRoleToGroup(Role role, Principal principal) throws Exception {
     addRoleToGroup(role, principal, sentryAdminGroup);
   }
 
@@ -370,10 +388,10 @@ class AuthBinding {
    * @param role the role which needs to be added to the group principal
    * @param principal the group principal to which the role needs to be added
    * @param requestingUser the user executing this operation
-   * @throws RoleNotFoundException if the role to be added does not exists
+   * @throws Exception if there was any exception while running the client command for adding role to group
    */
   void addRoleToGroup(final Role role, final Principal principal,
-                      final String requestingUser) throws RoleNotFoundException {
+                      final String requestingUser) throws Exception {
     if (!roleExists(role)) {
       throw new RoleNotFoundException(role);
     }
@@ -394,10 +412,10 @@ class AuthBinding {
    * @param role the role which needs to be removed to the group principal
    * @param principal the group principal to which the role needs to be removed
    * @param requestingUser the user executing this operation
-   * @throws RoleNotFoundException if the role to be removed does not exists
+   * @throws Exception if there was exception while running the client command to remove role from group
    */
   void removeRoleFromGroup(final Role role, final Principal principal,
-                           final String requestingUser) throws RoleNotFoundException {
+                           final String requestingUser) throws Exception {
     if (!roleExists(role)) {
       throw new RoleNotFoundException(role);
     }
@@ -426,7 +444,7 @@ class AuthBinding {
     return authorizables;
   }
 
-  private Set<Role> getRoles(@Nullable final Principal principal, final String requestingUser) {
+  private Set<Role> getRoles(@Nullable final Principal principal, final String requestingUser) throws Exception {
     // if the specified principal is non-null and is a role, then we just return a singleton set containing that role
     if (principal != null && Principal.PrincipalType.ROLE == principal.getType()) {
       return Collections.singleton(new Role(principal.getName()));
@@ -471,8 +489,9 @@ class AuthBinding {
    *
    * @param role the role to be checked for existence
    * @return {@code true} if the specified role exists, {@code false} otherwise
+   * @throws Exception if there were any exception while running client command to check role existence
    */
-  boolean roleExists(Role role) {
+  boolean roleExists(Role role) throws Exception {
     Set<Role> roles = listAllRoles();
     // Sentry lowercases all roles, so while checking for existence, lower case the role as well
     Role lowerCaseRole = new Role(role.getName().toLowerCase());
@@ -563,7 +582,7 @@ class AuthBinding {
     }
   }
 
-  private List<TSentryPrivilege> getAllPrivileges(final Set<Role> roles) {
+  private List<TSentryPrivilege> getAllPrivileges(final Set<Role> roles) throws Exception {
     return execute(new Command<List<TSentryPrivilege>>() {
       @Override
       public List<TSentryPrivilege> run(SentryGenericServiceClient client) throws Exception {
@@ -593,8 +612,10 @@ class AuthBinding {
    * Performs revoke as sentry admin. This is needed since in sentry revoke is kind of role
    * management command and can only be done by sentry admin group. In CDAP when a revoke is done
    * CDAP already checks that the user who is requesting revoke has ADMIN on the entity.
+   * @throws Exception if there was any exception while running the client command to revoke the role
    */
-  protected void revoke(final EntityId entityId, final Role role, Set<Action> actions) throws RoleNotFoundException {
+  protected void revoke(final EntityId entityId, final Role role, Set<Action> actions)
+    throws Exception {
     revoke(entityId, role, actions, sentryAdminGroup);
   }
 
@@ -607,7 +628,7 @@ class AuthBinding {
     return tAuthorizables;
   }
 
-  private <T> T execute(Command<T> cmd) {
+  private <T> T execute(Command<T> cmd) throws Exception {
     try {
       SentryGenericServiceClient client = getClient();
       try {
@@ -616,7 +637,18 @@ class AuthBinding {
         client.close();
       }
     } catch (Exception e) {
-      throw Throwables.propagate(e);
+      // map sentry exceptions to appropriate cdap-security exceptions
+      if (e instanceof SentryAccessDeniedException || e instanceof SentryGrantDeniedException) {
+        throw new UnauthorizedException(e.getMessage());
+      } else if (e instanceof SentryNoSuchObjectException) {
+        throw new NotFoundException(e.getMessage());
+      } else if (e instanceof SentryAlreadyExistsException) {
+        throw new AlreadyExistsException(e.getMessage());
+      } else if (e instanceof SentryInvalidInputException || e instanceof SentryThriftAPIMismatchException) {
+        throw new BadRequestException(e.getMessage());
+      } else {
+        throw e;
+      }
     }
   }
 
