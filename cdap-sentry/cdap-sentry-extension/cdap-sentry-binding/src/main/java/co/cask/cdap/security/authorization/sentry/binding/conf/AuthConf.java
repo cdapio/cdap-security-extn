@@ -40,9 +40,9 @@ public class AuthConf extends Configuration {
   // TTL for authorization cache entries
   public static final String CACHE_TTL_SECS = "cache.ttl.secs";
   public static final String CACHE_TTL_SECS_DEFAULT = "300";
-  // Maximum number of entries to keep in the cache. An entry of <= 0 would disable caching.
+  // Maximum number of entries to keep in the cache. An entry of 0 would disable caching.
   public static final String CACHE_MAX_ENTRIES = "cache.max.entries";
-  public static final String CACHE_MAX_ENTRIES_DEFAULT = "100000";
+  public static final String CACHE_MAX_ENTRIES_DEFAULT = "50000";
 
 
   /**
