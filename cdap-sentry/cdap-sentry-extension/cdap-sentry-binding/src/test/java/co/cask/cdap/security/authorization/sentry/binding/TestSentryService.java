@@ -92,7 +92,15 @@ class TestSentryService {
         throw new TimeoutException("Server did not start after 60 seconds");
       }
     }
-    importPolicy();
+
+    SentryGenericServiceClient sentryClient = SentryGenericServiceClientFactory.create(getClientConfig());
+    try {
+      importPolicy(sentryClient);
+    } finally {
+      if (sentryClient != null) {
+        sentryClient.close();
+      }
+    }
   }
 
   void stop() throws Exception {
@@ -103,7 +111,6 @@ class TestSentryService {
 
   Configuration getClientConfig() {
     Configuration conf = new Configuration();
-    /** set the Sentry client configuration for Kafka Service integration */
     conf.set(ServiceConstants.ServerConfig.SECURITY_MODE, ServiceConstants.ServerConfig.SECURITY_MODE_NONE);
     conf.set(ServiceConstants.ClientConfig.SERVER_RPC_ADDRESS, sentryServer.getAddress().getHostName());
     conf.set(ServiceConstants.ClientConfig.SERVER_RPC_PORT, String.valueOf(sentryServer.getAddress().getPort()));
@@ -116,7 +123,7 @@ class TestSentryService {
     return conf;
   }
 
-  private void importPolicy() throws Exception {
+  private void importPolicy(SentryGenericServiceClient sentryClient) throws Exception {
     SentryIniPolicyFileFormatter policyFileFormatter = new SentryIniPolicyFileFormatter();
     Map<String, Map<String, Set<String>>> policyMap =
       policyFileFormatter.parse(policyFile.getAbsolutePath(), new Configuration());
@@ -127,7 +134,7 @@ class TestSentryService {
     for (Map.Entry<String, Set<String>> groupEntry : groups.entrySet()) {
       String group = groupEntry.getKey();
       for (String role : groupEntry.getValue()) {
-        addRoleToGroup(role, group);
+        addRoleToGroup(sentryClient, role, group);
       }
     }
 
@@ -162,43 +169,24 @@ class TestSentryService {
           // Can not add 'all' as an action; otherwise:
           // Caused by: java.lang.IllegalArgumentException: No enum constant co.cask.cdap.proto.security.Action.ALL
           for (Action a : Action.values()) {
-            addPermissions(role, a.name(), instance, tAuthorizables);
+            addPermissions(sentryClient, role, a.name(), instance, tAuthorizables);
           }
         } else {
-          addPermissions(role, action, instance, tAuthorizables);
+          addPermissions(sentryClient, role, action, instance, tAuthorizables);
         }
       }
     }
   }
 
-  private void addRoleToGroup(String role, String group) throws Exception {
-    SentryGenericServiceClient sentryClient = getSentryClient();
-    try {
-      sentryClient.createRoleIfNotExist(ADMIN_USER, role, COMPONENT);
-      sentryClient.addRoleToGroups(ADMIN_USER, role, COMPONENT, Sets.newHashSet(group));
-
-    } finally {
-      if (sentryClient != null) {
-        sentryClient.close();
-      }
-    }
+  private void addRoleToGroup(SentryGenericServiceClient sentryClient, String role, String group) throws Exception {
+    sentryClient.createRoleIfNotExist(ADMIN_USER, role, COMPONENT);
+    sentryClient.addRoleToGroups(ADMIN_USER, role, COMPONENT, Sets.newHashSet(group));
   }
 
-  private void addPermissions(String role, String action, String instance,
+  private void addPermissions(SentryGenericServiceClient sentryClient, String role, String action, String instance,
                               ArrayList<TAuthorizable> authorizables) throws Exception {
-    SentryGenericServiceClient sentryClient = getSentryClient();
-    try {
-      sentryClient.grantPrivilege(ADMIN_USER, role, COMPONENT,
-                                  new TSentryPrivilege(COMPONENT, instance, authorizables, action));
-    } finally {
-      if (sentryClient != null) {
-        sentryClient.close();
-      }
-    }
-  }
-
-  private SentryGenericServiceClient getSentryClient() throws Exception {
-    return SentryGenericServiceClientFactory.create(getClientConfig());
+    sentryClient.grantPrivilege(ADMIN_USER, role, COMPONENT,
+                                new TSentryPrivilege(COMPONENT, instance, authorizables, action));
   }
 
   /**
