@@ -232,7 +232,9 @@ public class SentryAuthorizerTest {
 
   @AfterClass
   public static void tearDown() throws Exception {
-    sentryService.stop();
+    if (sentryService != null) {
+      sentryService.stop();
+    }
   }
 
   @Test
