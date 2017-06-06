@@ -109,12 +109,26 @@
             <groupId>org.apache.hive</groupId>
             <artifactId>*</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.apache.sentry</groupId>
+            <artifactId>sentry-core-model-search</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.sentry</groupId>
+            <artifactId>sentry-core-model-sqoop</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.sentry</groupId>
         <artifactId>sentry-policy-common</artifactId>
         <version>${sentry.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.sentry</groupId>
+        <artifactId>sentry-binding-hive-common</artifactId>
+        <version>${sentry.version}</version>
+        <scope>test</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>

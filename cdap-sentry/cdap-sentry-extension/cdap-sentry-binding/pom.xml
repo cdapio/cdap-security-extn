@@ -62,14 +62,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.sentry</groupId>
-      <artifactId>sentry-core-model-search</artifactId>
-      <version>${sentry.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.sentry</groupId>
       <artifactId>sentry-binding-hive-common</artifactId>
-      <version>${sentry.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
