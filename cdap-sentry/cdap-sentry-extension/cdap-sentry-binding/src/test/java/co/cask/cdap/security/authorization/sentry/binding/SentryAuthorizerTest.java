@@ -30,7 +30,6 @@ import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.ArtifactId;
 import co.cask.cdap.proto.id.DatasetId;
 import co.cask.cdap.proto.id.EntityId;
-import co.cask.cdap.proto.id.InstanceId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.StreamId;
@@ -38,8 +37,10 @@ import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
+import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
 import org.apache.tephra.TransactionFailureException;
 import org.junit.Assert;
 import org.junit.Test;
@@ -234,9 +235,6 @@ public class SentryAuthorizerTest {
   @Test
   public void testUnauthorized() throws Exception {
     // do some invalid operations
-    // instance_admin1 should not be able to read the stream inside the instance even though he has read on the
-    // instance
-    assertUnauthorized(new StreamId("ns1", "stream1"), getUser("instance_admin1"), Action.READ);
     // admin1 is not admin of ns2
     assertUnauthorized(new NamespaceId("ns2"), getUser("admin1"), Action.ADMIN);
 
@@ -255,8 +253,6 @@ public class SentryAuthorizerTest {
 
   @Test
   public void testHierarchy() throws Exception {
-    // instance_admin1 should be able to read the instance
-    assertAuthorized(new InstanceId("cdap"), getUser("instance_admin1"), Action.READ);
     // admin1 has ADMIN on ns1
     assertAuthorized(new NamespaceId("ns1"), getUser("admin1"), Action.ADMIN);
     // hence, admin1 should have ADMIN on any child of ns1, even a child that admin1 has not been given explicit ADMIN
