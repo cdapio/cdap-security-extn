@@ -109,14 +109,6 @@
             <groupId>org.apache.hive</groupId>
             <artifactId>*</artifactId>
           </exclusion>
-          <exclusion>
-            <groupId>org.apache.sentry</groupId>
-            <artifactId>sentry-core-model-search</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.apache.sentry</groupId>
-            <artifactId>sentry-core-model-sqoop</artifactId>
-          </exclusion>
         </exclusions>
       </dependency>
       <dependency>

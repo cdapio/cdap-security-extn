@@ -37,15 +37,18 @@ import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
-import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableSet;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.TransactionFailureException;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
@@ -60,17 +63,29 @@ import java.util.concurrent.TimeUnit;
 @Ignore // https://issues.cask.co/browse/CDAP-11850
 public class SentryAuthorizerTest {
 
+  @ClassRule
+  public static final TemporaryFolder tempFolder = new TemporaryFolder();
+
   private final SentryAuthorizer authorizer;
   private static final String SUPERUSER_HULK = "hulk";
   private static final String SUPERUSER_SPIDERMAN = "spiderman";
   private static final int CACHE_TTL_SECS = 3;
 
   public SentryAuthorizerTest() throws Exception {
-    URL resource = getClass().getClassLoader().getResource("sentry-site.xml");
-    Assert.assertNotNull(resource);
-    String sentrySitePath = resource.getPath();
+    URL policyFileResource = getClass().getClassLoader().getResource("test-authz-provider.ini");
+    Assert.assertNotNull("Cannot find policy file: test-authz-provider.ini", policyFileResource);
+    TestSentryService sentryService = new TestSentryService(tempFolder.newFolder(),
+                                                            new File(policyFileResource.getPath()));
+    sentryService.start();
+
+    //TODO: stop sentry
+
+    Configuration clientConfig = sentryService.getClientConfig();
+    File sentrySite = tempFolder.newFile("sentry-site.xml");
+    clientConfig.writeXml(new FileOutputStream(sentrySite));
+
     final Properties properties = new Properties();
-    properties.put(AuthConf.SENTRY_SITE_URL, sentrySitePath);
+    properties.put(AuthConf.SENTRY_SITE_URL, sentrySite.getAbsolutePath());
     properties.put(AuthConf.INSTANCE_NAME, "cdap");
     properties.put(AuthConf.SUPERUSERS, Joiner.on(",").join(SUPERUSER_HULK, SUPERUSER_SPIDERMAN));
     properties.put(AuthConf.SENTRY_ADMIN_GROUP, "cdap");
@@ -312,7 +327,7 @@ public class SentryAuthorizerTest {
   private void testAuthorized(EntityId entityId) throws Exception {
     // admin1 is admin of entity
     assertAuthorized(entityId, getUser("admin1"), Action.ADMIN);
-    // reader1 can read entity
+    // readers1 can read entity
     assertAuthorized(entityId, getUser("readers1"), Action.READ);
     // writer1 can write entity
     assertAuthorized(entityId, getUser("writers1"), Action.WRITE);
