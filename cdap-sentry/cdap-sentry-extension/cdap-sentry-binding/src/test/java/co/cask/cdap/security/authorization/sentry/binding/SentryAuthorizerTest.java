@@ -37,15 +37,19 @@ import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
-import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableSet;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.TransactionFailureException;
+import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Ignore;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
@@ -57,26 +61,37 @@ import java.util.concurrent.TimeUnit;
 /**
  * Test for {@link SentryAuthorizer}
  */
-@Ignore // https://issues.cask.co/browse/CDAP-11850
 public class SentryAuthorizerTest {
 
-  private final SentryAuthorizer authorizer;
+  @ClassRule
+  public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+
   private static final String SUPERUSER_HULK = "hulk";
   private static final String SUPERUSER_SPIDERMAN = "spiderman";
   private static final int CACHE_TTL_SECS = 3;
 
-  public SentryAuthorizerTest() throws Exception {
-    URL resource = getClass().getClassLoader().getResource("sentry-site.xml");
-    Assert.assertNotNull(resource);
-    String sentrySitePath = resource.getPath();
+  private static SentryAuthorizer authorizer;
+  private static TestSentryService sentryService;
+
+  @BeforeClass
+  public static void setupTests() throws Exception {
+    URL policyFileResource = SentryAuthorizer.class.getClassLoader().getResource("test-authz-provider.ini");
+    Assert.assertNotNull("Cannot find policy file: test-authz-provider.ini", policyFileResource);
+    sentryService = new TestSentryService(TEMPORARY_FOLDER.newFolder(), new File(policyFileResource.getPath()));
+    sentryService.start();
+
+    Configuration clientConfig = sentryService.getClientConfig();
+    File sentrySite = TEMPORARY_FOLDER.newFile("sentry-site.xml");
+    clientConfig.writeXml(new FileOutputStream(sentrySite));
+
     final Properties properties = new Properties();
-    properties.put(AuthConf.SENTRY_SITE_URL, sentrySitePath);
+    properties.put(AuthConf.SENTRY_SITE_URL, sentrySite.getAbsolutePath());
     properties.put(AuthConf.INSTANCE_NAME, "cdap");
     properties.put(AuthConf.SUPERUSERS, Joiner.on(",").join(SUPERUSER_HULK, SUPERUSER_SPIDERMAN));
     properties.put(AuthConf.SENTRY_ADMIN_GROUP, "cdap");
     properties.put(AuthConf.CACHE_MAX_ENTRIES, "100");
     properties.put(AuthConf.CACHE_TTL_SECS, String.valueOf(CACHE_TTL_SECS));
-    this.authorizer = new SentryAuthorizer();
+    authorizer = new SentryAuthorizer();
     authorizer.initialize(new AuthorizationContext() {
       @Override
       public Map<String, String> listSecureData(String namespace) throws Exception {
@@ -215,6 +230,13 @@ public class SentryAuthorizerTest {
     });
   }
 
+  @AfterClass
+  public static void tearDown() throws Exception {
+    if (sentryService != null) {
+      sentryService.stop();
+    }
+  }
+
   @Test
   public void testAuthorized() throws Exception {
     testAuthorized(new NamespaceId("ns1"));
@@ -254,65 +276,33 @@ public class SentryAuthorizerTest {
   }
 
   @Test
-  public void testHierarchy() throws Exception {
-    // admin1 has ADMIN on ns1
-    assertAuthorized(new NamespaceId("ns1"), getUser("admin1"), Action.ADMIN);
-    // hence, admin1 should have ADMIN on any child of ns1, even a child that admin1 has not been given explicit ADMIN
-    // access's on in the authz-provider.ini
-    assertAuthorized(new StreamId("ns1", "notconfigured"), getUser("admin1"), Action.ADMIN);
-    assertAuthorized(new DatasetId("ns1", "notconfigured"), getUser("admin1"), Action.ADMIN);
-    assertAuthorized(new ArtifactId("ns1", "notconfigured", "1.0"), getUser("admin1"), Action.ADMIN);
-    assertAuthorized(new ApplicationId("ns1", "notconfigured"), getUser("admin1"), Action.ADMIN);
-    assertAuthorized(new ProgramId("ns1", "foo", ProgramType.SPARK, "bar"), getUser("admin1"), Action.ADMIN);
-
-    // however, admin1 should not get ADMIN on a children of ns2 via hierarchy
-    assertUnauthorized(new StreamId("ns2", "notconfigured"), getUser("admin1"), Action.ADMIN);
-    assertUnauthorized(new DatasetId("ns2", "notconfigured"), getUser("admin1"), Action.ADMIN);
-    assertUnauthorized(new ArtifactId("ns2", "notconfigured", "1.0"), getUser("admin1"), Action.ADMIN);
-    assertUnauthorized(new ApplicationId("ns2", "notconfigured"), getUser("admin1"), Action.ADMIN);
-    assertUnauthorized(new ProgramId("ns2", "foo", ProgramType.SPARK, "bar"), getUser("admin1"), Action.ADMIN);
-
-    // readers1 have READ on app1 in ns1
-    assertAuthorized(new ApplicationId("ns1", "app1"), getUser("readers1"), Action.READ);
-    // as a result, readers1 should get READ on any program in app1, even ones that have not been explicitly
-    // configured in authz-provider.ini
-    assertAuthorized(new ProgramId("ns1", "app1", ProgramType.MAPREDUCE, "notconfigured"),
-                     getUser("readers1"), Action.READ);
-  }
-
-  @Test
   public void testCache() throws Exception {
-    final NamespaceId ns1 = new NamespaceId("ns1");
-    final Principal alice = getUser("alice");
-    final Principal admin1 = getUser("admin1");
-    try {
-      assertUnauthorized(ns1, alice, Action.READ);
-      assertAuthorized(ns1, admin1, Action.ADMIN);
-    } catch (UnauthorizedException ignored) {
-      // expected
-    }
-    Assert.assertTrue(2 == authorizer.cacheAsMap().size());
-    Assert.assertTrue(authorizer.cacheAsMap().containsKey(alice));
+    NamespaceId ns1 = new NamespaceId("ns1");
+    Principal executors1 = getUser("executors1");
+    Principal admin1 = getUser("admin1");
+
+    assertUnauthorized(ns1, executors1, Action.READ);
+    assertAuthorized(ns1, admin1, Action.ADMIN);
+
+    Assert.assertEquals(2,  authorizer.cacheAsMap().size());
+    Assert.assertTrue(authorizer.cacheAsMap().containsKey(executors1));
     Assert.assertTrue(authorizer.cacheAsMap().containsKey(admin1));
 
-
-    Assert.assertTrue(authorizer.cacheAsMap().containsKey(alice));
+    Assert.assertTrue(authorizer.cacheAsMap().containsKey(executors1));
     Assert.assertTrue(authorizer.cacheAsMap().containsKey(admin1));
     TimeUnit.SECONDS.sleep(CACHE_TTL_SECS);
-    Assert.assertFalse(authorizer.cacheAsMap().containsKey(alice));
+    // test TTL-eviction
+    Assert.assertFalse(authorizer.cacheAsMap().containsKey(executors1));
     Assert.assertFalse(authorizer.cacheAsMap().containsKey(admin1));
-    try {
-      assertUnauthorized(ns1, admin1, Action.READ);
-    } catch (UnauthorizedException ignored) {
-      //
-    }
+
+    assertUnauthorized(ns1, admin1, Action.READ);
     Assert.assertTrue(authorizer.cacheAsMap().containsKey(admin1));
   }
 
   private void testAuthorized(EntityId entityId) throws Exception {
     // admin1 is admin of entity
     assertAuthorized(entityId, getUser("admin1"), Action.ADMIN);
-    // reader1 can read entity
+    // readers1 can read entity
     assertAuthorized(entityId, getUser("readers1"), Action.READ);
     // writer1 can write entity
     assertAuthorized(entityId, getUser("writers1"), Action.WRITE);
@@ -323,11 +313,7 @@ public class SentryAuthorizerTest {
   }
 
   private void assertAuthorized(EntityId entityId, Principal principal, Action action) throws Exception {
-    try {
-      authorizer.enforce(entityId, principal, action);
-    } catch (UnauthorizedException e) {
-      Assert.fail(String.format("Authorization failed: %s", e));
-    }
+    authorizer.enforce(entityId, principal, action);
   }
 
   private void assertUnauthorized(EntityId entityId, Principal principal, Action action) throws Exception {
