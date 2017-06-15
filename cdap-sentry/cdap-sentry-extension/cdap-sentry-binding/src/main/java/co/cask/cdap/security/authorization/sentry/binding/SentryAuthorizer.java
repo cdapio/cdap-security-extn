@@ -146,7 +146,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       LOG.warn("{} - GRANT cache keys {}", DEBUG_IDENTIFIER, authPolicyCache.asMap().keySet());
       for (Map.Entry<Principal, Map<EntityId, Set<Action>>> entry : authPolicyCache.asMap().entrySet()) {
         if (entry.getKey().getName().contains(USER_NAME)) {
-          LOG.warn("{} - GRANT privilege on entity is: {}", DEBUG_IDENTIFIER, entry.getValue());
+          LOG.warn("{} - GRANT privilege to principal {}, hashcode: {} on entity {} is: {}",
+                   DEBUG_IDENTIFIER, entry.getKey(), entry.getKey().hashCode(), entityId, entry.getValue());
         }
       }
     }
@@ -194,7 +195,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       LOG.warn("{} - REVOKE cache keys {}", DEBUG_IDENTIFIER, authPolicyCache.asMap().keySet());
       for (Map.Entry<Principal, Map<EntityId, Set<Action>>> entry : authPolicyCache.asMap().entrySet()) {
         if (entry.getKey().getName().contains(USER_NAME)) {
-          LOG.warn("{} - REVOKE privilege on entity is: {}", DEBUG_IDENTIFIER, entry.getValue());
+          LOG.warn("{} - REVOKE privilege to principal {}, hashcode: {} on entity {} is: {}",
+                   DEBUG_IDENTIFIER, entry.getKey(), entry.getKey().hashCode(), entityId, entry.getValue());
         }
       }
     }
