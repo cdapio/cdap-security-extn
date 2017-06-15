@@ -117,8 +117,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
 
   @Override
   public void grant(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
-    authPolicyCache.invalidate(principal);
-
+    LOG.trace("Granting {} on {} to {}", actions, entityId, principal);
     switch (principal.getType()) {
       case ROLE:
         binding.grant(entityId, new Role(principal.getName()), actions, getRequestingUser());
@@ -135,13 +134,13 @@ public class SentryAuthorizer extends AbstractAuthorizer {
           String.format("The given principal '%s' is of unsupported type '%s'.", principal.getName(),
                         principal.getType()));
     }
+    authPolicyCache.invalidate(principal);
     LOG.trace("Granted {} on {} to {}", actions, entityId, principal);
   }
 
   @Override
   public void revoke(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
-    authPolicyCache.invalidate(principal);
-
+    LOG.trace("Revoking {} on {} to {}", actions, entityId, principal);
     Role entityRole;
     switch (principal.getType()) {
       case ROLE:
@@ -168,12 +167,13 @@ public class SentryAuthorizer extends AbstractAuthorizer {
           String.format("The given principal '%s' is of unsupported type '%s'.", principal.getName(),
                         principal.getType()));
     }
+    authPolicyCache.invalidate(principal);
     LOG.trace("Revoked {} on {} to {}", actions, entityId, principal);
   }
 
   @Override
   public void revoke(EntityId entityId) throws Exception {
-    invalidateCacheForEntity(entityId);
+    LOG.debug("Revoking all privileges on {}", entityId);
     binding.revoke(entityId);
     // remove the roles created for this entity
     for (Role entityRole : getEntityRoles(entityId)) {
@@ -181,6 +181,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       // since the entity itself is deleted we want to delete all roles associated with it
       cleanUpEntityRole(entityRole, false);
     }
+    invalidateCacheForEntity(entityId);
     LOG.debug("Revoked all privileges on {}", entityId);
   }
 
