@@ -115,7 +115,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       });
 
     LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {}, CDAP instance {} and Sentry Admin Group: {}",
-               sentrySiteUrl, instanceName, sentryAdminGroup);
+             sentrySiteUrl, instanceName, sentryAdminGroup);
     this.binding = new AuthBinding(sentrySiteUrl, instanceName, sentryAdminGroup);
     this.context = context;
   }
@@ -151,7 +151,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
         }
       }
     }
-    authPolicyCache.invalidate(principal);
+    invalidateCache();
     if (principal.getName().contains(USER_NAME)) {
       LOG.warn("{} - GRANT after invalidate principal: {}, hashcode: {}", DEBUG_IDENTIFIER, principal,
                principal.hashCode());
@@ -200,13 +200,22 @@ public class SentryAuthorizer extends AbstractAuthorizer {
         }
       }
     }
-    authPolicyCache.invalidate(principal);
+    invalidateCache();
     if (principal.getName().contains(USER_NAME)) {
       LOG.warn("{} - REVOKE after invalidate principal: {}, hashcode: {}", DEBUG_IDENTIFIER, principal,
                principal.hashCode());
       LOG.warn("{} - REVOKE cache keys {}", DEBUG_IDENTIFIER, authPolicyCache.asMap().keySet());
     }
     LOG.trace("Revoked {} on {} to {}", actions, entityId, principal);
+  }
+
+  /**
+   * Invalidate all entries in the cache. This method should be called to invalidate cache on grant/revoke or any
+   * such actions which modifies the privileges. For details see CDAP-11929
+   */
+  private void invalidateCache() {
+    LOG.debug("Invalidating all entries in cache...");
+    authPolicyCache.invalidateAll();
   }
 
   @Override
@@ -219,17 +228,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       // since the entity itself is deleted we want to delete all roles associated with it
       cleanUpEntityRole(entityRole, false);
     }
-    invalidateCacheForEntity(entityId);
+    invalidateCache();
     LOG.debug("Revoked all privileges on {}", entityId);
-  }
-
-  private void invalidateCacheForEntity(EntityId entityId) {
-    for (Map.Entry<Principal, Map<EntityId, Set<Action>>> entry : authPolicyCache.asMap().entrySet()) {
-      Map<EntityId, Set<Action>> actions = entry.getValue();
-      if (actions.containsKey(entityId)) {
-        authPolicyCache.invalidate(entry.getKey());
-      }
-    }
   }
 
   private Map<EntityId, Set<Action>> fetchPrivileges(Principal principal) throws Exception {
@@ -283,7 +283,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   @Override
   public Set<Role> listRoles(Principal principal) throws Exception {
     Preconditions.checkArgument(principal.getType() != Principal.PrincipalType.ROLE, "The given principal '%s' is of " +
-                                "type '%s'. In Sentry revoke roles can only be listed for '%s' and '%s'",
+                                  "type '%s'. In Sentry revoke roles can only be listed for '%s' and '%s'",
                                 principal.getName(), principal.getType(), Principal.PrincipalType.USER,
                                 Principal.PrincipalType.GROUP);
     return binding.listRolesForGroup(principal, getRequestingUser());
@@ -297,8 +297,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
   @Override
   public void enforce(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
     Preconditions.checkArgument(Principal.PrincipalType.USER == principal.getType(), "The given principal '%s' is of " +
-                                "type '%s'. In Sentry authorization checks can only be performed on principal type " +
-                                "'%s'.", principal.getName(), principal.getType(), Principal.PrincipalType.USER);
+      "type '%s'. In Sentry authorization checks can only be performed on principal type " +
+      "'%s'.", principal.getName(), principal.getType(), Principal.PrincipalType.USER);
     Map<EntityId, Set<Action>> cacheEntry = authPolicyCache.get(principal);
     if (!cacheEntry.containsKey(entityId)) {
       throw new UnauthorizedException(principal, actions, entityId);
@@ -365,7 +365,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
    * @param entityId the entity for which roles need to be obtained
    * @return {@link Set} of {@link Role} for the given entity
    */
-  private Set<Role> getEntityRoles (final EntityId entityId) throws Exception {
+  private Set<Role> getEntityRoles(final EntityId entityId) throws Exception {
     final String curEntityRolePrefix = Joiner.on(ENTITY_ROLE_PREFIX).join("", entityId.toString());
 
     Predicate<Role> filter = new Predicate<Role>() {
