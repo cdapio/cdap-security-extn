@@ -425,6 +425,15 @@ class AuthBinding {
         if (principal.getType().equals(Principal.PrincipalType.USER)) {
           // for a user get all the groups and their roles
           Set<String> groups = authProvider.getGroupMapping().getGroups(principal.getName());
+          LOG.debug("Got groups {} for principal {}", groups, principal);
+          if (!groups.contains(principal.getName())) {
+            LOG.debug("Principal {} does not belong to group {}. Adding the principal's group {} to the groups for " +
+                        "enforcement",
+                      principal, principal.getName(), principal.getName());
+            Set<String> newGroups = new HashSet<>(groups);
+            newGroups.add(principal.getName());
+            groups = newGroups;
+          }
           Set<TSentryRole> roles = new HashSet<>();
           for (String group : groups) {
             roles.addAll(client.listRolesByGroupName(requestingUser, group, COMPONENT_NAME));
