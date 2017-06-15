@@ -58,6 +58,8 @@ public class SentryAuthorizer extends AbstractAuthorizer {
 
   private static final Logger LOG = LoggerFactory.getLogger(SentryAuthorizer.class);
   private static final String ENTITY_ROLE_PREFIX = ".";
+  private static final String USER_NAME = "cdapitn";
+  private static final String DEBUG_IDENTIFIER = (USER_NAME + "_debug").toUpperCase();
 
   // Cache for privileges. It stores the result of an enforce call.
   // [Principal, Entity, Action] -> Boolean
@@ -105,6 +107,9 @@ public class SentryAuthorizer extends AbstractAuthorizer {
         @Override
         public Map<EntityId, Set<Action>> load(Principal principal) throws Exception {
           LOG.trace("Cache miss for {}", principal);
+          if (principal.getName().contains(USER_NAME)) {
+            LOG.warn("Cache miss for {}", principal);
+          }
           return fetchPrivileges(principal);
         }
       });
@@ -134,7 +139,23 @@ public class SentryAuthorizer extends AbstractAuthorizer {
           String.format("The given principal '%s' is of unsupported type '%s'.", principal.getName(),
                         principal.getType()));
     }
+
+    if (principal.getName().contains(USER_NAME)) {
+      LOG.warn("{} - GRANT before invalidate principal: {}, hashcode: {}", DEBUG_IDENTIFIER, principal,
+               principal.hashCode());
+      LOG.warn("{} - GRANT cache keys {}", DEBUG_IDENTIFIER, authPolicyCache.asMap().keySet());
+      for (Map.Entry<Principal, Map<EntityId, Set<Action>>> entry : authPolicyCache.asMap().entrySet()) {
+        if (entry.getKey().getName().contains(USER_NAME)) {
+          LOG.warn("{} - GRANT privilege on entity is: {}", DEBUG_IDENTIFIER, entry.getValue());
+        }
+      }
+    }
     authPolicyCache.invalidate(principal);
+    if (principal.getName().contains(USER_NAME)) {
+      LOG.warn("{} - GRANT after invalidate principal: {}, hashcode: {}", DEBUG_IDENTIFIER, principal,
+               principal.hashCode());
+      LOG.warn("{} - GRANT cache keys {}", DEBUG_IDENTIFIER, authPolicyCache.asMap().keySet());
+    }
     LOG.trace("Granted {} on {} to {}", actions, entityId, principal);
   }
 
@@ -167,7 +188,22 @@ public class SentryAuthorizer extends AbstractAuthorizer {
           String.format("The given principal '%s' is of unsupported type '%s'.", principal.getName(),
                         principal.getType()));
     }
+    if (principal.getName().contains(USER_NAME)) {
+      LOG.warn("{} - REVOKE before invalidate principal: {}, hashcode: {}", DEBUG_IDENTIFIER, principal,
+               principal.hashCode());
+      LOG.warn("{} - REVOKE cache keys {}", DEBUG_IDENTIFIER, authPolicyCache.asMap().keySet());
+      for (Map.Entry<Principal, Map<EntityId, Set<Action>>> entry : authPolicyCache.asMap().entrySet()) {
+        if (entry.getKey().getName().contains(USER_NAME)) {
+          LOG.warn("{} - REVOKE privilege on entity is: {}", DEBUG_IDENTIFIER, entry.getValue());
+        }
+      }
+    }
     authPolicyCache.invalidate(principal);
+    if (principal.getName().contains(USER_NAME)) {
+      LOG.warn("{} - REVOKE after invalidate principal: {}, hashcode: {}", DEBUG_IDENTIFIER, principal,
+               principal.hashCode());
+      LOG.warn("{} - REVOKE cache keys {}", DEBUG_IDENTIFIER, authPolicyCache.asMap().keySet());
+    }
     LOG.trace("Revoked {} on {} to {}", actions, entityId, principal);
   }
 
@@ -196,6 +232,10 @@ public class SentryAuthorizer extends AbstractAuthorizer {
 
   private Map<EntityId, Set<Action>> fetchPrivileges(Principal principal) throws Exception {
     Set<Privilege> privileges = listPrivileges(principal);
+    LOG.trace("Fetch privileges for principal {}: {}", principal, privileges);
+    if (principal.getName().contains(USER_NAME)) {
+      LOG.warn("{} Fetch privileges for principal {}: {}", DEBUG_IDENTIFIER, principal, privileges);
+    }
     if (privileges == null) {
       return Collections.emptyMap();
     }
