@@ -46,6 +46,48 @@
       "uiHint": "",
       "label": "Namespace",
       "description": "CDAP Namespace"
+    },
+    {
+      "itemId": 30,
+      "name": "stream",
+      "type": "string",
+      "level": 30,
+      "parent": "namespace",
+      "mandatory": false,
+      "lookupSupported": true,
+      "recursiveSupported": false,
+      "excludesSupported": false,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": false
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Stream",
+      "description": "Stream"
+    },
+    {
+      "itemId": 40,
+      "name": "dataset",
+      "type": "string",
+      "level": 30,
+      "parent": "namespace",
+      "mandatory": false,
+      "lookupSupported": true,
+      "recursiveSupported": false,
+      "excludesSupported": false,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": false
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Dataset",
+      "description": "Dataset"
     }
   ],
   "accessTypes": [
@@ -68,17 +110,6 @@
       "itemId": 4,
       "name": "admin",
       "label": "Admin"
-    },
-    {
-      "itemId": 5,
-      "name": "all",
-      "label": "All",
-      "impliedGrants": [
-        "read",
-        "write",
-        "execute",
-        "admin"
-      ]
     }
   ],
   "configs": [

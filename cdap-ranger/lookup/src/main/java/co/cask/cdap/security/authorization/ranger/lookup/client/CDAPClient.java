@@ -2,9 +2,12 @@ package co.cask.cdap.security.authorization.ranger.lookup.client;
 
 import co.cask.cdap.cli.util.InstanceURIParser;
 import co.cask.cdap.client.NamespaceClient;
+import co.cask.cdap.client.StreamClient;
 import co.cask.cdap.client.config.ClientConfig;
 import co.cask.cdap.client.config.ConnectionConfig;
 import co.cask.cdap.proto.NamespaceMeta;
+import co.cask.cdap.proto.StreamDetail;
+import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.security.authentication.client.AccessToken;
 import co.cask.cdap.security.authentication.client.AuthenticationClient;
 import co.cask.cdap.security.authentication.client.basic.BasicAuthenticationClient;
@@ -38,6 +41,7 @@ public class CDAPClient {
   }
   private static final String INSTANCE = "instance";
   private static final String NAMESPACE = "namespace";
+  private static final String STREAM = "stream";
   private AccessToken accessToken;
   private final String serviceName;
   private final String instanceURL;
@@ -47,6 +51,7 @@ public class CDAPClient {
   public static final String ERR_MSG = " You can still save the repository and start creating "
     + "policies, but you would not be able to use autocomplete for "
     + "resource names. Check xa_portal.log for more info.";
+  private final StreamClient streamClient;
 
   public CDAPClient(String serviceName, String instanceURL, String username, String password) {
     this.serviceName = serviceName;
@@ -55,6 +60,7 @@ public class CDAPClient {
     this.password = password;
     initConnection();
     this.nsClient = new NamespaceClient(getClientConfig());
+    this.streamClient = new StreamClient(getClientConfig());
   }
 
 
@@ -80,6 +86,30 @@ public class CDAPClient {
       for (NamespaceMeta namespaceMeta : nsClient.list()) {
 
         String name = namespaceMeta.getName();
+        System.out.println("### name is " + name);
+        if (nsList == null || !nsList.contains(name)) {
+          ret.add(name);
+        }
+      }
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== CDApClient.getDBList(): " + ret);
+    }
+    System.out.println("lis tis " + ret);
+    return ret;
+  }
+
+  private List<String> getStream(List<String> nsList, NamespaceId namespaceId) throws Exception {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("==> CDAPClient getNamespaceList ExcludeNamespaceList :" + nsList);
+    }
+
+    List<String> ret = new ArrayList<>();
+    if (nsClient != null) {
+      for (StreamDetail streamDetail : streamClient.list(namespaceId)) {
+
+        String name = streamDetail.getName();
         System.out.println("### name is " + name);
         if (nsList == null || !nsList.contains(name)) {
           ret.add(name);
@@ -202,11 +232,12 @@ public class CDAPClient {
 
   public List<String> getResources(ResourceLookupContext context) {
     final String userInput = context.getUserInput();
-    String resource = context.getResourceName();
+    final String resource = context.getResourceName();
     Map<String, List<String>> resourceMap = context.getResources();
     List<String> resultList = null;
     List<String> instanceList = null;
     List<String> namespaceList = null;
+    List<String> streamList = null;
     String instanceName = null;
     String namespaceName = null;
 
@@ -222,14 +253,20 @@ public class CDAPClient {
       if (resourceMap != null && !resourceMap.isEmpty()) {
         instanceList = resourceMap.get(INSTANCE);
         namespaceList = resourceMap.get(NAMESPACE);
+        streamList = resourceMap.get(STREAM);
       }
+      System.out.println("Resource trim:" + resource.trim().toLowerCase());
       switch (resource.trim().toLowerCase()) {
         case INSTANCE:
           lookupResource = ResourceType.INSTANCE;
           break;
         case NAMESPACE:
           lookupResource = ResourceType.NAMESPACE;
-          LOG.info("#### set the namespace name to : " + userInput);
+          System.out.println("#### set the namespace name to : " + userInput);
+          break;
+        case STREAM:
+          lookupResource = ResourceType.STREAM;
+          System.out.println("#### set the stream name to : " + userInput);
           break;
         default:
           break;
@@ -249,6 +286,7 @@ public class CDAPClient {
 
         final List<String> finalinstanceList = instanceList;
         final List<String> finalnamespaceList = namespaceList;
+        final List<String> finalstreamList = streamList;
 
           if (lookupResource == ResourceType.NAMESPACE) {
             // get the DBList for given Input
@@ -274,7 +312,39 @@ public class CDAPClient {
                 return retList;
               }
             };
+          } else if (lookupResource == ResourceType.STREAM) {
+            System.out.print("This is a stream lookupResource");
+            // get the DBList for given Input
+            callableObj = new Callable<List<String>>() {
+              @Override
+              public List<String> call() {
+                List<String> retList = new ArrayList<String>();
+                try {
+                  String namespaceTemp = finalnamespaceList.get(0);
+                  System.out.print("namespaceTemp:" + namespaceTemp);
+                  System.out.print("finalnamespaceList:" + finalnamespaceList);
+                  LOG.info("aaaaaaaaaaaaaaaaaaaaa" + namespaceTemp);
+                  List<String> list = getStream(finalstreamList, new NamespaceId(namespaceTemp));
+                  if (userInputFinal != null
+                    && !userInputFinal.isEmpty()) {
+                    for (String value : list) {
+                      if (value.startsWith(userInputFinal)) {
+                        retList.add(value);
+                      }
+                    }
+                  } else {
+                    retList.addAll(list);
+                  }
+                } catch (Exception ex) {
+                  LOG.error("Error getting resource.", ex);
+                }
+                return retList;
+              }
+            };
           }
+          System.out.println("lookupResource " + lookupResource);
+          //else ResourceType.STREAM
+
           if (callableObj != null) {
             synchronized (this) {
               resultList = TimedEventUtil.timedTask(callableObj, SERVICE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
