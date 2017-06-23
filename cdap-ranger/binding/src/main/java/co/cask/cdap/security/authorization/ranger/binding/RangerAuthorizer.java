@@ -191,7 +191,10 @@ public class RangerAuthorizer extends AbstractAuthorizer {
 
   @Override
   public void enforce(EntityId entityId, Principal principal, Set<Action> set) throws Exception {
-
+    boolean flag = false;
+    for (Action action : set) {
+        enforce(entityId, principal, set);
+    }
   }
 
   @Override

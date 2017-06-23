@@ -35,7 +35,7 @@
 
   <property>
     <name>ranger.plugin.cdap.policy.rest.url</name>
-    <value>http://ranger063v24563-1000.dev.continuuity.net:6080</value>
+    <value>http://localhost:6080</value>
     <description>
       URL to Ranger Admin
     </description>
