@@ -193,7 +193,7 @@ public class RangerAuthorizer extends AbstractAuthorizer {
   public void enforce(EntityId entityId, Principal principal, Set<Action> set) throws Exception {
     boolean flag = false;
     for (Action action : set) {
-        enforce(entityId, principal, set);
+        enforce(entityId, principal, action);
     }
   }
 
