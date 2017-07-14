@@ -21,7 +21,7 @@
     <name>ranger.plugin.cdap.service.name</name>
     <value>cdap</value>
     <description>
-      Name of the Ranger service containing policies for this cdapdev instance
+      Name of the Ranger service containing policies for this CDAP instance
     </description>
   </property>
 
@@ -35,7 +35,7 @@
 
   <property>
     <name>ranger.plugin.cdap.policy.rest.url</name>
-    <value>http://localhost:6080</value>
+    <value>http://ranger-ambari25166-1000.dev.continuuity.net:6080</value>
     <description>
       URL to Ranger Admin
     </description>
@@ -58,7 +58,7 @@
   </property>
   <property>
     <name>ranger.plugin.cdap.policy.cache.dir</name>
-    <value>/etc/ranger/cdapdev/policycache</value>
+    <value>/tmp</value>
     <description>
       Directory where Ranger policies are cached after successful retrieval from the source
     </description>

@@ -11,22 +11,21 @@ import co.cask.cdap.proto.security.Role;
 import co.cask.cdap.security.spi.authorization.AbstractAuthorizer;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
-import org.apache.commons.io.IOUtils;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.ranger.audit.provider.MiscUtil;
 import org.apache.ranger.plugin.audit.RangerDefaultAuditHandler;
 import org.apache.ranger.plugin.policyengine.RangerAccessRequestImpl;
 import org.apache.ranger.plugin.policyengine.RangerAccessResourceImpl;
 import org.apache.ranger.plugin.policyengine.RangerAccessResult;
 import org.apache.ranger.plugin.service.RangerBasePlugin;
+import org.apache.ranger.plugin.util.GrantRevokeRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.InputStream;
-import java.net.HttpURLConnection;
 import java.net.InetAddress;
-import java.net.URL;
 import java.util.Date;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -78,35 +77,57 @@ public class RangerAuthorizer extends AbstractAuthorizer {
   @Override
   public void initialize(AuthorizationContext context) throws Exception {
     System.out.println("#### calling initialize");
-//    Properties properties = context.getExtensionProperties();
-//    rangerHost = properties.getProperty(RANGER_HOST);
-//    rangerHost = properties.getProperty(RANGER_PORT);
-//    if (Strings.isNullOrEmpty(rangerHost) || Strings.isNullOrEmpty(rangerPort)) {
-//      throw new IllegalArgumentException("Ranger host and port must be provided");
-//    }
-
-    if (rangerPlugin == null) {
-
+////    Properties properties = context.getExtensionProperties();
+////    rangerHost = properties.getProperty(RANGER_HOST);
+////    rangerHost = properties.getProperty(RANGER_PORT);
+////    if (Strings.isNullOrEmpty(rangerHost) || Strings.isNullOrEmpty(rangerPort)) {
+////      throw new IllegalArgumentException("Ranger host and port must be provided");
+////    }
+//
+//    if (rangerPlugin == null) {
+//
 //      try {
-//        Subject subject = new Subject();
-//        UserGroupInformation ugi = MiscUtil
-//          .createUGIFromSubject(subject);
+//        UserGroupInformation ugi = UserGroupInformation.getLoginUser();
 //        if (ugi != null) {
-//          MiscUtil.setUGILoginUser(ugi, subject);
+//          MiscUtil.setUGILoginUser(ugi, null);
 //        }
 //        LOG.info("LoginUser=" + MiscUtil.getUGILoginUser());
 //      } catch (Throwable t) {
 //        LOG.error("Error getting principal.", t);
 //      }
-
-      rangerPlugin = new RangerBasePlugin("cdap", "cdap");
-      LOG.info("Calling plugin.init()");
-      rangerPlugin.init();
-
-      RangerDefaultAuditHandler auditHandler = new RangerDefaultAuditHandler();
-      rangerPlugin.setResultProcessor(auditHandler);
-    }
+//      MiscUtil.
+//
+//      rangerPlugin = new RangerBasePlugin("cdap", "cdap");
+//      LOG.info("Calling plugin.init()");
+//      rangerPlugin.init();
+//
+//      RangerDefaultAuditHandler auditHandler = new RangerDefaultAuditHandler();
+//      rangerPlugin.setResultProcessor(auditHandler);
+//    }
     this.context = context;
+
+    RangerBasePlugin me = rangerPlugin;
+    if (me == null) {
+      synchronized (RangerAuthorizer.class) {
+        me = rangerPlugin;
+        if (me == null) {
+          try {
+            UserGroupInformation ugi = UserGroupInformation.getLoginUser();
+            if (ugi != null) {
+              MiscUtil.setUGILoginUser(ugi, null);
+            }
+            LOG.info("LoginUser=" + MiscUtil.getUGILoginUser());
+          } catch (Throwable t) {
+            LOG.error("Error getting principal.", t);
+          }
+          rangerPlugin = new RangerBasePlugin("cdap", "cdap");
+        }
+      }
+    }
+    LOG.info("Calling plugin.init()");
+    rangerPlugin.init();
+    RangerDefaultAuditHandler auditHandler = new RangerDefaultAuditHandler();
+    rangerPlugin.setResultProcessor(auditHandler);
   }
 
 
@@ -199,144 +220,59 @@ public class RangerAuthorizer extends AbstractAuthorizer {
 
   @Override
   public void grant(EntityId entity, Principal principal, java.util.Set<Action> actions) throws Exception {
-    System.out.println("## enforce not supported");
-//    RangerDefaultAuditHandler auditHandler = new RangerDefaultAuditHandler();
-//
-//    try {
-//      GrantRevokeRequest ret = new GrantRevokeRequest();
-//
-//      ret.setGrantor(getRequestingUser());
-//      ret.setDelegateAdmin(Boolean.FALSE);
-//      ret.setEnableAudit(Boolean.TRUE);
-//      ret.setReplaceExistingPermissions(Boolean.FALSE);
-//
-//      String instance = null;
-//      String namespace = null;
-//      if (entity.getEntity() == EntityType.INSTANCE) {
-//        instance = ((InstanceId) entity).getInstance();
-//        namespace = "*";
-//      } else if (entity.getEntity() == EntityType.NAMESPACE) {
-//        instance = "cdap";
-//        namespace = ((NamespaceId) entity).getNamespace();
-//      } else {
-//        LOG.warn("Unsupported Entity=" + entity.getEntity());
-//      }
-//      Map<String, String> mapResource = new HashMap<String, String>();
-//      mapResource.put(KEY_INSTANCE, instance);
-//      mapResource.put(KEY_NAMESPACE, namespace);
-//
-//      ret.setResource(mapResource);
-//
-//      switch (principal.getType()) {
-//        case USER:
-//          ret.getUsers().add(principal.getName());
-//          break;
-//
-//        case GROUP:
-//          ret.getGroups().add(principal.getName());
-//          break;
-//        case ROLE:
-//          ret.getGroups().add(principal.getName());
-//          break;
-//        default:
-//          throw new RuntimeException("unknown principal");
-//      }
-//
-//
-//      for (Action action : actions) {
-//        ret.getAccessTypes().add(mapToRangerAccessType(action));
-//      }
-//
-//
-//      LOG.info("grantPrivileges(): " + ret);
-//      if (LOG.isDebugEnabled()) {
-//        LOG.debug("grantPrivileges(): " + ret);
-//      }
-//
-//
-//      rangerPlugin.grantAccess(ret, auditHandler);
-//    } catch (Exception excp) {
-//      throw new RuntimeException(excp);
-//    }
+    LOG.warn("Grant Operation not supported by Ranger for CDAP");
   }
 
   @Override
   public void revoke(EntityId entity, Principal principal, java.util.Set<Action> actions) throws Exception {
-    LOG.error("Operation not supported by Ranger for CDAP");
+    LOG.warn("Operation not supported by Ranger for CDAP");
   }
 
   @Override
   public void revoke(EntityId entity) throws Exception {
-    LOG.error("Operation not supported by Ranger for CDAP");
+    LOG.warn("Operation not supported by Ranger for CDAP");
   }
 
   @Override
   public void createRole(Role role) throws Exception {
-    LOG.error("Operation not supported by Ranger for CDAP");
+    LOG.warn("Operation not supported by Ranger for CDAP");
 
   }
 
   @Override
   public void dropRole(Role role) throws Exception {
-    LOG.error("Operation not supported by Ranger for CDAP");
+    LOG.warn("Operation not supported by Ranger for CDAP");
 
   }
 
   @Override
   public void addRoleToPrincipal(Role role, Principal principal) throws Exception {
-    LOG.error("Operation not supported by Ranger for CDAP");
+    LOG.warn("Operation not supported by Ranger for CDAP");
 
   }
 
   @Override
   public void removeRoleFromPrincipal(Role role, Principal principal) throws Exception {
-    LOG.error("Operation not supported by Ranger for CDAP");
+    LOG.warn("Operation not supported by Ranger for CDAP");
 
   }
 
   @Override
   public Set<Role> listRoles(Principal principal) throws Exception {
-    LOG.error("Operation not supported by Ranger for CDAP");
+    LOG.warn("Operation not supported by Ranger for CDAP");
     return null;
   }
 
   @Override
   public Set<Role> listAllRoles() throws Exception {
-    LOG.error("Operation not supported by Ranger for CDAP");
+    LOG.warn("Operation not supported by Ranger for CDAP");
     return null;
   }
 
   @Override
   public Set<Privilege> listPrivileges(Principal principal) throws Exception {
-    if (rangerPlugin == null) {
-      LOG.info("Authorizer is still not initialized");
-      throw new RuntimeException("Authorizer is stil not initialized");
-    }
-
-    LOG.info("#### Trying to list privileges ###");
-
-    URL url =
-      new URL("http://rohit22039-1000.dev.continuuity.net:6080/service/public/v2/api/service/cdap/policy?user=rsinha");
-    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-    conn.setRequestMethod("GET");
-    conn.setRequestProperty("Accept", "application/json");
-    conn.setRequestProperty("Authorization", "Basic " +
-      javax.xml.bind.DatatypeConverter.printBase64Binary("admin:admin".getBytes()));
-
-    InputStream inputStream = conn.getInputStream();
-    String s = IOUtils.toString(inputStream);
-    System.out.println("##### the privileges are: " + s);
-    Set<Privilege> privilege = new HashSet<>();
-    privilege.add(new Privilege(new InstanceId("cdap"), Action.ADMIN));
-    privilege.add(new Privilege(new InstanceId("cdap"), Action.READ));
-    privilege.add(new Privilege(new InstanceId("cdap"), Action.WRITE));
-    privilege.add(new Privilege(new InstanceId("cdap"), Action.EXECUTE));
-    privilege.add(new Privilege(NamespaceId.DEFAULT, Action.READ));
-    privilege.add(new Privilege(NamespaceId.DEFAULT, Action.WRITE));
-    privilege.add(new Privilege(NamespaceId.DEFAULT, Action.EXECUTE));
-    privilege.add(new Privilege(NamespaceId.DEFAULT, Action.ADMIN));
-    return privilege;
-
+    LOG.warn("Operation not supported by Ranger for CDAP");
+    return null;
   }
 
   private String getRequestingUser() throws IllegalArgumentException {
