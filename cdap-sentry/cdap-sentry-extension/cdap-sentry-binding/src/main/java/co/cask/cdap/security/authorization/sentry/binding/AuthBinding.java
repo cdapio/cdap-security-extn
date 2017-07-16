@@ -50,14 +50,14 @@ import co.cask.cdap.security.authorization.sentry.policy.PrivilegeValidator;
 import co.cask.cdap.security.spi.authorization.AlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.BadRequestException;
 import co.cask.cdap.security.spi.authorization.NotFoundException;
-import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
-import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableSet;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.policy.common.PolicyEngine;
@@ -65,7 +65,6 @@ import org.apache.sentry.provider.common.AuthorizationProvider;
 import org.apache.sentry.provider.common.ProviderBackend;
 import org.apache.sentry.provider.db.SentryAccessDeniedException;
 import org.apache.sentry.provider.db.SentryAlreadyExistsException;
-import org.apache.sentry.provider.db.SentryGrantDeniedException;
 import org.apache.sentry.provider.db.SentryInvalidInputException;
 import org.apache.sentry.provider.db.SentryNoSuchObjectException;
 import org.apache.sentry.provider.db.SentryThriftAPIMismatchException;
@@ -83,11 +82,16 @@ import java.lang.reflect.Constructor;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
@@ -103,11 +107,111 @@ class AuthBinding {
   private final String instanceName;
   private final String sentryAdminGroup;
 
-  AuthBinding(String sentrySite, String instanceName, String sentryAdminGroup) {
+  private final LoadingCache<Principal, Set<String>> groupCache;
+  private final LoadingCache<String, Set<Role>> roleCache;
+  private final LoadingCache<Role, Map<EntityId, Set<Action>>> entityActionsCache;
+
+  AuthBinding(String sentrySite, final String instanceName, final String sentryAdminGroup,
+              int cacheTtlSecs, int cacheMaxEntries) {
     this.authConf = initAuthzConf(sentrySite);
     this.instanceName = instanceName;
     this.authProvider = createAuthProvider();
     this.sentryAdminGroup = sentryAdminGroup;
+
+    groupCache = CacheBuilder.newBuilder()
+      .expireAfterWrite(cacheTtlSecs, TimeUnit.SECONDS)
+      .maximumSize(cacheMaxEntries)
+      .build(new CacheLoader<Principal, Set<String>>() {
+        @SuppressWarnings("NullableProblems")
+        @Override
+        public Set<String> load(Principal principal) throws Exception {
+          LOG.trace("Group cache miss for principal {}", principal);
+          return getGroups(principal);
+        }
+      });
+
+    roleCache = CacheBuilder.newBuilder()
+      .expireAfterWrite(cacheTtlSecs, TimeUnit.SECONDS)
+      .maximumSize(cacheMaxEntries)
+      .build(new CacheLoader<String, Set<Role>>() {
+        @SuppressWarnings("NullableProblems")
+        @Override
+        public Set<Role> load(final String group) throws Exception {
+          LOG.trace("Role cache miss for group {}", group);
+          return getRoles(group);
+        }
+      });
+
+    entityActionsCache = CacheBuilder.newBuilder()
+      .expireAfterWrite(cacheTtlSecs, TimeUnit.SECONDS)
+      .maximumSize(cacheMaxEntries)
+      .build(new CacheLoader<Role, Map<EntityId, Set<Action>>>() {
+        @SuppressWarnings("NullableProblems")
+        @Override
+        public Map<EntityId, Set<Action>> load(final Role role) throws Exception {
+          LOG.trace("Privilege cache miss for role {}", role);
+          return fetchEntityActions(role);
+        }
+      });
+  }
+
+  private Set<String> getGroups(Principal principal) {
+    return authProvider.getGroupMapping().getGroups(principal.getName());
+  }
+
+  private Set<Role> getRoles(final String group) throws Exception {
+    Set<TSentryRole> tSentryRoles = execute(new Command<Set<TSentryRole>>() {
+      @Override
+      public Set<TSentryRole> run(SentryGenericServiceClient client) throws Exception {
+        return client.listRolesByGroupName(sentryAdminGroup, group, COMPONENT_NAME);
+      }
+    });
+    Set<Role> roles = new HashSet<>();
+    for (TSentryRole tSentryRole : tSentryRoles) {
+      roles.add(new Role(tSentryRole.getRoleName()));
+    }
+    return roles;
+  }
+
+  private Map<EntityId, Set<Action>> fetchEntityActions(final Role role) throws Exception {
+    Set<TSentryPrivilege> sentryPrivileges = execute(new Command<Set<TSentryPrivilege>>() {
+      @Override
+      public Set<TSentryPrivilege> run(SentryGenericServiceClient client) throws Exception {
+        return client.listPrivilegesByRoleName(sentryAdminGroup, role.getName(), COMPONENT_NAME, instanceName);
+      }
+    });
+    Set<Privilege> privileges = toPrivileges(sentryPrivileges);
+
+    if (privileges == null) {
+      LOG.debug("Got no entity-actions for role {}", role);
+      return Collections.emptyMap();
+    }
+
+    Map<EntityId, Set<Action>> result = new HashMap<>(privileges.size());
+    for (Privilege privilege : privileges) {
+      Set<Action> actions = result.get(privilege.getEntity());
+      if (actions == null) {
+        actions = EnumSet.noneOf(Action.class);
+        result.put(privilege.getEntity(), actions);
+      }
+      actions.add(privilege.getAction());
+    }
+    LOG.debug("Got entity-actions {} for role {}", result, role);
+    return result;
+  }
+
+  Set<Action> getActions(Principal principal, EntityId entityId) throws Exception {
+    Set<Role> roles = getRoles(principal, sentryAdminGroup);
+
+    Set<Action> allActions = new HashSet<>();
+    for (Role role : roles) {
+      Map<EntityId, Set<Action>> ea = entityActionsCache.get(role);
+      Set<Action> actions = ea.get(entityId);
+      if (actions != null) {
+        allActions.addAll(actions);
+      }
+    }
+    return allActions;
   }
 
   /**
@@ -136,7 +240,7 @@ class AuthBinding {
   void grant(final EntityId entityId, final Role role, Set<Action> actions,
              final String requestingUser) throws Exception {
     if (!roleExists(role)) {
-      throw new RoleNotFoundException(role);
+      throw new NotFoundException(role);
     }
     LOG.debug("Granting actions {} on entity {} for role {}; Requesting user: {}",
               actions, entityId, role, requestingUser);
@@ -164,7 +268,7 @@ class AuthBinding {
   void revoke(final EntityId entityId, final Role role, Set<Action> actions,
               final String requestingUser) throws Exception {
     if (!roleExists(role)) {
-      throw new RoleNotFoundException(role);
+      throw new NotFoundException(role);
     }
     LOG.debug("Revoking actions {} on entity {} from role {}; Requesting user: {}",
               actions, entityId, role, requestingUser);
@@ -233,7 +337,7 @@ class AuthBinding {
   }
 
   @VisibleForTesting
-  Set<Privilege> toPrivileges(List<TSentryPrivilege> allPrivileges) {
+  Set<Privilege> toPrivileges(Collection<TSentryPrivilege> allPrivileges) {
     Set<Privilege> privileges = new HashSet<>();
     for (TSentryPrivilege sentryPrivilege : allPrivileges) {
       List<TAuthorizable> authorizables = sentryPrivilege.getAuthorizables();
@@ -246,7 +350,7 @@ class AuthBinding {
       }
       privileges.add(new Privilege(parent, Action.valueOf(sentryPrivilege.getAction().toUpperCase())));
     }
-    return privileges;
+    return Collections.unmodifiableSet(privileges);
   }
 
   /**
@@ -254,7 +358,7 @@ class AuthBinding {
    * grant privileges to a {@link Principal} when he successfully creates an entity.
    *
    * @param role the role to create
-   * @throws RoleAlreadyExistsException if the role already exists
+   * @throws AlreadyExistsException if the role already exists
    * @throws Exception if there was any exception while running the client command for creating the role
    */
   void createRole(Role role) throws Exception {
@@ -270,7 +374,7 @@ class AuthBinding {
    */
   void createRole(final Role role, final String requestingUser) throws Exception {
     if (roleExists(role)) {
-      throw new RoleAlreadyExistsException(role);
+      throw new AlreadyExistsException(role);
     }
     execute(new Command<Void>() {
       @Override
@@ -302,7 +406,7 @@ class AuthBinding {
    */
   void dropRole(final Role role, final String requestingUser) throws Exception {
     if (!roleExists(role)) {
-      throw new RoleNotFoundException(role);
+      throw new NotFoundException(role);
     }
     execute(new Command<Void>() {
       @Override
@@ -359,7 +463,7 @@ class AuthBinding {
   void addRoleToGroup(final Role role, final Principal principal,
                       final String requestingUser) throws Exception {
     if (!roleExists(role)) {
-      throw new RoleNotFoundException(role);
+      throw new NotFoundException(role);
     }
     execute(new Command<Void>() {
       @Override
@@ -383,7 +487,7 @@ class AuthBinding {
   void removeRoleFromGroup(final Role role, final Principal principal,
                            final String requestingUser) throws Exception {
     if (!roleExists(role)) {
-      throw new RoleNotFoundException(role);
+      throw new NotFoundException(role);
     }
     execute(new Command<Void>() {
       @Override
@@ -415,50 +519,39 @@ class AuthBinding {
     if (principal != null && Principal.PrincipalType.ROLE == principal.getType()) {
       return Collections.singleton(new Role(principal.getName()));
     }
-    Set<Role> roles = new HashSet<>();
-    Set<TSentryRole> tSentryRoles = execute(new Command<Set<TSentryRole>>() {
-      @Override
-      public Set<TSentryRole> run(SentryGenericServiceClient client) throws Exception {
-        if (principal == null) {
+
+    Set<Role> roles;
+    if (principal == null) {
+      roles = new HashSet<>();
+      Set<TSentryRole> tSentryRoles = execute(new Command<Set<TSentryRole>>() {
+        @Override
+        public Set<TSentryRole> run(SentryGenericServiceClient client) throws Exception {
           return client.listAllRoles(requestingUser, COMPONENT_NAME);
         }
-        if (principal.getType().equals(Principal.PrincipalType.USER)) {
-          // for a user get all the groups and their roles
-          Set<String> groups = authProvider.getGroupMapping().getGroups(principal.getName());
-          LOG.debug("Got groups {} for principal {}", groups, principal);
-          if (!groups.contains(principal.getName())) {
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Principal {} does not belong to group {}. Adding the principal's group {} to the groups for " +
-                          "enforcement",
-                        principal, principal.getName(), principal.getName());
-            }
-            Set<String> newGroups = new HashSet<>(groups);
-            newGroups.add(principal.getName());
-            groups = newGroups;
-          }
-          Set<TSentryRole> roles = new HashSet<>();
-          for (String group : groups) {
-            roles.addAll(client.listRolesByGroupName(requestingUser, group, COMPONENT_NAME));
-          }
-          return ImmutableSet.copyOf(roles);
+      });
+      for (TSentryRole tSentryRole : tSentryRoles) {
+        roles.add(new Role(tSentryRole.getRoleName()));
+      }
+      LOG.debug("Listed all roles {}; Requesting user: {}", roles, requestingUser);
+    } else {
+      if (principal.getType().equals(Principal.PrincipalType.USER)) {
+        // for a user get all the groups and their roles
+        Set<String> groups = groupCache.get(principal);
+        LOG.debug("Got groups {} for principal {}", groups, principal);
+        roles = new HashSet<>();
+        for (String group : groups) {
+          roles.addAll(roleCache.get(group));
         }
-        if (principal.getType().equals(Principal.PrincipalType.GROUP)) {
-          return client.listRolesByGroupName(requestingUser, principal.getName(), COMPONENT_NAME);
-        }
+      } else if (principal.getType().equals(Principal.PrincipalType.GROUP)) {
+        roles = roleCache.get(principal.getName());
+      } else {
         throw new IllegalArgumentException(String.format("Cannot list roles for %s. Roles can only listed for %s or %s",
                                                          principal, Principal.PrincipalType.USER,
                                                          Principal.PrincipalType.GROUP));
       }
-    });
-    for (TSentryRole tSentryRole : tSentryRoles) {
-      roles.add(new Role(tSentryRole.getRoleName()));
-    }
-    if (principal == null) {
-      LOG.debug("Listed all roles {}; Requesting user: {}", roles, requestingUser);
-    } else {
       LOG.debug("Listed roles {} for principal {}; Requesting user: {}", roles, principal, requestingUser);
     }
-    return ImmutableSet.copyOf(roles);
+    return Collections.unmodifiableSet(roles);
   }
 
   /**
@@ -568,7 +661,7 @@ class AuthBinding {
           tSentryPrivileges.addAll(client.listPrivilegesByRoleName(sentryAdminGroup, role.getName(),
                                                                    COMPONENT_NAME, instanceName));
         }
-        return ImmutableList.copyOf(tSentryPrivileges);
+        return Collections.unmodifiableList(tSentryPrivileges);
       }
     });
   }
@@ -591,7 +684,7 @@ class AuthBinding {
    * CDAP already checks that the user who is requesting revoke has ADMIN on the entity.
    * @throws Exception if there was any exception while running the client command to revoke the role
    */
-  protected void revoke(final EntityId entityId, final Role role, Set<Action> actions)
+  void revoke(final EntityId entityId, final Role role, Set<Action> actions)
     throws Exception {
     revoke(entityId, role, actions, sentryAdminGroup);
   }
@@ -638,6 +731,7 @@ class AuthBinding {
   }
 
   private SentryGenericServiceClient getClient() throws Exception {
+    // TODO: Cache the client
     return SentryGenericServiceClientFactory.create(authConf);
   }
 

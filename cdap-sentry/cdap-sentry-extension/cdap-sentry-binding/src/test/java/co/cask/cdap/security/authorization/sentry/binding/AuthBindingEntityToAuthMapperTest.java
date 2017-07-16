@@ -77,7 +77,7 @@ public class AuthBindingEntityToAuthMapperTest {
     URL resource = AuthBindingEntityToAuthMapperTest.class.getClassLoader().getResource("sentry-site.xml");
     Assert.assertNotNull(resource);
     String sentrySitePath = resource.getPath();
-    binding = new AuthBinding(sentrySitePath, "cdap", null);
+    binding = new AuthBinding(sentrySitePath, "cdap", null, 60, 100);
   }
 
   @Test

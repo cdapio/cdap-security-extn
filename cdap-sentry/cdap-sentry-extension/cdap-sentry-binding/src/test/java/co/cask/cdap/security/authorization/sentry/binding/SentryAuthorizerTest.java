@@ -275,30 +275,6 @@ public class SentryAuthorizerTest {
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.EXECUTE);
   }
 
-  @Test
-  public void testCache() throws Exception {
-    NamespaceId ns1 = new NamespaceId("ns1");
-    Principal executors1 = getUser("executors1");
-    Principal admin1 = getUser("admin1");
-
-    assertUnauthorized(ns1, executors1, Action.READ);
-    assertAuthorized(ns1, admin1, Action.ADMIN);
-
-    Assert.assertEquals(2,  authorizer.cacheAsMap().size());
-    Assert.assertTrue(authorizer.cacheAsMap().containsKey(executors1));
-    Assert.assertTrue(authorizer.cacheAsMap().containsKey(admin1));
-
-    Assert.assertTrue(authorizer.cacheAsMap().containsKey(executors1));
-    Assert.assertTrue(authorizer.cacheAsMap().containsKey(admin1));
-    TimeUnit.SECONDS.sleep(CACHE_TTL_SECS);
-    // test TTL-eviction
-    Assert.assertFalse(authorizer.cacheAsMap().containsKey(executors1));
-    Assert.assertFalse(authorizer.cacheAsMap().containsKey(admin1));
-
-    assertUnauthorized(ns1, admin1, Action.READ);
-    Assert.assertTrue(authorizer.cacheAsMap().containsKey(admin1));
-  }
-
   private void testAuthorized(EntityId entityId) throws Exception {
     // admin1 is admin of entity
     assertAuthorized(entityId, getUser("admin1"), Action.ADMIN);
