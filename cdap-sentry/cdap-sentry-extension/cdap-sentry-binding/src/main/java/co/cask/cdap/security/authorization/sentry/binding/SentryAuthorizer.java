@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016 Cask Data, Inc.
+ * Copyright © 2016-2017 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -28,18 +28,27 @@ import co.cask.cdap.security.spi.authorization.Authorizer;
 import co.cask.cdap.security.spi.authorization.RoleAlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.RoleNotFoundException;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.cache.Weigher;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class implements {@link Authorizer} from CDAP and is responsible for interacting with Sentry to manage
@@ -49,6 +58,13 @@ public class SentryAuthorizer extends AbstractAuthorizer {
 
   private static final Logger LOG = LoggerFactory.getLogger(SentryAuthorizer.class);
   private static final String ENTITY_ROLE_PREFIX = ".";
+
+  // Cache for privileges. It stores the result of an enforce call.
+  // [Principal, Entity, Action] -> Boolean
+  // Both positive and negative results are stored. The cache entry is added/invalidated
+  // in case of a grant/revoke call for a principal.
+  private static LoadingCache<Principal, Map<EntityId, Set<Action>>> authPolicyCache;
+
   private AuthBinding binding;
   private AuthorizationContext context;
 
@@ -69,14 +85,39 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       properties.getProperty(AuthConf.INSTANCE_NAME) :
       AuthConf.AuthzConfVars.getDefault(AuthConf.INSTANCE_NAME);
 
+    int cacheTtlSecs = Integer.parseInt(properties.getProperty(AuthConf.CACHE_TTL_SECS,
+                                                               AuthConf.CACHE_TTL_SECS_DEFAULT));
+    int cacheMaxEntries = Integer.parseInt(properties.getProperty(AuthConf.CACHE_MAX_ENTRIES,
+                                                                  AuthConf.CACHE_MAX_ENTRIES_DEFAULT));
+
+    authPolicyCache = CacheBuilder.newBuilder()
+      .expireAfterWrite(cacheTtlSecs, TimeUnit.SECONDS)
+      .maximumWeight(cacheMaxEntries)
+      .weigher(new Weigher<Principal, Map<EntityId, Set<Action>>>() {
+        @Override
+        public int weigh(Principal principal, Map<EntityId, Set<Action>> actions) {
+          // cache size is limited by the number of unique principal-entityId pairs
+          return actions.size();
+        }
+      })
+      .build(new CacheLoader<Principal, Map<EntityId, Set<Action>>>() {
+        @SuppressWarnings("NullableProblems")
+        @Override
+        public Map<EntityId, Set<Action>> load(Principal principal) throws Exception {
+          LOG.trace("Cache miss for {}", principal);
+          return fetchPrivileges(principal);
+        }
+      });
+
     LOG.info("Configuring SentryAuthorizer with sentry-site.xml at {}, CDAP instance {} and Sentry Admin Group: {}",
-               sentrySiteUrl, instanceName, sentryAdminGroup);
+             sentrySiteUrl, instanceName, sentryAdminGroup);
     this.binding = new AuthBinding(sentrySiteUrl, instanceName, sentryAdminGroup);
     this.context = context;
   }
 
   @Override
-  public void grant(EntityId entityId, Principal principal, Set<Action> actions) throws RoleNotFoundException {
+  public void grant(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
+    LOG.trace("Granting {} on {} to {}", actions, entityId, principal);
     switch (principal.getType()) {
       case ROLE:
         binding.grant(entityId, new Role(principal.getName()), actions, getRequestingUser());
@@ -93,10 +134,13 @@ public class SentryAuthorizer extends AbstractAuthorizer {
           String.format("The given principal '%s' is of unsupported type '%s'.", principal.getName(),
                         principal.getType()));
     }
+    invalidateCache();
+    LOG.trace("Granted {} on {} to {}", actions, entityId, principal);
   }
 
   @Override
-  public void revoke(EntityId entityId, Principal principal, Set<Action> actions) throws RoleNotFoundException {
+  public void revoke(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
+    LOG.trace("Revoking {} on {} to {}", actions, entityId, principal);
     Role entityRole;
     switch (principal.getType()) {
       case ROLE:
@@ -123,10 +167,22 @@ public class SentryAuthorizer extends AbstractAuthorizer {
           String.format("The given principal '%s' is of unsupported type '%s'.", principal.getName(),
                         principal.getType()));
     }
+    invalidateCache();
+    LOG.trace("Revoked {} on {} to {}", actions, entityId, principal);
+  }
+
+  /**
+   * Invalidate all entries in the cache. This method should be called to invalidate cache on grant/revoke or any
+   * such actions which modifies the privileges. For details see CDAP-11929
+   */
+  private void invalidateCache() {
+    LOG.debug("Invalidating all entries in cache...");
+    authPolicyCache.invalidateAll();
   }
 
   @Override
-  public void revoke(EntityId entityId) {
+  public void revoke(EntityId entityId) throws Exception {
+    LOG.debug("Revoking all privileges on {}", entityId);
     binding.revoke(entityId);
     // remove the roles created for this entity
     for (Role entityRole : getEntityRoles(entityId)) {
@@ -134,58 +190,86 @@ public class SentryAuthorizer extends AbstractAuthorizer {
       // since the entity itself is deleted we want to delete all roles associated with it
       cleanUpEntityRole(entityRole, false);
     }
+    invalidateCache();
+    LOG.debug("Revoked all privileges on {}", entityId);
+  }
+
+  private Map<EntityId, Set<Action>> fetchPrivileges(Principal principal) throws Exception {
+    Set<Privilege> privileges = listPrivileges(principal);
+    if (privileges == null) {
+      return Collections.emptyMap();
+    }
+
+    Map<EntityId, Set<Action>> result = new HashMap<>(privileges.size());
+    for (Privilege privilege : privileges) {
+      Set<Action> actions = result.get(privilege.getEntity());
+      if (actions == null) {
+        actions = EnumSet.noneOf(Action.class);
+        result.put(privilege.getEntity(), actions);
+      }
+      actions.add(privilege.getAction());
+    }
+
+    return result;
   }
 
   @Override
-  public Set<Privilege> listPrivileges(Principal principal) {
+  public Set<Privilege> listPrivileges(Principal principal) throws Exception {
     return binding.listPrivileges(principal);
   }
 
   @Override
-  public void createRole(Role role) throws RoleAlreadyExistsException {
+  public void createRole(Role role) throws Exception {
     binding.createRole(role, getRequestingUser());
   }
 
   @Override
-  public void dropRole(Role role) throws RoleNotFoundException {
+  public void dropRole(Role role) throws Exception {
     binding.dropRole(role, getRequestingUser());
   }
 
   @Override
-  public void addRoleToPrincipal(Role role, Principal principal) throws RoleNotFoundException {
+  public void addRoleToPrincipal(Role role, Principal principal) throws Exception {
     binding.addRoleToGroup(role, principal, getRequestingUser());
   }
 
   @Override
-  public void removeRoleFromPrincipal(Role role, Principal principal) throws RoleNotFoundException {
+  public void removeRoleFromPrincipal(Role role, Principal principal) throws Exception {
     binding.removeRoleFromGroup(role, principal, getRequestingUser());
   }
 
   @Override
-  public Set<Role> listRoles(Principal principal) {
+  public Set<Role> listRoles(Principal principal) throws Exception {
     Preconditions.checkArgument(principal.getType() != Principal.PrincipalType.ROLE, "The given principal '%s' is of " +
-                                "type '%s'. In Sentry revoke roles can only be listed for '%s' and '%s'",
+                                  "type '%s'. In Sentry revoke roles can only be listed for '%s' and '%s'",
                                 principal.getName(), principal.getType(), Principal.PrincipalType.USER,
                                 Principal.PrincipalType.GROUP);
     return binding.listRolesForGroup(principal, getRequestingUser());
   }
 
   @Override
-  public Set<Role> listAllRoles() {
+  public Set<Role> listAllRoles() throws Exception {
     return binding.listAllRoles();
   }
 
   @Override
   public void enforce(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
     Preconditions.checkArgument(Principal.PrincipalType.USER == principal.getType(), "The given principal '%s' is of " +
-                                "type '%s'. In Sentry authorization checks can only be performed on principal type " +
-                                "'%s'.", principal.getName(), principal.getType(), Principal.PrincipalType.USER);
-    if (!binding.authorize(entityId, principal, actions)) {
+      "type '%s'. In Sentry authorization checks can only be performed on principal type " +
+      "'%s'.", principal.getName(), principal.getType(), Principal.PrincipalType.USER);
+    Map<EntityId, Set<Action>> cacheEntry = authPolicyCache.get(principal);
+    if (!cacheEntry.containsKey(entityId)) {
       throw new UnauthorizedException(principal, actions, entityId);
+    }
+    Set<Action> allowedActions = cacheEntry.get(entityId);
+    Sets.SetView<Action> disallowed = Sets.difference(actions, allowedActions);
+    if (!disallowed.isEmpty()) {
+      throw new UnauthorizedException(principal, disallowed, entityId);
     }
   }
 
-  private synchronized void performGroupBasedGrant(EntityId entityId, Principal principal, Set<Action> actions) {
+  private synchronized void performGroupBasedGrant(EntityId entityId, Principal principal,
+                                                   Set<Action> actions) throws Exception {
     Role dotRole = getEntityUserRole(entityId, principal);
     try {
       binding.createRole(dotRole);
@@ -211,7 +295,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
    * @param checkPrivilege whether to check if the role has privileges associated with it before
    * deleting or not. If set to true then the role will not be deleted if there are privileges associated with the role
    */
-  private void cleanUpEntityRole(Role entityRole, boolean checkPrivilege) {
+  private void cleanUpEntityRole(Role entityRole, boolean checkPrivilege) throws Exception {
     // this should not be called for any other role except entity roles i.e. the ones which start with
     // ENTITY_ROLE_PREFIX
     if (!entityRole.getName().startsWith(ENTITY_ROLE_PREFIX)) {
@@ -239,7 +323,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
    * @param entityId the entity for which roles need to be obtained
    * @return {@link Set} of {@link Role} for the given entity
    */
-  private Set<Role> getEntityRoles (final EntityId entityId) {
+  private Set<Role> getEntityRoles(final EntityId entityId) throws Exception {
     final String curEntityRolePrefix = Joiner.on(ENTITY_ROLE_PREFIX).join("", entityId.toString());
 
     Predicate<Role> filter = new Predicate<Role>() {
@@ -277,5 +361,10 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     Principal principal = context.getPrincipal();
     LOG.trace("Got requesting principal {}", principal);
     return principal.getName();
+  }
+
+  @VisibleForTesting
+  Map<Principal, Map<EntityId, Set<Action>>> cacheAsMap() {
+    return Collections.unmodifiableMap(authPolicyCache.asMap());
   }
 }
