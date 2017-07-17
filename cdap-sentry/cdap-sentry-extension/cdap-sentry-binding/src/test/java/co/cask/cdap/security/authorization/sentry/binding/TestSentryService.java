@@ -18,6 +18,8 @@ package co.cask.cdap.security.authorization.sentry.binding;
 
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
+import co.cask.cdap.security.authorization.sentry.model.Authorizable;
+import co.cask.cdap.security.authorization.sentry.policy.ModelAuthorizables;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -154,26 +156,15 @@ class TestSentryService {
         Assert.assertEquals("action", actionPart.getKey());
         String action = actionPart.getValue();
 
-        // remove first and last elements
-        privilegeParts = privilegeParts.subList(1, privilegeParts.size() - 1);
+        // remove the action
+        privilegeParts = privilegeParts.subList(0, privilegeParts.size() - 1);
 
-        ArrayList<TAuthorizable> tAuthorizables = new ArrayList<>();
+        List<Authorizable> authorizables = new ArrayList<>();
         for (Map.Entry<String, String> privilegePart : privilegeParts) {
-          // need to String#upperCase; otherwise:
-          // Caused by: java.lang.IllegalArgumentException:
-          // No enum constant co.cask.cdap.security.authorization.sentry.model.Authorizable.AuthorizableType.namespace
-          tAuthorizables.add(new TAuthorizable(privilegePart.getKey().toUpperCase(), privilegePart.getValue()));
+          authorizables.add(ModelAuthorizables.from(privilegePart.getKey(), privilegePart.getValue()));
         }
 
-        if (action.equalsIgnoreCase("all")) {
-          // Can not add 'all' as an action; otherwise:
-          // Caused by: java.lang.IllegalArgumentException: No enum constant co.cask.cdap.proto.security.Action.ALL
-          for (Action a : Action.values()) {
-            addPermissions(sentryClient, role, a.name(), instance, tAuthorizables);
-          }
-        } else {
-          addPermissions(sentryClient, role, action, instance, tAuthorizables);
-        }
+        addPermissions(sentryClient, role, action, instance, toTAuthorizables(authorizables));
       }
     }
   }
@@ -187,6 +178,14 @@ class TestSentryService {
                               ArrayList<TAuthorizable> authorizables) throws Exception {
     sentryClient.grantPrivilege(ADMIN_USER, role, COMPONENT,
                                 new TSentryPrivilege(COMPONENT, instance, authorizables, action));
+  }
+
+  private ArrayList<TAuthorizable> toTAuthorizables(List<Authorizable> authorizables) {
+    ArrayList<TAuthorizable> tAuthorizables = new ArrayList<>(authorizables.size());
+    for (Authorizable authorizable : authorizables) {
+      tAuthorizables.add(new TAuthorizable(authorizable.getTypeName(), authorizable.getName()));
+    }
+    return tAuthorizables;
   }
 
   /**
