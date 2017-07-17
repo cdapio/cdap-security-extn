@@ -2,6 +2,7 @@ package co.cask.cdap.security.authorization.ranger.lookup;
 
 import co.cask.cdap.security.authorization.ranger.lookup.client.CDAPClient;
 import co.cask.cdap.security.authorization.ranger.lookup.client.CDAPConnectionMgr;
+import com.google.common.collect.Maps;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.ranger.plugin.client.HadoopException;
@@ -10,10 +11,8 @@ import org.apache.ranger.plugin.model.RangerServiceDef;
 import org.apache.ranger.plugin.service.RangerBaseService;
 import org.apache.ranger.plugin.service.ResourceLookupContext;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * CDAP Resource Lookup Service
@@ -35,27 +34,22 @@ public class RangerLookupService extends RangerBaseService {
 
   @Override
   public HashMap<String, Object> validateConfig() throws Exception {
-    HashMap<String, Object> ret = new HashMap<String, Object>();
-
     if (LOG.isDebugEnabled()) {
       LOG.debug("==> RangerLookupService.validateConfig(" + serviceName + ")");
     }
 
     if (configs != null) {
       try {
-        // Note: We can do a direct assignment of ret to the returned map but we return a Map from
-        // CDAPConnectionMgr.testConnection but the validateConfig in RangerBaseService return a HashMap so return a
-        // HashMap from here.
-        ret.putAll(CDAPConnectionMgr.testConnection(serviceName, configs));
+        CDAPConnectionMgr.testConnection(serviceName, configs);
       } catch (HadoopException e) {
         LOG.error("<== RangerServiceCDAP.validateConfig Error:" + e);
         throw e;
       }
     }
     if (LOG.isDebugEnabled()) {
-      LOG.debug("<== RangerLookupService.validateConfig(" + serviceName + "): ret=" + ret);
+      LOG.debug("<== RangerLookupService.validateConfig(" + serviceName + ")");
     }
-    return ret;
+    return Maps.newHashMap();
   }
 
   @Override
@@ -67,7 +61,7 @@ public class RangerLookupService extends RangerBaseService {
     if (context != null) {
       try {
         CDAPClient cdapClient = CDAPConnectionMgr.getCDAPClient(serviceName, configs);
-        ret  = cdapClient.getResources(context);
+        ret = cdapClient.getResources(context);
       } catch (Exception e) {
         LOG.error("<==RangerServiceHive.lookupResource Error : " + e);
         throw e;

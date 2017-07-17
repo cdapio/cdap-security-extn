@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * CDAPClient
+ * CDAP Clients which to be used by ranger for listing cdap resources.
  */
 public class CDAPClient {
 
@@ -48,31 +48,60 @@ public class CDAPClient {
   private final String username;
   private final String password;
   private final NamespaceClient nsClient;
-  public static final String ERR_MSG = " You can still save the repository and start creating "
+  private static final String ERR_MSG = " You can still save the repository and start creating "
     + "policies, but you would not be able to use autocomplete for "
     + "resource names. Check xa_portal.log for more info.";
   private final StreamClient streamClient;
 
-  public CDAPClient(String serviceName, String instanceURL, String username, String password) {
+  CDAPClient(String serviceName, String instanceURL, String username, String password) {
     this.serviceName = serviceName;
     this.instanceURL = instanceURL;
     this.username = username;
     this.password = password;
     initConnection();
-    this.nsClient = new NamespaceClient(getClientConfig());
-    this.streamClient = new StreamClient(getClientConfig());
+    ClientConfig clientConfig = getClientConfig();
+    this.nsClient = new NamespaceClient(clientConfig);
+    this.streamClient = new StreamClient(clientConfig);
   }
 
-
   private void initConnection() {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("==> CDAPClient initConnection()");
+    }
     if (username != null && password != null) {
       // security is enabled, we need to get access token before checking system services
       try {
-        LOG.info("### Fetching access token with username:" + username + " passsword: " + password);
+        LOG.debug(String.format("Fetching access token with username %s and password ****", username));
         accessToken = fetchAccessToken(username, password);
       } catch (Exception ex) {
         throw Throwables.propagate(ex);
       }
+    }
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== CDAPClient initConnection()");
+    }
+  }
+
+  void testConnection() throws Exception {
+    HashMap<String, Object> responseData = new HashMap<>();
+    List<String> testResult;
+    try {
+      testResult = getNamespaces(null);
+      if (testResult != null && testResult.size() >= 0) {
+        String successMsg = "Connection Test Successful";
+        BaseClient.generateResponseDataMap(true, successMsg, successMsg,
+                                           null, null, responseData);
+      } else {
+        String failureMsg = "Unable to retrieve any namespace using given parameters. " +
+          "Please ensure that the configurations are correct and at least one namespace is accessible to this user.";
+        BaseClient.generateResponseDataMap(false, failureMsg, failureMsg + ERR_MSG,
+                                           null, null, responseData);
+      }
+    } catch (Exception e) {
+      LOG.error("Error connecting to CDAP.", e);
+      String failureMsg = "Unable to connect to CDAP instance." + e.getMessage();
+      BaseClient.generateResponseDataMap(false, failureMsg,
+                                         failureMsg + ERR_MSG, null, null, responseData);
     }
   }
 
@@ -84,9 +113,7 @@ public class CDAPClient {
     List<String> ret = new ArrayList<>();
     if (nsClient != null) {
       for (NamespaceMeta namespaceMeta : nsClient.list()) {
-
         String name = namespaceMeta.getName();
-        System.out.println("### name is " + name);
         if (nsList == null || !nsList.contains(name)) {
           ret.add(name);
         }
@@ -96,7 +123,6 @@ public class CDAPClient {
     if (LOG.isDebugEnabled()) {
       LOG.debug("<== CDApClient.getDBList(): " + ret);
     }
-    System.out.println("lis tis " + ret);
     return ret;
   }
 
@@ -122,34 +148,6 @@ public class CDAPClient {
     }
     System.out.println("lis tis " + ret);
     return ret;
-  }
-
-  public HashMap<String, Object> connectionTest() throws Exception {
-    HashMap<String, Object> responseData = new HashMap<>();
-    boolean connectivityStatus = false;
-    List<String> testResult;
-    try {
-      testResult = getNamespaces(null);
-      if (testResult != null && testResult.size() != 0) {
-        connectivityStatus = true;
-      }
-      if (connectivityStatus) {
-        String successMsg = "ConnectionTest Successful";
-        BaseClient.generateResponseDataMap(true, successMsg, successMsg,
-                                           null, null, responseData);
-      } else {
-        String failureMsg = "Unable to retrieve any namespace using given parameters. " +
-          "Please ensure that the configurations are correct and at least one namespace is accessible to this user.";
-        BaseClient.generateResponseDataMap(false, failureMsg, failureMsg + ERR_MSG,
-                                           null, null, responseData);
-      }
-    } catch (Exception e) {
-      LOG.error("Error connecting to CDAP.", e);
-      String failureMsg = "Unable to connect to CDAP instance." + e.getMessage();
-      BaseClient.generateResponseDataMap(false, failureMsg,
-                                         failureMsg + ERR_MSG, null, null, responseData);
-    }
-    return responseData;
   }
 
   private ClientConfig getClientConfig() {

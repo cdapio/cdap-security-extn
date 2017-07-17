@@ -49,7 +49,7 @@
     },
     {
       "itemId": 30,
-      "name": "stream",
+      "name": "application",
       "type": "string",
       "level": 30,
       "parent": "namespace",
@@ -65,11 +65,32 @@
       "validationRegEx": "",
       "validationMessage": "",
       "uiHint": "",
-      "label": "Stream",
-      "description": "Stream"
+      "label": "Application",
+      "description": "CDAP Application"
     },
     {
       "itemId": 40,
+      "name": "artifact",
+      "type": "string",
+      "level": 30,
+      "parent": "namespace",
+      "mandatory": false,
+      "lookupSupported": true,
+      "recursiveSupported": false,
+      "excludesSupported": false,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": false
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Artifact",
+      "description": "CDAP Artifact"
+    },
+    {
+      "itemId": 50,
       "name": "dataset",
       "type": "string",
       "level": 30,
@@ -87,7 +108,70 @@
       "validationMessage": "",
       "uiHint": "",
       "label": "Dataset",
-      "description": "Dataset"
+      "description": "CDAP Dataset"
+    },
+    {
+      "itemId": 60,
+      "name": "secureKey",
+      "type": "string",
+      "level": 30,
+      "parent": "namespace",
+      "mandatory": false,
+      "lookupSupported": true,
+      "recursiveSupported": false,
+      "excludesSupported": false,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": false
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Secure Key",
+      "description": "CDAP Secure Key"
+    },
+    {
+      "itemId": 70,
+      "name": "stream",
+      "type": "string",
+      "level": 30,
+      "parent": "namespace",
+      "mandatory": false,
+      "lookupSupported": true,
+      "recursiveSupported": false,
+      "excludesSupported": false,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": false
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Stream",
+      "description": "CDAP Stream"
+    },
+    {
+      "itemId": 80,
+      "name": "program",
+      "type": "string",
+      "level": 40,
+      "parent": "application",
+      "mandatory": false,
+      "lookupSupported": true,
+      "recursiveSupported": false,
+      "excludesSupported": false,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": false
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Program",
+      "description": "CDAP Program"
     }
   ],
   "accessTypes": [
@@ -118,7 +202,7 @@
       "name": "cdap.username",
       "type": "string",
       "subType": "",
-      "mandatory": false,
+      "mandatory": true,
       "validationRegEx": "",
       "validationMessage": "",
       "uiHint": "",
@@ -129,7 +213,7 @@
       "name": "cdap.password",
       "type": "password",
       "subType": "",
-      "mandatory": false,
+      "mandatory": true,
       "validationRegEx": "",
       "validationMessage": "",
       "uiHint": "",
@@ -147,10 +231,7 @@
       "validationMessage": ""
     }
   ],
-  "enums": [
-  ],
-  "contextEnrichers": [
-  ],
-  "policyConditions": [
-  ]
+  "enums": [],
+  "contextEnrichers": [],
+  "policyConditions": []
 }

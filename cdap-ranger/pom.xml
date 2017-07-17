@@ -29,8 +29,8 @@
   <version>0.1.0-SNAPSHOT</version>
 
   <modules>
-    <module>lookup</module>
-    <module>binding</module>
+    <module>cdap-ranger-lookup</module>
+    <module>cdap-ranger-binding</module>
   </modules>
 
   <packaging>pom</packaging>

@@ -25,66 +25,52 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>binding</artifactId>
+  <artifactId>cdap-ranger-lookup</artifactId>
 
-  <properties>
-    <security.authorizer.class>
-      co.cask.cdap.security.authorization.ranger.binding.RangerAuthorizer
-    </security.authorizer.class>
-  </properties>
-
-  <name>CDAP Ranger Binding</name>
-  <description>Defines the binding between CDAP entities and the CDAP Data Model in Apache Ranger</description>
+  <name>CDAP Ranger Lookup</name>
+  <description>Defines the CDAP Data Model in Apache Ranger and provided looking up CDAP resources.</description>
 
   <dependencies>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
-      <artifactId>cdap-security-spi</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.apache.ranger</groupId>
       <artifactId>ranger-plugins-common</artifactId>
+      <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>13.0.1</version>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-client</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.apache.ranger</groupId>
-      <artifactId>ranger-plugins-audit</artifactId>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-cli</artifactId>
     </dependency>
   </dependencies>
 
   <build>
     <plugins>
       <plugin>
-        <groupId>org.apache.felix</groupId>
-        <artifactId>maven-bundle-plugin</artifactId>
-        <version>2.3.7</version>
-        <extensions>true</extensions>
+        <artifactId>maven-assembly-plugin</artifactId>
         <configuration>
           <archive>
             <manifest>
-              <mainClass>${security.authorizer.class}</mainClass>
+              <mainClass>fully.qualified.MainClass</mainClass>
             </manifest>
           </archive>
-          <instructions>
-            <Embed-Dependency>*;inline=false;scope=compile</Embed-Dependency>
-            <Embed-Transitive>true</Embed-Transitive>
-            <Embed-Directory>lib</Embed-Directory>
-          </instructions>
+          <descriptorRefs>
+            <!-- used to build a flat uber jar which can be placed in apache ranger -->
+            <descriptorRef>jar-with-dependencies</descriptorRef>
+          </descriptorRefs>
         </configuration>
         <executions>
           <execution>
-            <phase>package</phase>
+            <id>make-assembly</id> <!-- this is used for inheritance merges -->
+            <phase>package</phase> <!-- bind to the packaging phase -->
             <goals>
-              <goal>bundle</goal>
+              <goal>single</goal>
             </goals>
           </execution>
         </executions>
       </plugin>
     </plugins>
   </build>
-
 </project>

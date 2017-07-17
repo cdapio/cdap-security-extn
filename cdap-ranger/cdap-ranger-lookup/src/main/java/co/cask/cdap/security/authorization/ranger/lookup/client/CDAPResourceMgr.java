@@ -20,20 +20,20 @@
 //
 //  public static final Logger LOG = Logger.getLogger(CDAPResourceMgr.class);
 //
-//  public static HashMap<String, Object> connectionTest(String serviceName, Map<String, String> configs) throws
+//  public static HashMap<String, Object> testConnection(String serviceName, Map<String, String> configs) throws
 //    Exception {
 //    HashMap<String, Object> ret;
 //
-//    LOG.debug("==> CDAPResourceMgr.connectionTest ServiceName: " + serviceName + "Configs" + configs);
+//    LOG.debug("==> CDAPResourceMgr.testConnection ServiceName: " + serviceName + "Configs" + configs);
 //
 //    try {
-//      ret = CDAPClient.connectionTest(serviceName, configs);
+//      ret = CDAPClient.testConnection(serviceName, configs);
 //    } catch (HadoopException e) {
-//      LOG.error("<== CDAPResourceMgr.connectionTest Error: " + e);
+//      LOG.error("<== CDAPResourceMgr.testConnection Error: " + e);
 //      throw e;
 //    }
 //
-//    LOG.debug("<== CDAPResourceMgr.connectionTest Result : " + ret);
+//    LOG.debug("<== CDAPResourceMgr.testConnection Result : " + ret);
 //
 //    return ret;
 //  }
