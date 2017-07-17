@@ -22,6 +22,8 @@ import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.proto.security.Privilege;
 import co.cask.cdap.proto.security.Role;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
+import co.cask.cdap.security.authorization.sentry.model.ActionFactory;
+import co.cask.cdap.security.authorization.sentry.model.Authorizable;
 import co.cask.cdap.security.spi.authorization.AbstractAuthorizer;
 import co.cask.cdap.security.spi.authorization.AlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
@@ -37,6 +39,10 @@ import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
@@ -200,17 +206,68 @@ public class SentryAuthorizer extends AbstractAuthorizer {
 
   @Override
   public void enforce(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
-    Preconditions.checkArgument(Principal.PrincipalType.USER == principal.getType(), "The given principal '%s' is of " +
-      "type '%s'. In Sentry authorization checks can only be performed on principal type " +
-      "'%s'.", principal.getName(), principal.getType(), Principal.PrincipalType.USER);
-    Set<Action> allowedActions = binding.getActions(principal, entityId);
-    if (allowedActions.isEmpty()) {
+    checkUserPrincipal(principal);
+
+    Set<WildcardPolicy> policies = binding.getPolicies(principal);
+    LOG.debug("Got policies {} for principal {}, entity {} and actions {}", policies, principal, entityId, actions);
+    if (policies.isEmpty()) {
       throw new UnauthorizedException(principal, actions, entityId);
     }
-    Sets.SetView<Action> disallowed = Sets.difference(actions, allowedActions);
-    if (!disallowed.isEmpty()) {
-      throw new UnauthorizedException(principal, disallowed, entityId);
+
+    List<Authorizable> authorizables = new ArrayList<>();
+    binding.toAuthorizables(entityId, authorizables);
+
+    Set<ActionFactory.Action> checkActions = binding.toSentryActions(actions);
+
+    // Check each action against each policy
+    Set<ActionFactory.Action> allowedActions = new HashSet<>(actions.size());
+    for (ActionFactory.Action sentryAction : checkActions) {
+      for (WildcardPolicy policy : policies) {
+        if (policy.isAllowed(authorizables, sentryAction)) {
+          allowedActions.add(sentryAction);
+          // no need to check the other policies since this action is allowed by this policy
+          break;
+        }
+      }
     }
+
+    if (!checkActions.equals(allowedActions)) {
+      throw new UnauthorizedException(principal, actions, entityId);
+    }
+  }
+
+  @Override
+  public Set<? extends EntityId> isVisible(Set<? extends EntityId> entityIds, Principal principal) throws Exception {
+    checkUserPrincipal(principal);
+
+    final Set<WildcardPolicy> policies = binding.getPolicies(principal);
+    LOG.debug("Got policies {} for principal {}", policies, principal);
+
+    if (policies.isEmpty()) {
+      return Collections.emptySet();
+    }
+
+    Set<EntityId> visibleEntities = new HashSet<>(entityIds.size());
+    for (EntityId entityId : entityIds) {
+      List<Authorizable> authorizables = new ArrayList<>();
+      binding.toAuthorizables(entityId, authorizables);
+
+      // Even if one policy makes the entity visible, then the entity is visible to the principal
+      for (WildcardPolicy policy : policies) {
+        if (policy.isVisible(authorizables)) {
+          visibleEntities.add(entityId);
+          break;
+        }
+      }
+    }
+    return visibleEntities;
+  }
+
+  private void checkUserPrincipal(Principal principal) {
+    Preconditions.checkArgument(
+      Principal.PrincipalType.USER == principal.getType(),
+      "Only support principal type %s for authorization, given principal %s is of type %s",
+      Principal.PrincipalType.USER, principal.getName(), principal.getType());
   }
 
   private synchronized void performGroupBasedGrant(EntityId entityId, Principal principal,

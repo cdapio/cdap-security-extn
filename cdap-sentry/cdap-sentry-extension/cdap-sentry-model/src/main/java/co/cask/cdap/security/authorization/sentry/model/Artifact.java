@@ -20,6 +20,7 @@ import co.cask.cdap.api.artifact.ArtifactId;
 import com.google.common.base.Preconditions;
 
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * Represents the {@link Authorizable.AuthorizableType#ARTIFACT} authorizable in CDAP
@@ -29,6 +30,8 @@ public class Artifact implements Authorizable {
   private static final String ARTIFACT_DETAILS_SEPARATOR = ".";
 
   private final String artifactName;
+  // artifact version can be null when wildcards are used
+  @Nullable
   private final String artifactVersion;
 
   /**
@@ -40,10 +43,13 @@ public class Artifact implements Authorizable {
   public Artifact(String artifactDetails) {
     String splitter = "\\" + ARTIFACT_DETAILS_SEPARATOR;
     String[] artifactNameVersion = artifactDetails.trim().split(splitter, 2);
-    Preconditions.checkArgument(artifactNameVersion.length == 2, "Artifact details %s is invalid. Artifact details " +
-      "must be in the following format: artifactName%sartifactVersion.", artifactDetails, ARTIFACT_DETAILS_SEPARATOR);
+    Preconditions.checkArgument(
+      artifactNameVersion.length <= 2,
+      "Invalid artifact details %s. It must be in the format: artifactName%sartifactVersion, or a wildcard",
+                                artifactDetails, ARTIFACT_DETAILS_SEPARATOR);
+
     this.artifactName = artifactNameVersion[0];
-    this.artifactVersion = artifactNameVersion[1];
+    this.artifactVersion = artifactNameVersion.length == 2 ? artifactNameVersion[1] : null;
   }
 
   /**
@@ -75,7 +81,14 @@ public class Artifact implements Authorizable {
    */
   @Override
   public String getName() {
-    return artifactName + ARTIFACT_DETAILS_SEPARATOR + artifactVersion;
+    return artifactVersion == null ? artifactName : artifactName + ARTIFACT_DETAILS_SEPARATOR + artifactVersion;
+  }
+
+  @Nullable
+  @Override
+  public String getSubType() {
+    // Artifact does not have a sub type
+    return null;
   }
 
   /**
@@ -92,6 +105,7 @@ public class Artifact implements Authorizable {
    *
    * @return version of the {@link Authorizable.AuthorizableType#ARTIFACT}.
    */
+  @Nullable
   public String getArtifactVersion() {
     return artifactVersion;
   }

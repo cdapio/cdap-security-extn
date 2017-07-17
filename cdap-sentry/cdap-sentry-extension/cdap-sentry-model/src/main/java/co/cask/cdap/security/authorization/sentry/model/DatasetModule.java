@@ -17,6 +17,7 @@
 package co.cask.cdap.security.authorization.sentry.model;
 
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * Represents the {@link Authorizable.AuthorizableType#DATASET_MODULE} authorizable in CDAP
@@ -51,6 +52,13 @@ public class DatasetModule implements Authorizable {
   @Override
   public String getName() {
     return name;
+  }
+
+  @Nullable
+  @Override
+  public String getSubType() {
+    // Dataset module does not have a sub type
+    return null;
   }
 
   /**

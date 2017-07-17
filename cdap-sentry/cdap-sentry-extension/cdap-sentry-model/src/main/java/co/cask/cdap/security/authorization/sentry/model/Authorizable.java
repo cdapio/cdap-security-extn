@@ -16,6 +16,8 @@
 
 package co.cask.cdap.security.authorization.sentry.model;
 
+import javax.annotation.Nullable;
+
 /**
  * Represents authorizable resources.
  */
@@ -38,4 +40,10 @@ public interface Authorizable extends org.apache.sentry.core.common.Authorizable
   }
 
   AuthorizableType getAuthzType();
+
+  /**
+   * @return the sub type of the entity, if any or null
+   */
+  @Nullable
+  String getSubType();
 }

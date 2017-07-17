@@ -17,6 +17,7 @@
 package co.cask.cdap.security.authorization.sentry.model;
 
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * Represents the {@link Authorizable.AuthorizableType#APPLICATION} authorizable in CDAP
@@ -51,6 +52,13 @@ public class Application implements Authorizable {
   @Override
   public String getName() {
     return name;
+  }
+
+  @Nullable
+  @Override
+  public String getSubType() {
+    // Application does not have a sub type
+    return null;
   }
 
   /**

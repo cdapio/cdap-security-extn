@@ -20,6 +20,7 @@ import co.cask.cdap.proto.ProgramType;
 import com.google.common.base.Preconditions;
 
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * Represents the {@link Authorizable.AuthorizableType#PROGRAM} authorizable in CDAP
@@ -27,6 +28,8 @@ import java.util.Objects;
 public class Program implements Authorizable {
   private static final String PROGRAM_DETAILS_SEPARATOR = ".";
 
+  // program type can be null when wildcards are used
+  @Nullable
   private final ProgramType programType;
   private final String programName;
 
@@ -39,11 +42,23 @@ public class Program implements Authorizable {
   public Program(String programDetails) {
     String splitter = "\\" + PROGRAM_DETAILS_SEPARATOR;
     String[] programTypeAndName = programDetails.trim().split(splitter, 2);
+
     Preconditions.checkArgument(
-      programTypeAndName.length == 2, "Program details %s is invalid. Program details must be in the following " +
-        "format: [program-type]%s[program-name].", programTypeAndName, PROGRAM_DETAILS_SEPARATOR);
-    this.programType = ProgramType.valueOfPrettyName(programTypeAndName[0]);
-    this.programName = programTypeAndName[1];
+      programTypeAndName.length <= 2,
+      "Invalid program details %s. It must be in the format: [program-type]%s[program-name], or a wildcard.",
+      programTypeAndName, PROGRAM_DETAILS_SEPARATOR);
+
+    ProgramType type = null;
+    String name;
+    if (programTypeAndName.length == 2) {
+      type = ProgramType.valueOfPrettyName(programTypeAndName[0]);
+      name = programTypeAndName[1];
+    } else {
+      name = programDetails;
+    }
+
+    this.programType = type;
+    this.programName = name;
   }
 
   /**
@@ -75,7 +90,13 @@ public class Program implements Authorizable {
    */
   @Override
   public String getName() {
-    return programType + PROGRAM_DETAILS_SEPARATOR + programName;
+    return programType == null ? programName : programType + PROGRAM_DETAILS_SEPARATOR + programName;
+  }
+
+  @Nullable
+  @Override
+  public String getSubType() {
+    return programType == null ? null : programType.toString();
   }
 
   /**
@@ -83,6 +104,7 @@ public class Program implements Authorizable {
    *
    * @return program type of the {@link Authorizable.AuthorizableType#PROGRAM}.
    */
+  @Nullable
   public ProgramType getProgramType() {
     return programType;
   }

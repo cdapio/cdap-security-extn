@@ -17,6 +17,7 @@
 package co.cask.cdap.security.authorization.sentry.model;
 
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * Represents the {@link Authorizable.AuthorizableType#STREAM} authorizable in CDAP
@@ -51,6 +52,13 @@ public class Stream implements Authorizable {
   @Override
   public String getName() {
     return name;
+  }
+
+  @Nullable
+  @Override
+  public String getSubType() {
+    // Stream does not have a sub type
+    return null;
   }
 
   /**
