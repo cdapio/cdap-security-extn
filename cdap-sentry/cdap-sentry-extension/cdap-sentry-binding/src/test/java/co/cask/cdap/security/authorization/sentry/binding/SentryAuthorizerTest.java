@@ -41,6 +41,7 @@ import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.TransactionFailureException;
 import org.junit.AfterClass;
@@ -58,6 +59,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -256,6 +258,14 @@ public class SentryAuthorizerTest {
     // executors1 can execute prog1
     assertAuthorized(new ProgramId("ns1", "app1", ProgramType.FLOW, "prog1"), getUser("executors1"),
                      Action.EXECUTE);
+
+    assertAuthorized(new DatasetId("ns1", "ds1"), getUser("all1"),
+                     ImmutableSet.of(Action.READ, Action.WRITE, Action.EXECUTE, Action.ADMIN));
+    assertAuthorized(new DatasetId("ns1", "ds1"), getUser("all1"),
+                     ImmutableSet.of(Action.READ, Action.EXECUTE, Action.ADMIN));
+
+    assertAuthorized(new DatasetId("ns1", "ds1"), getUser("rw_ds1"),
+                     ImmutableSet.of(Action.READ, Action.WRITE));
   }
 
   @Test
@@ -275,6 +285,18 @@ public class SentryAuthorizerTest {
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.READ);
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.WRITE);
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.EXECUTE);
+
+    assertUnauthorized(new DatasetId("ns1", "ds1"), getUser("readers1"),
+                     ImmutableSet.of(Action.READ, Action.WRITE, Action.EXECUTE, Action.ADMIN));
+    assertUnauthorized(new DatasetId("ns1", "ds1"), getUser("readers1"),
+                     ImmutableSet.of(Action.READ, Action.EXECUTE, Action.ADMIN));
+
+    assertUnauthorized(new DatasetId("ns1", "ds1"), getUser("rw_ds1"),
+                     ImmutableSet.of(Action.READ, Action.WRITE, Action.EXECUTE));
+    assertUnauthorized(new DatasetId("ns1", "ds1"), getUser("rw_ds1"),
+                       ImmutableSet.of(Action.WRITE, Action.EXECUTE, Action.ADMIN));
+    assertUnauthorized(new StreamId("ns1", "stream1"), getUser("rw_ds1"),
+                       ImmutableSet.of(Action.READ, Action.WRITE));
   }
 
   @Test
@@ -327,9 +349,22 @@ public class SentryAuthorizerTest {
     authorizer.enforce(entityId, principal, action);
   }
 
+  private void assertAuthorized(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
+    authorizer.enforce(entityId, principal, actions);
+  }
+
   private void assertUnauthorized(EntityId entityId, Principal principal, Action action) throws Exception {
     try {
       authorizer.enforce(entityId, principal, action);
+      Assert.fail("The authorization check should have failed.");
+    } catch (UnauthorizedException expected) {
+      // expected
+    }
+  }
+
+  private void assertUnauthorized(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
+    try {
+      authorizer.enforce(entityId, principal, actions);
       Assert.fail("The authorization check should have failed.");
     } catch (UnauthorizedException expected) {
       // expected
