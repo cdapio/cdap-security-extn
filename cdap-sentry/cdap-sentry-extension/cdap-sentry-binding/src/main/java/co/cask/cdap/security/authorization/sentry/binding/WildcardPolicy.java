@@ -59,7 +59,7 @@ class WildcardPolicy {
     return true;
   }
 
-  boolean isVisible(List<Authorizable> entityAuthorizables) {
+  boolean isVisible(List<? extends Authorizable> entityAuthorizables) {
     if (authorizables.isEmpty()) {
       return false;
     }

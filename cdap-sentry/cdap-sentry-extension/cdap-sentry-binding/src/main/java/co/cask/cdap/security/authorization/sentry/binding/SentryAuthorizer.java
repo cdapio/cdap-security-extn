@@ -205,12 +205,13 @@ public class SentryAuthorizer extends AbstractAuthorizer {
 
   @Override
   public void enforce(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
-    Preconditions.checkArgument(Principal.PrincipalType.USER == principal.getType(), "The given principal '%s' is of " +
-      "type '%s'. In Sentry authorization checks can only be performed on principal type " +
-      "'%s'.", principal.getName(), principal.getType(), Principal.PrincipalType.USER);
+    Preconditions.checkArgument(
+      Principal.PrincipalType.USER == principal.getType(),
+      "Only support principal type %s for authorization, given principal %s is of type %s",
+      Principal.PrincipalType.USER, principal.getName(), principal.getType());
 
     Set<WildcardPolicy> policies = binding.getPolicies(principal);
-    LOG.error("Got policies {} for principal {}, entity {} and actions {}", policies, principal, entityId, actions);
+    LOG.debug("Got policies {} for principal {}, entity {} and actions {}", policies, principal, entityId, actions);
     if (policies.isEmpty()) {
       throw new UnauthorizedException(principal, actions, entityId);
     }
@@ -235,6 +236,37 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     if (!checkActions.equals(allowedActions)) {
       throw new UnauthorizedException(principal, actions, entityId);
     }
+  }
+
+  @Override
+  public co.cask.cdap.api.Predicate<EntityId> createFilter(final Principal principal) throws Exception {
+    Preconditions.checkArgument(
+      Principal.PrincipalType.USER == principal.getType(),
+      "Only support principal type %s for authorization, given principal %s is of type %s",
+      Principal.PrincipalType.USER, principal.getName(), principal.getType());
+
+    final Set<WildcardPolicy> policies = binding.getPolicies(principal);
+    LOG.debug("Got policies {} for principal {}", policies, principal);
+
+    return new co.cask.cdap.api.Predicate<EntityId>() {
+      @Override
+      public boolean apply(EntityId entityId) {
+        if (policies.isEmpty()) {
+          return false;
+        }
+
+        List<Authorizable> authorizables = new ArrayList<>();
+        binding.toAuthorizables(entityId, authorizables);
+
+        // Even if one policy makes the entity visible, then return true
+        for (WildcardPolicy policy : policies) {
+          if (policy.isVisible(authorizables)) {
+            return true;
+          }
+        }
+        return false;
+      }
+    };
   }
 
   private synchronized void performGroupBasedGrant(EntityId entityId, Principal principal,

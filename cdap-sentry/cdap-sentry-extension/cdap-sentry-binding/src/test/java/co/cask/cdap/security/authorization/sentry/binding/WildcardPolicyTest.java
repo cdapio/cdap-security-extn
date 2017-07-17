@@ -43,6 +43,75 @@ public class WildcardPolicyTest {
 
     Assert.assertFalse(readPolicy.isAllowed(ImmutableList.of(new Dataset("app1")),
                                            new ActionFactory.Action("execute")));
+    Assert.assertFalse(readPolicy.isAllowed(ImmutableList.of(new Namespace("ns2"),
+                                                            new Application("app1"),
+                                                            new Program("flow.flow1")),
+                                           new ActionFactory.Action("execute")));
+  }
+
+  @Test
+  public void testVisibility() throws Exception {
+    // Test entity and its ancestors are visible
+    WildcardPolicy dsPolicy = new WildcardPolicy(createPrivilege("read",
+                                                                tAuth("namespace", "ns1"),
+                                                                tAuth("dataset", "table")));
+    WildcardPolicy appPolicy = new WildcardPolicy(createPrivilege("execute",
+                                                                tAuth("namespace", "ns2"),
+                                                                tAuth("application", "app1"),
+                                                                tAuth("program", "flow.flow1")));
+    WildcardPolicy nsPolicy = new WildcardPolicy(createPrivilege("read", tAuth("namespace", "ns3")));
+
+    // Test dsPolicy
+    Assert.assertTrue(dsPolicy.isVisible(ImmutableList.of(new Namespace("ns1"))));
+    Assert.assertFalse(dsPolicy.isVisible(ImmutableList.of(new Namespace("ns2"))));
+
+    Assert.assertTrue(dsPolicy.isVisible(ImmutableList.of(new Namespace("ns1"), new Dataset("table"))));
+    Assert.assertFalse(dsPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Dataset("table"))));
+    Assert.assertFalse(dsPolicy.isVisible(ImmutableList.of(new Namespace("ns1"), new Dataset("index"))));
+    Assert.assertFalse(dsPolicy.isVisible(ImmutableList.of(new Namespace("ns1"), new Application("app1"))));
+
+    // Test appPolicy
+    Assert.assertTrue(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"))));
+    Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns1"))));
+
+    Assert.assertTrue(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app1"))));
+    Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app2"))));
+    Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns1"), new Application("app1"))));
+    Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns1"), new Application("app11"))));
+
+    Assert.assertTrue(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app1"),
+                                                         new Program("flow.flow1"))));
+    Assert.assertTrue(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app1"),
+                                                         new Program("FloW.flow1"))));
+    Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app1"),
+                                                         new Program("flow.flow2"))));
+    Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns1"), new Application("app1"),
+                                                          new Program("flow.flow1"))));
+
+    // Test nsPolicy
+    Assert.assertTrue(nsPolicy.isVisible(ImmutableList.of(new Namespace("ns3"))));
+    Assert.assertFalse(nsPolicy.isVisible(ImmutableList.of(new Namespace("ns2"))));
+    Assert.assertFalse(nsPolicy.isVisible(ImmutableList.of(new Namespace("ns3"), new Application("app2"))));
+    Assert.assertFalse(nsPolicy.isVisible(ImmutableList.of(new Namespace("ns3"), new Dataset("table"))));
+  }
+
+  @Test
+  public void testWildcardVisibility() throws Exception {
+    WildcardPolicy appPolicy = new WildcardPolicy(createPrivilege("execute",
+                                                                  tAuth("namespace", "ns2"),
+                                                                  tAuth("application", "app1"),
+                                                                  tAuth("program", "flow.*")));
+
+    Assert.assertTrue(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"))));
+    Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns1"))));
+
+    Assert.assertTrue(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app1"))));
+    Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app2"))));
+
+    Assert.assertTrue(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app1"),
+                                                           new Program("flow.flow2"))));
+    Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app1"),
+                                                           new Program("service.service1"))));
   }
 
   private static TAuthorizable tAuth(String type, String name) {

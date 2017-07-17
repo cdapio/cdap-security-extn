@@ -16,6 +16,7 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
+import co.cask.cdap.api.Predicate;
 import co.cask.cdap.api.TxRunnable;
 import co.cask.cdap.api.data.DatasetInstantiationException;
 import co.cask.cdap.api.dataset.Dataset;
@@ -30,6 +31,7 @@ import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.ArtifactId;
 import co.cask.cdap.proto.id.DatasetId;
 import co.cask.cdap.proto.id.EntityId;
+import co.cask.cdap.proto.id.FlowId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.StreamId;
@@ -273,6 +275,39 @@ public class SentryAuthorizerTest {
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.READ);
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.WRITE);
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.EXECUTE);
+  }
+
+  @Test
+  public void testVisibility() throws Exception {
+    // Test visibility of executors1
+    Predicate<EntityId> executors1 = authorizer.createFilter(getUser("executors1"));
+    Assert.assertTrue(executors1.apply(new NamespaceId("ns1")));
+    Assert.assertTrue(executors1.apply(new ApplicationId("ns1", "app1")));
+    Assert.assertTrue(executors1.apply(new FlowId("ns1", "app1", "prog1")));
+
+    Assert.assertFalse(executors1.apply(new NamespaceId("ns2")));
+    Assert.assertFalse(executors1.apply(new DatasetId("ns1", "ds1")));
+    Assert.assertFalse(executors1.apply(new ArtifactId("ns1", "art", "1")));
+
+    // Test visibility of readers1
+    Predicate<EntityId> readers1 = authorizer.createFilter(getUser("readers1"));
+    Assert.assertTrue(readers1.apply(new NamespaceId("ns1")));
+    Assert.assertTrue(readers1.apply(new ApplicationId("ns1", "app1")));
+    Assert.assertTrue(readers1.apply(new FlowId("ns1", "app1", "prog1")));
+    Assert.assertTrue(readers1.apply(new DatasetId("ns1", "ds1")));
+    Assert.assertTrue(readers1.apply(new ArtifactId("ns1", "art", "1")));
+
+    Assert.assertFalse(readers1.apply(new NamespaceId("ns2")));
+
+    // Test visibility of writers1
+    Predicate<EntityId> writers1 = authorizer.createFilter(getUser("writers1"));
+    Assert.assertTrue(writers1.apply(new NamespaceId("ns1")));
+    Assert.assertTrue(writers1.apply(new ApplicationId("ns1", "app1")));
+    Assert.assertTrue(writers1.apply(new FlowId("ns1", "app1", "prog1")));
+    Assert.assertTrue(writers1.apply(new FlowId("ns1", "app1", "prog2")));
+
+    Assert.assertFalse(writers1.apply(new FlowId("ns2", "app1", "prog1")));
+    Assert.assertFalse(writers1.apply(new FlowId("ns1", "app1", "pr")));
   }
 
   private void testAuthorized(EntityId entityId) throws Exception {
