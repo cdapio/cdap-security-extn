@@ -22,6 +22,7 @@ import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.proto.security.Privilege;
 import co.cask.cdap.proto.security.Role;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
+import co.cask.cdap.security.authorization.sentry.model.ActionFactory;
 import co.cask.cdap.security.spi.authorization.AbstractAuthorizer;
 import co.cask.cdap.security.spi.authorization.AlreadyExistsException;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
@@ -34,9 +35,13 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Sets;
+import org.apache.sentry.core.common.Authorizable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
@@ -203,13 +208,32 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     Preconditions.checkArgument(Principal.PrincipalType.USER == principal.getType(), "The given principal '%s' is of " +
       "type '%s'. In Sentry authorization checks can only be performed on principal type " +
       "'%s'.", principal.getName(), principal.getType(), Principal.PrincipalType.USER);
-    Set<Action> allowedActions = binding.getActions(principal, entityId);
-    if (allowedActions.isEmpty()) {
+
+    Set<WildcardPolicy> policies = binding.getPolicies(principal);
+    LOG.error("Got policies {} for principal {}, entity {} and actions {}", policies, principal, entityId, actions);
+    if (policies.isEmpty()) {
       throw new UnauthorizedException(principal, actions, entityId);
     }
-    Sets.SetView<Action> disallowed = Sets.difference(actions, allowedActions);
-    if (!disallowed.isEmpty()) {
-      throw new UnauthorizedException(principal, disallowed, entityId);
+
+    List<Authorizable> authorizables = new ArrayList<>();
+    binding.toAuthorizables(entityId, authorizables);
+
+    Set<ActionFactory.Action> checkActions = binding.toSentryActions(actions);
+
+    // Check each action against each policy
+    Set<ActionFactory.Action> allowedActions = new HashSet<>(actions.size());
+    for (ActionFactory.Action sentryAction : checkActions) {
+      for (WildcardPolicy policy : policies) {
+        if (policy.isAllowed(authorizables, sentryAction)) {
+          allowedActions.add(sentryAction);
+          // no need to check the other policies since this action is allowed by this policy
+          break;
+        }
+      }
+    }
+
+    if (!checkActions.equals(allowedActions)) {
+      throw new UnauthorizedException(principal, actions, entityId);
     }
   }
 
