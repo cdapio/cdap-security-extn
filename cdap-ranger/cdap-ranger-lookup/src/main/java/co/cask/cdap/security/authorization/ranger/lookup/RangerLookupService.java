@@ -1,8 +1,22 @@
+/*
+ * Copyright © 2017 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package co.cask.cdap.security.authorization.ranger.lookup;
 
 import co.cask.cdap.security.authorization.ranger.lookup.client.CDAPClient;
 import co.cask.cdap.security.authorization.ranger.lookup.client.CDAPConnectionMgr;
-import com.google.common.collect.Maps;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.ranger.plugin.client.HadoopException;
@@ -11,6 +25,7 @@ import org.apache.ranger.plugin.model.RangerServiceDef;
 import org.apache.ranger.plugin.service.RangerBaseService;
 import org.apache.ranger.plugin.service.ResourceLookupContext;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -38,18 +53,20 @@ public class RangerLookupService extends RangerBaseService {
       LOG.debug("==> RangerLookupService.validateConfig(" + serviceName + ")");
     }
 
+    // HashMap since validateConfig api returns a HashMap.
+    HashMap<String, Object> response = new HashMap<>();
     if (configs != null) {
       try {
-        CDAPConnectionMgr.testConnection(serviceName, configs);
+        response.putAll(CDAPConnectionMgr.testConnection(serviceName, configs));
       } catch (HadoopException e) {
-        LOG.error("<== RangerServiceCDAP.validateConfig Error:" + e);
+        LOG.error("<== RangerLookupService.validateConfig Error:" + e);
         throw e;
       }
     }
     if (LOG.isDebugEnabled()) {
       LOG.debug("<== RangerLookupService.validateConfig(" + serviceName + ")");
     }
-    return Maps.newHashMap();
+    return response;
   }
 
   @Override
@@ -60,16 +77,16 @@ public class RangerLookupService extends RangerBaseService {
     }
     if (context != null) {
       try {
-        CDAPClient cdapClient = CDAPConnectionMgr.getCDAPClient(serviceName, configs);
-        ret = cdapClient.getResources(context);
+        CDAPClient client = CDAPConnectionMgr.getCDAPClient(serviceName, configs);
+        // TODO do resource lookup here
       } catch (Exception e) {
-        LOG.error("<==RangerServiceHive.lookupResource Error : " + e);
+        LOG.error("<== RangerServiceHive.lookupResource Error : " + e);
         throw e;
       }
     }
     if (LOG.isDebugEnabled()) {
-      LOG.debug("<== RangerServiceHive.lookupResource Response: (" + ret + ")");
+      LOG.debug("<== RangerLookupService.lookupResource Response: (" + ret + ")");
     }
-    return ret;
+    return Collections.emptyList();
   }
 }
