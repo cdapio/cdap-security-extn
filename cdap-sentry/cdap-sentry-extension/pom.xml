@@ -124,6 +124,12 @@
         <artifactId>sentry-policy-common</artifactId>
         <version>${sentry.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.apache.sentry</groupId>
+        <artifactId>sentry-binding-hive-common</artifactId>
+        <version>${sentry.version}</version>
+        <scope>test</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
