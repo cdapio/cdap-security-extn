@@ -64,7 +64,8 @@ public class RangerAuthorizer extends AbstractAuthorizer {
 
   @Override
   public void enforce(EntityId entity, Principal principal, Action action) throws Exception {
-    LOG.debug("Enforce called on entity {}, principal {}, action {}", entity, principal, action);
+    LOG.info("===> enforce(EntityId entity, Principal principal, Action action)");
+    LOG.info("Enforce called on entity {}, principal {}, action {}", entity, principal, action);
     if (rangerPlugin == null) {
       LOG.warn("CDAP Ranger Authorizer is not initialized");
       throw new RuntimeException("CDAP Ranger Authorizer is not initialized.");
@@ -73,7 +74,7 @@ public class RangerAuthorizer extends AbstractAuthorizer {
     String requestingUser = getRequestingUser();
     String ip = InetAddress.getLocalHost().getHostName();
     java.util.Set<String> userGroups = MiscUtil.getGroupsForRequestUser(requestingUser);
-    LOG.debug("Requesting user {}, ip {}, requesting user groups {}", requestingUser, ip, userGroups);
+    LOG.info("Requesting user {}, ip {}, requesting user groups {}", requestingUser, ip, userGroups);
 
     Date eventTime = new Date();
     String accessType = toRangerAccessType(action);
@@ -110,7 +111,7 @@ public class RangerAuthorizer extends AbstractAuthorizer {
       try {
         RangerAccessResult result = rangerPlugin.isAccessAllowed(rangerRequest);
         if (result == null) {
-          LOG.debug("Ranger Plugin returned null. Returning false");
+          LOG.info("Ranger Plugin returned null. Returning false");
           isAuthorized = false;
         } else {
           isAuthorized = result.getIsAllowed();
@@ -123,17 +124,24 @@ public class RangerAuthorizer extends AbstractAuthorizer {
       }
     }
     if (!isAuthorized) {
+      LOG.info("Unauthorized: Principal {} is unauthorized to perform action {} on entity {}, " +
+                 "accessType {}",
+               principal, action, entity, accessType);
       throw new UnauthorizedException(principal, action, entity);
     }
   }
 
   @Override
   public void enforce(EntityId entityId, Principal principal, Set<Action> set) throws Exception {
-    LOG.debug("Enforce called on entity {}, principal {}, actions {}", entityId, principal, set);
+    LOG.info("===> enforce(EntityId entityId, Principal principal, Set<Action> set)");
+    LOG.info("Enforce called on entity {}, principal {}, actions {}", entityId, principal, set);
     //TODO: Investigate if its possible to make the enforce call with set of actions rather than one by one
     for (Action action : set) {
+      LOG.info("Calling enforce on action {}", action);
       enforce(entityId, principal, action);
+      LOG.info("Enforce done on action {}", action);
     }
+    LOG.info("<=== enforce(EntityId entityId, Principal principal, Set<Action> set)");
   }
 
   @Override

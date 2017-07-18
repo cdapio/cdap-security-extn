@@ -12,13 +12,13 @@
       "level": 10,
       "parent": "",
       "mandatory": true,
-      "lookupSupported": true,
+      "lookupSupported": false,
       "recursiveSupported": false,
-      "excludesSupported": true,
+      "excludesSupported": false,
       "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
       "matcherOptions": {
         "wildCard": true,
-        "ignoreCase": false
+        "ignoreCase": true
       },
       "validationRegEx": "",
       "validationMessage": "",
@@ -33,13 +33,13 @@
       "level": 20,
       "parent": "instance",
       "mandatory": false,
-      "lookupSupported": true,
+      "lookupSupported": false,
       "recursiveSupported": false,
-      "excludesSupported": false,
+      "excludesSupported": true,
       "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
       "matcherOptions": {
         "wildCard": true,
-        "ignoreCase": false
+        "ignoreCase": true
       },
       "validationRegEx": "",
       "validationMessage": "",
@@ -54,13 +54,13 @@
       "level": 30,
       "parent": "namespace",
       "mandatory": false,
-      "lookupSupported": true,
+      "lookupSupported": false,
       "recursiveSupported": false,
-      "excludesSupported": false,
+      "excludesSupported": true,
       "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
       "matcherOptions": {
         "wildCard": true,
-        "ignoreCase": false
+        "ignoreCase": true
       },
       "validationRegEx": "",
       "validationMessage": "",
@@ -75,13 +75,13 @@
       "level": 30,
       "parent": "namespace",
       "mandatory": false,
-      "lookupSupported": true,
+      "lookupSupported": false,
       "recursiveSupported": false,
-      "excludesSupported": false,
+      "excludesSupported": true,
       "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
       "matcherOptions": {
         "wildCard": true,
-        "ignoreCase": false
+        "ignoreCase": true
       },
       "validationRegEx": "",
       "validationMessage": "",
@@ -96,13 +96,13 @@
       "level": 30,
       "parent": "namespace",
       "mandatory": false,
-      "lookupSupported": true,
+      "lookupSupported": false,
       "recursiveSupported": false,
-      "excludesSupported": false,
+      "excludesSupported": true,
       "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
       "matcherOptions": {
         "wildCard": true,
-        "ignoreCase": false
+        "ignoreCase": true
       },
       "validationRegEx": "",
       "validationMessage": "",
@@ -117,13 +117,13 @@
       "level": 30,
       "parent": "namespace",
       "mandatory": false,
-      "lookupSupported": true,
+      "lookupSupported": false,
       "recursiveSupported": false,
-      "excludesSupported": false,
+      "excludesSupported": true,
       "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
       "matcherOptions": {
         "wildCard": true,
-        "ignoreCase": false
+        "ignoreCase": true
       },
       "validationRegEx": "",
       "validationMessage": "",
@@ -138,13 +138,13 @@
       "level": 30,
       "parent": "namespace",
       "mandatory": false,
-      "lookupSupported": true,
+      "lookupSupported": false,
       "recursiveSupported": false,
-      "excludesSupported": false,
+      "excludesSupported": true,
       "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
       "matcherOptions": {
         "wildCard": true,
-        "ignoreCase": false
+        "ignoreCase": true
       },
       "validationRegEx": "",
       "validationMessage": "",
@@ -159,13 +159,13 @@
       "level": 40,
       "parent": "application",
       "mandatory": false,
-      "lookupSupported": true,
+      "lookupSupported": false,
       "recursiveSupported": false,
-      "excludesSupported": false,
+      "excludesSupported": true,
       "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
       "matcherOptions": {
         "wildCard": true,
-        "ignoreCase": false
+        "ignoreCase": true
       },
       "validationRegEx": "",
       "validationMessage": "",
