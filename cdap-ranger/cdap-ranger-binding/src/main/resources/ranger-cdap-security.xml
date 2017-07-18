@@ -51,7 +51,7 @@
 
   <property>
     <name>ranger.plugin.cdap.policy.pollIntervalMs</name>
-    <value>10000</value>
+    <value>60000</value>
     <description>
       How often to poll for changes in policies?
     </description>

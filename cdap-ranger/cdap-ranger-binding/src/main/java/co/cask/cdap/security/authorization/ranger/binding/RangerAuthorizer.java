@@ -64,14 +64,14 @@ public class RangerAuthorizer extends AbstractAuthorizer {
 
   @Override
   public void enforce(EntityId entity, Principal principal, Action action) throws Exception {
-    LOG.info("===> enforce(EntityId entity, Principal principal, Action action)");
+    LOG.info("=====> enforce({}, {}, {})", entity, principal, action);
     LOG.info("Enforce called on entity {}, principal {}, action {}", entity, principal, action);
     if (rangerPlugin == null) {
       LOG.warn("CDAP Ranger Authorizer is not initialized");
       throw new RuntimeException("CDAP Ranger Authorizer is not initialized.");
     }
 
-    String requestingUser = getRequestingUser();
+    String requestingUser = principal.getName();
     String ip = InetAddress.getLocalHost().getHostName();
     java.util.Set<String> userGroups = MiscUtil.getGroupsForRequestUser(requestingUser);
     LOG.info("Requesting user {}, ip {}, requesting user groups {}", requestingUser, ip, userGroups);
@@ -129,11 +129,12 @@ public class RangerAuthorizer extends AbstractAuthorizer {
                principal, action, entity, accessType);
       throw new UnauthorizedException(principal, action, entity);
     }
+    LOG.info("<===== enforce({}, {}, {})", entity, principal, action);
   }
 
   @Override
   public void enforce(EntityId entityId, Principal principal, Set<Action> set) throws Exception {
-    LOG.info("===> enforce(EntityId entityId, Principal principal, Set<Action> set)");
+    LOG.info("======> enforce({}, {}, {})", entityId, principal, set);
     LOG.info("Enforce called on entity {}, principal {}, actions {}", entityId, principal, set);
     //TODO: Investigate if its possible to make the enforce call with set of actions rather than one by one
     for (Action action : set) {
@@ -141,7 +142,7 @@ public class RangerAuthorizer extends AbstractAuthorizer {
       enforce(entityId, principal, action);
       LOG.info("Enforce done on action {}", action);
     }
-    LOG.info("<=== enforce(EntityId entityId, Principal principal, Set<Action> set)");
+    LOG.info("<====== enforce({}, {}, {})", entityId, principal, set);
   }
 
   @Override
