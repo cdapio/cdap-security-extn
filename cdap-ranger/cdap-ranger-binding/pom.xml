@@ -42,6 +42,10 @@
       <artifactId>cdap-security-spi</artifactId>
     </dependency>
     <dependency>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-common</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.apache.ranger</groupId>
       <artifactId>ranger-plugins-common</artifactId>
     </dependency>

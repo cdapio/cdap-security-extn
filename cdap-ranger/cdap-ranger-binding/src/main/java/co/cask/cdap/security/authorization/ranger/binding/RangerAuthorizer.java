@@ -1,9 +1,18 @@
 package co.cask.cdap.security.authorization.ranger.binding;
 
+import co.cask.cdap.common.conf.Constants;
 import co.cask.cdap.proto.element.EntityType;
+import co.cask.cdap.proto.id.ApplicationId;
+import co.cask.cdap.proto.id.ArtifactId;
+import co.cask.cdap.proto.id.DatasetId;
+import co.cask.cdap.proto.id.DatasetModuleId;
+import co.cask.cdap.proto.id.DatasetTypeId;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.id.InstanceId;
 import co.cask.cdap.proto.id.NamespaceId;
+import co.cask.cdap.proto.id.ProgramId;
+import co.cask.cdap.proto.id.SecureKeyId;
+import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.proto.security.Privilege;
@@ -24,7 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.util.Date;
-import java.util.EnumSet;
+import java.util.Properties;
 import java.util.Set;
 
 /**
@@ -36,14 +45,28 @@ public class RangerAuthorizer extends AbstractAuthorizer {
 
   private static final String KEY_INSTANCE = "instance";
   private static final String KEY_NAMESPACE = "namespace";
+  private static final String KEY_ARTIFACT = "artifact";
+  private static final String KEY_APPLICATION = "application";
+  private static final String KEY_DATASET = "dataset";
+  private static final String KEY_STREAM = "stream";
+  private static final String KEY_PROGRAM = "program";
+  private static final String KEY_DATASET_MODULE = "dataset_module";
+  private static final String KEY_DATASET_TYPE = "dataset_type";
+  private static final String KEY_SECUREKEY = "securekey";
+
+  private static final String RESOURCE_SEPARATOR = "#";
 
 
   private static volatile RangerBasePlugin rangerPlugin = null;
   private AuthorizationContext context;
+  private String instanceName;
 
   @Override
   public synchronized void initialize(AuthorizationContext context) throws Exception {
     this.context = context;
+    Properties properties = context.getExtensionProperties();
+    instanceName = properties.containsKey(Constants.INSTANCE_NAME) ?
+      properties.getProperty(Constants.INSTANCE_NAME) : "cdap";
     if (rangerPlugin == null) {
       try {
         UserGroupInformation ugi = UserGroupInformation.getLoginUser();
@@ -93,36 +116,25 @@ public class RangerAuthorizer extends AbstractAuthorizer {
     rangerRequest.setAction(accessType);
     rangerRequest.setRequestData(entity.toString());
 
-    if (entity.getEntityType() == EntityType.INSTANCE) {
-      rangerResource.setValue(KEY_INSTANCE, ((InstanceId) entity).getInstance());
-    } else if (entity.getEntityType() == EntityType.NAMESPACE) {
-      rangerResource.setValue(KEY_INSTANCE, "cdap");
-      rangerResource.setValue(KEY_NAMESPACE, ((NamespaceId) entity).getNamespace());
-    } else {
-      LOG.warn("Unsupported entity type {}" + entity.getEntityType());
-      validationFailed = true;
+    setAccessResource(entity, rangerResource);
+
+    boolean isAuthorized = false;
+
+    try {
+      RangerAccessResult result = rangerPlugin.isAccessAllowed(rangerRequest);
+      if (result == null) {
+        LOG.info("Ranger Plugin returned null. Returning false");
+        isAuthorized = false;
+      } else {
+        isAuthorized = result.getIsAllowed();
+      }
+    } catch (Throwable t) {
+      LOG.warn("Error while calling isAccessAllowed(). request {}", rangerRequest, t);
+      throw t;
+    } finally {
+      LOG.debug("Ranger Request {}, Returning value {}", rangerRequest, isAuthorized);
     }
 
-    boolean isAuthorized = true;
-    if (validationFailed) {
-      LOG.warn("Validation failed for request {}" + rangerRequest);
-      isAuthorized = false;
-    } else {
-      try {
-        RangerAccessResult result = rangerPlugin.isAccessAllowed(rangerRequest);
-        if (result == null) {
-          LOG.info("Ranger Plugin returned null. Returning false");
-          isAuthorized = false;
-        } else {
-          isAuthorized = result.getIsAllowed();
-        }
-      } catch (Throwable t) {
-        LOG.warn("Error while calling isAccessAllowed(). request {}", rangerRequest, t);
-        throw t;
-      } finally {
-        LOG.debug("Ranger Request {}, Returning value {}", rangerRequest, isAuthorized);
-      }
-    }
     if (!isAuthorized) {
       LOG.info("Unauthorized: Principal {} is unauthorized to perform action {} on entity {}, " +
                  "accessType {}",
@@ -209,5 +221,68 @@ public class RangerAuthorizer extends AbstractAuthorizer {
 
   private String toRangerAccessType(Action action) {
     return action.toString().toLowerCase();
+  }
+
+  /**
+   * Sets the access resource appropriately depending on the given entityId
+   *
+   * @param entityId             the entity which needs to be set to
+   * @param rangerAccessResource the {@link RangerAccessResourceImpl} to set the entity values to
+   */
+  private void setAccessResource(EntityId entityId, RangerAccessResourceImpl rangerAccessResource) {
+    EntityType entityType = entityId.getEntityType();
+    switch (entityType) {
+      case INSTANCE:
+        rangerAccessResource.setValue(KEY_INSTANCE, ((InstanceId) entityId).getInstance());
+        break;
+      case NAMESPACE:
+        rangerAccessResource.setValue(KEY_INSTANCE, instanceName);
+        rangerAccessResource.setValue(KEY_NAMESPACE, ((NamespaceId) entityId).getNamespace());
+        break;
+      case ARTIFACT:
+        ArtifactId artifactId = (ArtifactId) entityId;
+        setAccessResource(artifactId.getParent(), rangerAccessResource);
+        rangerAccessResource.setValue(KEY_ARTIFACT, artifactId.getArtifact() + RESOURCE_SEPARATOR +
+          artifactId.getVersion());
+        break;
+      case APPLICATION:
+        ApplicationId applicationId = (ApplicationId) entityId;
+        setAccessResource(applicationId.getParent(), rangerAccessResource);
+        rangerAccessResource.setValue(KEY_APPLICATION, applicationId.getApplication() + RESOURCE_SEPARATOR +
+          applicationId.getVersion());
+        break;
+      case DATASET:
+        DatasetId dataset = (DatasetId) entityId;
+        setAccessResource(dataset.getParent(), rangerAccessResource);
+        rangerAccessResource.setValue(KEY_DATASET, dataset.getDataset());
+        break;
+      case DATASET_MODULE:
+        DatasetModuleId datasetModuleId = (DatasetModuleId) entityId;
+        setAccessResource(datasetModuleId.getParent(), rangerAccessResource);
+        rangerAccessResource.setValue(KEY_DATASET_MODULE, datasetModuleId.getModule());
+        break;
+      case DATASET_TYPE:
+        DatasetTypeId datasetTypeId = (DatasetTypeId) entityId;
+        setAccessResource(datasetTypeId.getParent(), rangerAccessResource);
+        rangerAccessResource.setValue(KEY_DATASET_TYPE, datasetTypeId.getType());
+        break;
+      case STREAM:
+        StreamId streamId = (StreamId) entityId;
+        setAccessResource(streamId.getParent(), rangerAccessResource);
+        rangerAccessResource.setValue(KEY_STREAM, streamId.getStream());
+        break;
+      case PROGRAM:
+        ProgramId programId = (ProgramId) entityId;
+        setAccessResource(programId.getParent(), rangerAccessResource);
+        rangerAccessResource.setValue(KEY_PROGRAM, programId.getType() + RESOURCE_SEPARATOR + programId.getProgram());
+        break;
+      case SECUREKEY:
+        SecureKeyId secureKeyId = (SecureKeyId) entityId;
+        setAccessResource(secureKeyId.getParent(), rangerAccessResource);
+        rangerAccessResource.setValue(KEY_SECUREKEY, secureKeyId.getName());
+        break;
+      default:
+        throw new IllegalArgumentException(String.format("The entity %s is of unknown type %s", entityId, entityType));
+    }
   }
 }
