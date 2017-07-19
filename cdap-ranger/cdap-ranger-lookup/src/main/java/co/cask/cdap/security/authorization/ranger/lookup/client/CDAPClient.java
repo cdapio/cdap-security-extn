@@ -141,7 +141,7 @@ public class CDAPClient {
     }
 
     if (LOG.isDebugEnabled()) {
-      LOG.debug("<== CDApClient.getNamespaces(): " + namespaces);
+      LOG.debug("<== CDAPClient.getNamespaces(): " + namespaces);
     }
     return namespaces;
   }
@@ -192,7 +192,8 @@ public class CDAPClient {
       public Boolean call() throws Exception {
         return authClient.getAccessToken() != null;
       }
-    }, "Unable to connect to Authentication service to obtain access token, Connection info : " + connectionConfig);
+    }, "Unable to connect to CDAP Authentication service to obtain access token, Connection info : " +
+      connectionConfig);
     return authClient.getAccessToken();
   }
 

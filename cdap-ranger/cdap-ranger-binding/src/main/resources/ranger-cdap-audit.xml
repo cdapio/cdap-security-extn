@@ -22,7 +22,6 @@
     <value>true</value>
   </property>
 
-
   <!-- DB audit provider configuration -->
   <property>
     <name>xasecure.audit.db.is.enabled</name>

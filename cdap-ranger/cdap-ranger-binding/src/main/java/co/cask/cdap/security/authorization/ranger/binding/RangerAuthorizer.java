@@ -1,3 +1,18 @@
+/*
+ * Copyright © 2017 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package co.cask.cdap.security.authorization.ranger.binding;
 
 import co.cask.cdap.common.conf.Constants;
@@ -43,6 +58,8 @@ import java.util.Set;
 public class RangerAuthorizer extends AbstractAuthorizer {
   private static final Logger LOG = LoggerFactory.getLogger(RangerAuthorizer.class);
 
+  // just string keys used to store entity in ranger. We don't want them to be derived from entity type or name since
+  // any changes to them on cdap side will make privileges incompatible.
   private static final String KEY_INSTANCE = "instance";
   private static final String KEY_NAMESPACE = "namespace";
   private static final String KEY_ARTIFACT = "artifact";
@@ -54,11 +71,12 @@ public class RangerAuthorizer extends AbstractAuthorizer {
   private static final String KEY_DATASET_TYPE = "dataset_type";
   private static final String KEY_SECUREKEY = "securekey";
 
+  // using # as we don't allow it in entity names
   private static final String RESOURCE_SEPARATOR = "#";
-
 
   private static volatile RangerBasePlugin rangerPlugin = null;
   private AuthorizationContext context;
+  // cdap instance name
   private String instanceName;
 
   @Override
@@ -71,12 +89,15 @@ public class RangerAuthorizer extends AbstractAuthorizer {
       try {
         UserGroupInformation ugi = UserGroupInformation.getLoginUser();
         if (ugi != null) {
+          // set the login user as the user as whom cdap is running as this is needed for kerberos authentication
           MiscUtil.setUGILoginUser(ugi, null);
         }
         LOG.debug("Initializing Ranger CDAP Plugin with UGI {}", ugi);
       } catch (Throwable t) {
         LOG.error("Error getting principal.", t);
       }
+      // the string name here should not be changed as this uniquely identifies the service in ranger. If it's
+      // changed it will require changing all the supporting xml file which is in this package.
       rangerPlugin = new RangerBasePlugin("cdap", "cdap");
     }
     rangerPlugin.init();
@@ -87,23 +108,24 @@ public class RangerAuthorizer extends AbstractAuthorizer {
 
   @Override
   public void enforce(EntityId entity, Principal principal, Action action) throws Exception {
-    LOG.info("=====> enforce({}, {}, {})", entity, principal, action);
-    LOG.info("Enforce called on entity {}, principal {}, action {}", entity, principal, action);
+    LOG.debug("Enforce called on entity {}, principal {}, action {}", entity, principal, action);
     if (rangerPlugin == null) {
-      LOG.warn("CDAP Ranger Authorizer is not initialized");
       throw new RuntimeException("CDAP Ranger Authorizer is not initialized.");
     }
 
+    if (principal.getType() != Principal.PrincipalType.USER) {
+      throw new IllegalArgumentException(String.format("The principal type for current enforcement request is '%s'. " +
+                                                         "Authorization enforcement is only supported for '%s'.",
+                                                       principal.getType(), Principal.PrincipalType.USER));
+    }
     String requestingUser = principal.getName();
     String ip = InetAddress.getLocalHost().getHostName();
     java.util.Set<String> userGroups = MiscUtil.getGroupsForRequestUser(requestingUser);
-    LOG.info("Requesting user {}, ip {}, requesting user groups {}", requestingUser, ip, userGroups);
+
+    LOG.debug("Requesting user {}, ip {}, requesting user groups {}", requestingUser, ip, userGroups);
 
     Date eventTime = new Date();
     String accessType = toRangerAccessType(action);
-
-    boolean validationFailed = false;
-
     RangerAccessRequestImpl rangerRequest = new RangerAccessRequestImpl();
     rangerRequest.setUser(requestingUser);
     rangerRequest.setUserGroups(userGroups);
@@ -123,7 +145,7 @@ public class RangerAuthorizer extends AbstractAuthorizer {
     try {
       RangerAccessResult result = rangerPlugin.isAccessAllowed(rangerRequest);
       if (result == null) {
-        LOG.info("Ranger Plugin returned null. Returning false");
+        LOG.warn("Unauthorized: Ranger Plugin returned null for this authorization enforcement.");
         isAuthorized = false;
       } else {
         isAuthorized = result.getIsAllowed();
@@ -132,29 +154,25 @@ public class RangerAuthorizer extends AbstractAuthorizer {
       LOG.warn("Error while calling isAccessAllowed(). request {}", rangerRequest, t);
       throw t;
     } finally {
-      LOG.debug("Ranger Request {}, Returning value {}", rangerRequest, isAuthorized);
+      LOG.debug("Ranger Request {}, authorization {}.", rangerRequest, (isAuthorized ? "successful" : "failed"));
     }
 
     if (!isAuthorized) {
-      LOG.info("Unauthorized: Principal {} is unauthorized to perform action {} on entity {}, " +
-                 "accessType {}",
-               principal, action, entity, accessType);
+      // explicitly log here since we have seen cases where UnauthorizedException doesn't get logged by cdap and causes
+      // debugging nightmare.
+      LOG.warn("Unauthorized: Principal {} is unauthorized to perform action {} on entity {}.",
+               principal, action, entity);
       throw new UnauthorizedException(principal, action, entity);
     }
-    LOG.info("<===== enforce({}, {}, {})", entity, principal, action);
   }
 
   @Override
   public void enforce(EntityId entityId, Principal principal, Set<Action> set) throws Exception {
-    LOG.info("======> enforce({}, {}, {})", entityId, principal, set);
-    LOG.info("Enforce called on entity {}, principal {}, actions {}", entityId, principal, set);
+    LOG.debug("Enforce called on entity {}, principal {}, actions {}", entityId, principal, set);
     //TODO: Investigate if its possible to make the enforce call with set of actions rather than one by one
     for (Action action : set) {
-      LOG.info("Calling enforce on action {}", action);
       enforce(entityId, principal, action);
-      LOG.info("Enforce done on action {}", action);
     }
-    LOG.info("<====== enforce({}, {}, {})", entityId, principal, set);
   }
 
   @Override
@@ -226,7 +244,7 @@ public class RangerAuthorizer extends AbstractAuthorizer {
   /**
    * Sets the access resource appropriately depending on the given entityId
    *
-   * @param entityId             the entity which needs to be set to
+   * @param entityId the entity which needs to be set to
    * @param rangerAccessResource the {@link RangerAccessResourceImpl} to set the entity values to
    */
   private void setAccessResource(EntityId entityId, RangerAccessResourceImpl rangerAccessResource) {
