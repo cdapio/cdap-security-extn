@@ -106,11 +106,6 @@ public class CDAPRangerLookupClient {
         String successMsg = "Connection Test Successful";
         BaseClient.generateResponseDataMap(true, successMsg, successMsg,
                                            null, null, responseData);
-      } else {
-        String failureMsg = "Unable to retrieve any namespace using given parameters. " +
-          "Please ensure that the configurations are correct and at least one namespace is accessible to this user.";
-        BaseClient.generateResponseDataMap(false, failureMsg, failureMsg + ERR_MSG,
-                                           null, null, responseData);
       }
     } catch (Exception e) {
       LOG.error("Error connecting to CDAP.", e);
