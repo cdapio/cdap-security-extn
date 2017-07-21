@@ -38,6 +38,7 @@ import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nullable;
 
 /**
  * CDAP Clients which to be used by ranger for listing cdap resources.
@@ -45,22 +46,22 @@ import java.util.concurrent.TimeoutException;
  * used by other services in Apache Ranger since these log statements end up in ranger admin log file we
  * want them to be in same format.
  */
-public class CDAPClient {
+public class CDAPRangerLookupClient {
 
-  private static final Log LOG = LogFactory.getLog(CDAPClient.class);
+  private static final Log LOG = LogFactory.getLog(CDAPRangerLookupClient.class);
   private static final long SERVICE_TIMEOUT_SECONDS = TimeUnit.MINUTES.toSeconds(30);
 
+  private static final String ERR_MSG = " You can still save the repository and start creating "
+    + "policies, but you would not be able to use autocomplete for "
+    + "resource names. Check xa_portal.log for more info.";
   private AccessToken accessToken;
   private final String serviceName;
   private final String instanceURL;
   private final String username;
   private final String password;
   private final NamespaceClient nsClient;
-  private static final String ERR_MSG = " You can still save the repository and start creating "
-    + "policies, but you would not be able to use autocomplete for "
-    + "resource names. Check xa_portal.log for more info.";
 
-  CDAPClient(String serviceName, String instanceURL, String username, String password) {
+  CDAPRangerLookupClient(String serviceName, String instanceURL, String username, String password) {
     this.serviceName = serviceName;
     this.instanceURL = instanceURL;
     this.username = username;
@@ -73,7 +74,7 @@ public class CDAPClient {
 
   private void initConnection() {
     if (LOG.isDebugEnabled()) {
-      LOG.debug("==> CDAPClient initConnection()");
+      LOG.debug("==> CDAPRangerLookupClient initConnection()");
     }
     if (username != null && password != null) {
       // security is enabled, we need to get access token before checking system services
@@ -85,7 +86,7 @@ public class CDAPClient {
       }
     }
     if (LOG.isDebugEnabled()) {
-      LOG.debug("<== CDAPClient initConnection()");
+      LOG.debug("<== CDAPRangerLookupClient initConnection()");
     }
   }
 
@@ -95,13 +96,13 @@ public class CDAPClient {
    */
   Map<String, Object> testConnection() {
     if (LOG.isDebugEnabled()) {
-      LOG.debug("==> CDAPClient testConnection()");
+      LOG.debug("==> CDAPRangerLookupClient testConnection()");
     }
     HashMap<String, Object> responseData = new HashMap<>();
     List<String> testResult;
     try {
       testResult = getNamespaces(null);
-      if (testResult != null && testResult.size() >= 0) {
+      if (testResult.size() >= 0) {
         String successMsg = "Connection Test Successful";
         BaseClient.generateResponseDataMap(true, successMsg, successMsg,
                                            null, null, responseData);
@@ -118,14 +119,14 @@ public class CDAPClient {
                                          failureMsg + ERR_MSG, null, null, responseData);
     }
     if (LOG.isDebugEnabled()) {
-      LOG.debug("<== CDAPClient testConnection()");
+      LOG.debug("<== CDAPRangerLookupClient testConnection()");
     }
     return responseData;
   }
 
-  private List<String> getNamespaces(List<String> nsList) throws Exception {
+  private List<String> getNamespaces(@Nullable List<String> nsList) throws Exception {
     if (LOG.isDebugEnabled()) {
-      LOG.debug("==> CDAPClient.getNamespaces() ExcludeNamespaceList :" + nsList);
+      LOG.debug("==> CDAPRangerLookupClient.getNamespaces() ExcludeNamespaceList :" + nsList);
     }
 
     List<String> namespaces = new ArrayList<>();
@@ -141,7 +142,7 @@ public class CDAPClient {
     }
 
     if (LOG.isDebugEnabled()) {
-      LOG.debug("<== CDAPClient.getNamespaces(): " + namespaces);
+      LOG.debug("<== CDAPRangerLookupClient.getNamespaces(): " + namespaces);
     }
     return namespaces;
   }

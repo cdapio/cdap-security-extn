@@ -36,6 +36,7 @@ import co.cask.cdap.security.spi.authorization.AbstractAuthorizer;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.Authorizer;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
+import com.google.common.base.Preconditions;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.ranger.audit.provider.MiscUtil;
 import org.apache.ranger.plugin.audit.RangerDefaultAuditHandler;
@@ -88,15 +89,14 @@ public class RangerAuthorizer extends AbstractAuthorizer {
     if (rangerPlugin == null) {
       try {
         UserGroupInformation ugi = UserGroupInformation.getLoginUser();
-        if (ugi != null) {
-          // set the login user as the user as whom cdap is running as this is needed for kerberos authentication
-          MiscUtil.setUGILoginUser(ugi, null);
-        }
+        Preconditions.checkNotNull(ugi, "UserGroupInformation is null");
+        // set the login user as the user as whom cdap is running as this is needed for kerberos authentication
+        MiscUtil.setUGILoginUser(ugi, null);
         LOG.debug("Initializing Ranger CDAP Plugin with UGI {}", ugi);
       } catch (Throwable t) {
         LOG.error("Error getting principal.", t);
       }
-      // the string name here should not be changed as this uniquely identifies the service in ranger. If it's
+      // the string name here should not be changed as this uniquely identifies the plugin in ranger. If it's
       // changed it will require changing all the supporting xml file which is in this package.
       rangerPlugin = new RangerBasePlugin("cdap", "cdap");
     }
@@ -104,7 +104,6 @@ public class RangerAuthorizer extends AbstractAuthorizer {
     RangerDefaultAuditHandler auditHandler = new RangerDefaultAuditHandler();
     rangerPlugin.setResultProcessor(auditHandler);
   }
-
 
   @Override
   public void enforce(EntityId entity, Principal principal, Action action) throws Exception {
@@ -154,14 +153,10 @@ public class RangerAuthorizer extends AbstractAuthorizer {
       LOG.warn("Error while calling isAccessAllowed(). request {}", rangerRequest, t);
       throw t;
     } finally {
-      LOG.debug("Ranger Request {}, authorization {}.", rangerRequest, (isAuthorized ? "successful" : "failed"));
+      LOG.trace("Ranger Request {}, authorization {}.", rangerRequest, (isAuthorized ? "successful" : "failed"));
     }
 
     if (!isAuthorized) {
-      // explicitly log here since we have seen cases where UnauthorizedException doesn't get logged by cdap and causes
-      // debugging nightmare.
-      LOG.warn("Unauthorized: Principal {} is unauthorized to perform action {} on entity {}.",
-               principal, action, entity);
       throw new UnauthorizedException(principal, action, entity);
     }
   }
@@ -254,7 +249,7 @@ public class RangerAuthorizer extends AbstractAuthorizer {
         rangerAccessResource.setValue(KEY_INSTANCE, ((InstanceId) entityId).getInstance());
         break;
       case NAMESPACE:
-        rangerAccessResource.setValue(KEY_INSTANCE, instanceName);
+        setAccessResource(new InstanceId(instanceName), rangerAccessResource);
         rangerAccessResource.setValue(KEY_NAMESPACE, ((NamespaceId) entityId).getNamespace());
         break;
       case ARTIFACT:

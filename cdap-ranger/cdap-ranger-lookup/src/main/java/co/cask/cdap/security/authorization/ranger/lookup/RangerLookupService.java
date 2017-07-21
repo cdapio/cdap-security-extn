@@ -15,8 +15,8 @@
  */
 package co.cask.cdap.security.authorization.ranger.lookup;
 
-import co.cask.cdap.security.authorization.ranger.lookup.client.CDAPClient;
-import co.cask.cdap.security.authorization.ranger.lookup.client.CDAPConnectionMgr;
+import co.cask.cdap.security.authorization.ranger.lookup.client.CDAPConnectionManager;
+import co.cask.cdap.security.authorization.ranger.lookup.client.CDAPRangerLookupClient;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.ranger.plugin.client.HadoopException;
@@ -57,7 +57,7 @@ public class RangerLookupService extends RangerBaseService {
     HashMap<String, Object> response = new HashMap<>();
     if (configs != null) {
       try {
-        response.putAll(CDAPConnectionMgr.testConnection(serviceName, configs));
+        response.putAll(CDAPConnectionManager.testConnection(serviceName, configs));
       } catch (HadoopException e) {
         LOG.error("<== RangerLookupService.validateConfig Error:" + e);
         throw e;
@@ -77,7 +77,7 @@ public class RangerLookupService extends RangerBaseService {
     }
     if (context != null) {
       try {
-        CDAPClient client = CDAPConnectionMgr.getCDAPClient(serviceName, configs);
+        CDAPRangerLookupClient client = CDAPConnectionManager.getCDAPClient(serviceName, configs);
         // TODO do resource lookup here
       } catch (Exception e) {
         LOG.error("<== RangerServiceHive.lookupResource Error : " + e);
