@@ -53,7 +53,7 @@ import java.util.Properties;
 import java.util.Set;
 
 /**
- * This class implements {@link Authorizer} from CDAP and is responsible for interacting with Ranger to enforece
+ * This class implements {@link Authorizer} from CDAP and is responsible for interacting with Ranger to enforce
  * authorization.
  */
 public class RangerAuthorizer extends AbstractAuthorizer {
@@ -89,7 +89,7 @@ public class RangerAuthorizer extends AbstractAuthorizer {
     if (rangerPlugin == null) {
       try {
         UserGroupInformation ugi = UserGroupInformation.getLoginUser();
-        Preconditions.checkNotNull(ugi, "UserGroupInformation is null");
+        Preconditions.checkNotNull(ugi, "Kerberos login information is not available. UserGroupInformation is null");
         // set the login user as the user as whom cdap is running as this is needed for kerberos authentication
         MiscUtil.setUGILoginUser(ugi, null);
         LOG.debug("Initializing Ranger CDAP Plugin with UGI {}", ugi);
@@ -119,7 +119,7 @@ public class RangerAuthorizer extends AbstractAuthorizer {
     }
     String requestingUser = principal.getName();
     String ip = InetAddress.getLocalHost().getHostName();
-    java.util.Set<String> userGroups = MiscUtil.getGroupsForRequestUser(requestingUser);
+    Set<String> userGroups = MiscUtil.getGroupsForRequestUser(requestingUser);
 
     LOG.debug("Requesting user {}, ip {}, requesting user groups {}", requestingUser, ip, userGroups);
 
