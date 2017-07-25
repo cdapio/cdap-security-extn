@@ -31,6 +31,7 @@
   <modules>
     <module>cdap-ranger-lookup</module>
     <module>cdap-ranger-binding</module>
+    <module>cdap-ranger-commons</module>
   </modules>
 
   <packaging>pom</packaging>

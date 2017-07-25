@@ -16,17 +16,25 @@
 package co.cask.cdap.security.authorization.ranger.lookup.client;
 
 import co.cask.cdap.cli.util.InstanceURIParser;
+import co.cask.cdap.client.ApplicationClient;
 import co.cask.cdap.client.NamespaceClient;
+import co.cask.cdap.client.StreamClient;
 import co.cask.cdap.client.config.ClientConfig;
 import co.cask.cdap.client.config.ConnectionConfig;
+import co.cask.cdap.proto.ApplicationRecord;
 import co.cask.cdap.proto.NamespaceMeta;
+import co.cask.cdap.proto.StreamDetail;
+import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.security.authentication.client.AccessToken;
 import co.cask.cdap.security.authentication.client.AuthenticationClient;
 import co.cask.cdap.security.authentication.client.basic.BasicAuthenticationClient;
+import co.cask.cdap.security.authorization.ranger.commons.RangerCommons;
 import com.google.common.base.Throwables;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.ranger.plugin.client.BaseClient;
+import org.apache.ranger.plugin.service.ResourceLookupContext;
+import org.apache.ranger.plugin.util.TimedEventUtil;
 
 import java.io.IOException;
 import java.net.URI;
@@ -50,16 +58,17 @@ public class CDAPRangerLookupClient {
 
   private static final Log LOG = LogFactory.getLog(CDAPRangerLookupClient.class);
   private static final long SERVICE_TIMEOUT_SECONDS = TimeUnit.MINUTES.toSeconds(30);
-
   private static final String ERR_MSG = " You can still save the repository and start creating "
     + "policies, but you would not be able to use autocomplete for "
     + "resource names. Check xa_portal.log for more info.";
-  private AccessToken accessToken;
   private final String serviceName;
   private final String instanceURL;
   private final String username;
   private final String password;
   private final NamespaceClient nsClient;
+  private final StreamClient streamClient;
+  private final ApplicationClient applicationClient;
+  private AccessToken accessToken;
 
   CDAPRangerLookupClient(String serviceName, String instanceURL, String username, String password) {
     this.serviceName = serviceName;
@@ -69,6 +78,8 @@ public class CDAPRangerLookupClient {
     initConnection();
     ClientConfig clientConfig = getClientConfig();
     this.nsClient = new NamespaceClient(clientConfig);
+    this.streamClient = new StreamClient(clientConfig);
+    this.applicationClient = new ApplicationClient(clientConfig);
     //TODO create more cdap clients here
   }
 
@@ -119,6 +130,128 @@ public class CDAPRangerLookupClient {
     return responseData;
   }
 
+  public List<String> getResources(ResourceLookupContext context) {
+    final String userInput = context.getUserInput();
+    final String resource = context.getResourceName();
+    Map<String, List<String>> resourceMap = context.getResources();
+    List<String> resultList = null;
+    List<String> instanceList = null;
+    List<String> namespaceList = null;
+    List<String> streamList = null;
+    List<String> appList = null;
+
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== CDAPResourceMgr.getResources()  UserInput: \"" + userInput + "\" resource : " + resource +
+                  " resourceMap: " + resourceMap);
+    }
+    if (userInput != null && resource != null) {
+      if (resourceMap != null && !resourceMap.isEmpty()) {
+        instanceList = resourceMap.get(RangerCommons.KEY_INSTANCE);
+        namespaceList = resourceMap.get(RangerCommons.KEY_NAMESPACE);
+        streamList = resourceMap.get(RangerCommons.KEY_STREAM);
+        appList = resourceMap.get(RangerCommons.KEY_APPLICATION);
+      }
+    }
+
+    if (userInput != null && resource != null) {
+      try {
+        Callable<List<String>> callableObj = null;
+
+        final List<String> finalnamespaceList = namespaceList;
+        final List<String> finalStreamList = streamList;
+        final List<String> finalAppList = appList;
+
+        if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_NAMESPACE)) {
+          // get the DBList for given Input
+          callableObj = new Callable<List<String>>() {
+            @Override
+            public List<String> call() {
+              List<String> retList = new ArrayList<>();
+              try {
+                List<String> list = getNamespaces(finalnamespaceList);
+                if (userInput != null && !userInput.isEmpty()) {
+                  for (String value : list) {
+                    if (value.startsWith(userInput)) {
+                      retList.add(value);
+                    }
+                  }
+                } else {
+                  retList.addAll(list);
+                }
+              } catch (Exception ex) {
+                LOG.error("Error getting resource.", ex);
+              }
+              return retList;
+            }
+          };
+        } else if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_STREAM)) {
+          callableObj = new Callable<List<String>>() {
+            @Override
+            public List<String> call() {
+              List<String> retList = new ArrayList<>();
+              try {
+                List<String> list = getStreams(finalStreamList, new NamespaceId(finalnamespaceList.get(0)));
+                if (userInput != null && !userInput.isEmpty()) {
+                  for (String value : list) {
+                    if (value.startsWith(userInput)) {
+                      retList.add(value);
+                    }
+                  }
+                } else {
+                  retList.addAll(list);
+                }
+              } catch (Exception ex) {
+                LOG.error("Error getting resource.", ex);
+              }
+              return retList;
+            }
+          };
+        } else if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_APPLICATION)) {
+          callableObj = new Callable<List<String>>() {
+            @Override
+            public List<String> call() {
+              List<String> retList = new ArrayList<>();
+              try {
+                List<String> list = getApplications(finalAppList, new NamespaceId(finalnamespaceList.get(0)));
+                if (userInput != null
+                  && !userInput.isEmpty()) {
+                  for (String value : list) {
+                    if (value.startsWith(userInput)) {
+                      retList.add(value);
+                    }
+                  }
+                } else {
+                  retList.addAll(list);
+                }
+              } catch (Exception ex) {
+                LOG.error("Error getting resource.", ex);
+              }
+              return retList;
+            }
+          };
+        }
+
+        if (callableObj != null) {
+          synchronized (this) {
+            resultList = TimedEventUtil.timedTask(callableObj, SERVICE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+          }
+        }
+      } catch (Exception e) {
+        LOG.error("Unable to get CDAP resources.", e);
+      }
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== CDAPResourceMgr.getCDAPResources() UserInput: " + userInput + " " +
+                  "instanceList: " + instanceList + " namespaceList: "
+                  + namespaceList + "Result :" + resultList);
+
+    }
+    return resultList;
+
+  }
+
   private List<String> getNamespaces(@Nullable List<String> nsList) throws Exception {
     if (LOG.isDebugEnabled()) {
       LOG.debug("==> CDAPRangerLookupClient.getNamespaces() ExcludeNamespaceList :" + nsList);
@@ -140,6 +273,52 @@ public class CDAPRangerLookupClient {
       LOG.debug("<== CDAPRangerLookupClient.getNamespaces(): " + namespaces);
     }
     return namespaces;
+  }
+
+  private List<String> getStreams(@Nullable List<String> streamList, NamespaceId namespace) throws Exception {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("==> CDAPRangerLookupClient.getStreams() ExcludeStreamList :" + streamList);
+    }
+
+    List<String> streams = new ArrayList<>();
+    if (streamClient != null) {
+      for (StreamDetail streamDetail : streamClient.list(namespace)) {
+        String name = streamDetail.getName();
+        if (streamList == null || !streamList.contains(name)) {
+          streams.add(name);
+        }
+      }
+    } else {
+      LOG.warn("Failed to get Stream. StreamClient is not initialized.");
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== CDAPRangerLookupClient.getStreams(): " + streams);
+    }
+    return streams;
+  }
+
+  private List<String> getApplications(@Nullable List<String> appList, NamespaceId namespace) throws Exception {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("==> CDAPRangerLookupClient.getApplications() ExcludeApplicationList :" + appList);
+    }
+
+    List<String> applications = new ArrayList<>();
+    if (applicationClient != null) {
+      for (ApplicationRecord applicationRecord : applicationClient.list(namespace)) {
+        String name = applicationRecord.getName();
+        if (appList == null || !applications.contains(name)) {
+          applications.add(name);
+        }
+      }
+    } else {
+      LOG.warn("Failed to get Applications. ApplicationClient is not initialized.");
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== CDAPRangerLookupClient.getApplications(): " + applications);
+    }
+    return applications;
   }
 
   /**

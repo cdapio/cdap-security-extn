@@ -58,6 +58,11 @@
       <groupId>org.apache.ranger</groupId>
       <artifactId>ranger-plugins-audit</artifactId>
     </dependency>
+    <dependency>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-ranger-commons</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>

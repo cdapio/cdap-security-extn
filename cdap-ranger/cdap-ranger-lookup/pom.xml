@@ -44,6 +44,11 @@
       <groupId>co.cask.cdap</groupId>
       <artifactId>cdap-cli</artifactId>
     </dependency>
+    <dependency>
+      <groupId>co.cask.cdap</groupId>
+      <artifactId>cdap-ranger-commons</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>
