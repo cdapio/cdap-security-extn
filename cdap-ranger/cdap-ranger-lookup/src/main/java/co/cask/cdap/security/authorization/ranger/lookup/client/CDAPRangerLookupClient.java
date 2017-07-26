@@ -17,11 +17,13 @@ package co.cask.cdap.security.authorization.ranger.lookup.client;
 
 import co.cask.cdap.cli.util.InstanceURIParser;
 import co.cask.cdap.client.ApplicationClient;
+import co.cask.cdap.client.DatasetClient;
 import co.cask.cdap.client.NamespaceClient;
 import co.cask.cdap.client.StreamClient;
 import co.cask.cdap.client.config.ClientConfig;
 import co.cask.cdap.client.config.ConnectionConfig;
 import co.cask.cdap.proto.ApplicationRecord;
+import co.cask.cdap.proto.DatasetSpecificationSummary;
 import co.cask.cdap.proto.NamespaceMeta;
 import co.cask.cdap.proto.StreamDetail;
 import co.cask.cdap.proto.id.NamespaceId;
@@ -29,6 +31,7 @@ import co.cask.cdap.security.authentication.client.AccessToken;
 import co.cask.cdap.security.authentication.client.AuthenticationClient;
 import co.cask.cdap.security.authentication.client.basic.BasicAuthenticationClient;
 import co.cask.cdap.security.authorization.ranger.commons.RangerCommons;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -68,6 +71,7 @@ public class CDAPRangerLookupClient {
   private final NamespaceClient nsClient;
   private final StreamClient streamClient;
   private final ApplicationClient applicationClient;
+  private final DatasetClient datasetClient;
   private AccessToken accessToken;
 
   CDAPRangerLookupClient(String serviceName, String instanceURL, String username, String password) {
@@ -79,6 +83,7 @@ public class CDAPRangerLookupClient {
     ClientConfig clientConfig = getClientConfig();
     this.nsClient = new NamespaceClient(clientConfig);
     this.streamClient = new StreamClient(clientConfig);
+    this.datasetClient = new DatasetClient(clientConfig);
     this.applicationClient = new ApplicationClient(clientConfig);
     //TODO create more cdap clients here
   }
@@ -103,6 +108,7 @@ public class CDAPRangerLookupClient {
 
   /**
    * Tests that a connection can be established to CDAP with the given config. We do this by listing namespaces.
+   *
    * @return Map<String, Object> Connection test response
    */
   Map<String, Object> testConnection() {
@@ -138,6 +144,7 @@ public class CDAPRangerLookupClient {
     List<String> instanceList = null;
     List<String> namespaceList = null;
     List<String> streamList = null;
+    List<String> datasetList = null;
     List<String> appList = null;
 
 
@@ -151,91 +158,56 @@ public class CDAPRangerLookupClient {
         namespaceList = resourceMap.get(RangerCommons.KEY_NAMESPACE);
         streamList = resourceMap.get(RangerCommons.KEY_STREAM);
         appList = resourceMap.get(RangerCommons.KEY_APPLICATION);
+        datasetList = resourceMap.get(RangerCommons.KEY_DATASET);
       }
-    }
 
-    if (userInput != null && resource != null) {
       try {
-        Callable<List<String>> callableObj = null;
+        Callable<List<String>> callableObj;
 
         final List<String> finalnamespaceList = namespaceList;
         final List<String> finalStreamList = streamList;
         final List<String> finalAppList = appList;
+        final List<String> finalDatasetList = datasetList;
 
-        if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_NAMESPACE)) {
-          // get the DBList for given Input
-          callableObj = new Callable<List<String>>() {
-            @Override
-            public List<String> call() {
-              List<String> retList = new ArrayList<>();
-              try {
-                List<String> list = getNamespaces(finalnamespaceList);
-                if (userInput != null && !userInput.isEmpty()) {
-                  for (String value : list) {
-                    if (value.startsWith(userInput)) {
-                      retList.add(value);
-                    }
-                  }
-                } else {
-                  retList.addAll(list);
+        // get the DBList for given Input
+        callableObj = new Callable<List<String>>() {
+          @Override
+          public List<String> call() {
+            List<String> retList = new ArrayList<>();
+            try {
+              List<String> list = null;
+              if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_NAMESPACE)) {
+                list = getNamespaces(finalnamespaceList);
+              } else {
+                Preconditions.checkNotNull(finalnamespaceList);
+                NamespaceId namespace = new NamespaceId(finalnamespaceList.get(0));
+                if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_STREAM)) {
+                  list = getStreams(finalStreamList, namespace);
+                } else if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_APPLICATION)) {
+                  list = getApplications(finalAppList, namespace);
+                } else if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_DATASET)) {
+                  list = getDatasets(finalDatasetList, namespace);
                 }
-              } catch (Exception ex) {
-                LOG.error("Error getting resource.", ex);
               }
-              return retList;
-            }
-          };
-        } else if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_STREAM)) {
-          callableObj = new Callable<List<String>>() {
-            @Override
-            public List<String> call() {
-              List<String> retList = new ArrayList<>();
-              try {
-                List<String> list = getStreams(finalStreamList, new NamespaceId(finalnamespaceList.get(0)));
-                if (userInput != null && !userInput.isEmpty()) {
-                  for (String value : list) {
-                    if (value.startsWith(userInput)) {
-                      retList.add(value);
-                    }
+              Preconditions.checkNotNull(list, "Failed to list resources of type %s", resource.trim());
+              if (!userInput.isEmpty()) {
+                for (String value : list) {
+                  if (value.startsWith(userInput)) {
+                    retList.add(value);
                   }
-                } else {
-                  retList.addAll(list);
                 }
-              } catch (Exception ex) {
-                LOG.error("Error getting resource.", ex);
+              } else {
+                retList.addAll(list);
               }
-              return retList;
+            } catch (Exception ex) {
+              LOG.error("Error getting resource.", ex);
             }
-          };
-        } else if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_APPLICATION)) {
-          callableObj = new Callable<List<String>>() {
-            @Override
-            public List<String> call() {
-              List<String> retList = new ArrayList<>();
-              try {
-                List<String> list = getApplications(finalAppList, new NamespaceId(finalnamespaceList.get(0)));
-                if (userInput != null
-                  && !userInput.isEmpty()) {
-                  for (String value : list) {
-                    if (value.startsWith(userInput)) {
-                      retList.add(value);
-                    }
-                  }
-                } else {
-                  retList.addAll(list);
-                }
-              } catch (Exception ex) {
-                LOG.error("Error getting resource.", ex);
-              }
-              return retList;
-            }
-          };
-        }
-
-        if (callableObj != null) {
-          synchronized (this) {
-            resultList = TimedEventUtil.timedTask(callableObj, SERVICE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            return retList;
           }
+        };
+
+        synchronized (this) {
+          resultList = TimedEventUtil.timedTask(callableObj, SERVICE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         }
       } catch (Exception e) {
         LOG.error("Unable to get CDAP resources.", e);
@@ -249,7 +221,6 @@ public class CDAPRangerLookupClient {
 
     }
     return resultList;
-
   }
 
   private List<String> getNamespaces(@Nullable List<String> nsList) throws Exception {
@@ -296,6 +267,29 @@ public class CDAPRangerLookupClient {
       LOG.debug("<== CDAPRangerLookupClient.getStreams(): " + streams);
     }
     return streams;
+  }
+
+  private List<String> getDatasets(@Nullable List<String> datasetList, NamespaceId namespace) throws Exception {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("==> CDAPRangerLookupClient.getDatasets() ExcludeDatasetList :" + datasetList);
+    }
+
+    List<String> datasets = new ArrayList<>();
+    if (datasetClient != null) {
+      for (DatasetSpecificationSummary datasetSpecificationSummary : datasetClient.list(namespace)) {
+        String name = datasetSpecificationSummary.getName();
+        if (datasetList == null || !datasetList.contains(name)) {
+          datasets.add(name);
+        }
+      }
+    } else {
+      LOG.warn("Failed to get Datasets. DatasetClient is not initialized.");
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== CDAPRangerLookupClient.getDatasets(): " + datasets);
+    }
+    return datasets;
   }
 
   private List<String> getApplications(@Nullable List<String> appList, NamespaceId namespace) throws Exception {
@@ -368,7 +362,7 @@ public class CDAPRangerLookupClient {
         return authClient.getAccessToken() != null;
       }
     }, "Unable to connect to CDAP Authentication service to obtain access token, Connection info : " +
-      connectionConfig);
+                             connectionConfig);
     return authClient.getAccessToken();
   }
 
