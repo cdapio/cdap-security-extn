@@ -16,6 +16,7 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
+import co.cask.cdap.api.Predicate;
 import co.cask.cdap.api.TxRunnable;
 import co.cask.cdap.api.data.DatasetInstantiationException;
 import co.cask.cdap.api.dataset.Dataset;
@@ -29,9 +30,13 @@ import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.ArtifactId;
 import co.cask.cdap.proto.id.DatasetId;
+import co.cask.cdap.proto.id.DatasetModuleId;
+import co.cask.cdap.proto.id.DatasetTypeId;
 import co.cask.cdap.proto.id.EntityId;
+import co.cask.cdap.proto.id.FlowId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
+import co.cask.cdap.proto.id.SecureKeyId;
 import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
@@ -39,6 +44,8 @@ import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.TransactionFailureException;
 import org.junit.AfterClass;
@@ -56,7 +63,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
+import java.util.Set;
 
 /**
  * Test for {@link SentryAuthorizer}
@@ -254,6 +261,22 @@ public class SentryAuthorizerTest {
     // executors1 can execute prog1
     assertAuthorized(new ProgramId("ns1", "app1", ProgramType.FLOW, "prog1"), getUser("executors1"),
                      Action.EXECUTE);
+
+    // all_admin is admin of all namespaces
+    assertAuthorized(new NamespaceId("ns1"), getUser("all_admin"), Action.ADMIN);
+    assertAuthorized(new NamespaceId("ns2"), getUser("all_admin"), Action.ADMIN);
+    assertAuthorized(new NamespaceId("ns3"), getUser("all_admin"), Action.ADMIN);
+
+    // check multi-actions
+    assertAuthorized(new DatasetId("ns1", "ds1"), getUser("all1"),
+                     ImmutableSet.of(Action.READ, Action.WRITE, Action.EXECUTE, Action.ADMIN));
+    assertAuthorized(new DatasetId("ns1", "ds1"), getUser("all1"),
+                     ImmutableSet.of(Action.READ, Action.EXECUTE, Action.ADMIN));
+
+    assertAuthorized(new DatasetId("ns1", "ds1"), getUser("rw_ds1"),
+                     ImmutableSet.of(Action.READ, Action.WRITE));
+    assertAuthorized(new DatasetId("ns2", "ds1"), getUser("rw_ds1"),
+                     ImmutableSet.of(Action.READ, Action.WRITE));
   }
 
   @Test
@@ -273,6 +296,190 @@ public class SentryAuthorizerTest {
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.READ);
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.WRITE);
     assertUnauthorized(new StreamId("ns1", "stream1"), getUser("admin1"), Action.EXECUTE);
+
+    // all_admin cannot read/write/execute/admin any entities in any namespace
+    assertUnauthorized(new StreamId("ns2", "stream1"), getUser("all_admin"), Action.READ);
+    assertUnauthorized(new DatasetId("ns1", "ds1"), getUser("all_admin"), Action.WRITE);
+    assertUnauthorized(new ProgramId("ns1", "app1", ProgramType.FLOW, "prog1"),
+                       getUser("all_admin"), Action.EXECUTE);
+    assertUnauthorized(new ApplicationId("ns1", "app1"), getUser("all_admin"), Action.ADMIN);
+
+    // check multi-actions
+    assertUnauthorized(new DatasetId("ns1", "ds1"), getUser("readers1"),
+                     ImmutableSet.of(Action.READ, Action.WRITE, Action.EXECUTE, Action.ADMIN));
+    assertUnauthorized(new DatasetId("ns1", "ds1"), getUser("readers1"),
+                     ImmutableSet.of(Action.READ, Action.EXECUTE, Action.ADMIN));
+
+    assertUnauthorized(new DatasetId("ns1", "ds1"), getUser("rw_ds1"),
+                     ImmutableSet.of(Action.READ, Action.WRITE, Action.EXECUTE));
+    assertUnauthorized(new DatasetId("ns1", "ds1"), getUser("rw_ds1"),
+                       ImmutableSet.of(Action.WRITE, Action.EXECUTE, Action.ADMIN));
+    assertUnauthorized(new DatasetId("ns1", "ds2"), getUser("rw_ds1"),
+                       ImmutableSet.of(Action.READ, Action.WRITE));
+    assertUnauthorized(new StreamId("ns1", "stream1"), getUser("rw_ds1"),
+                       ImmutableSet.of(Action.READ, Action.WRITE));
+  }
+
+  @Test
+  public void testVisibility() throws Exception {
+    // Test visibility of executors1
+    Set<? extends EntityId> visible = ImmutableSet.of(new NamespaceId("ns1"),
+                                            new ApplicationId("ns1", "app1"),
+                                            new FlowId("ns1", "app1", "prog1"));
+    Set<? extends EntityId> notVisible = ImmutableSet.of(new NamespaceId("ns2"),
+                                                         new DatasetId("ns1", "ds1"),
+                                                         new ArtifactId("ns1", "art", "1"));
+    Set<? extends EntityId> actual = authorizer.isVisible(Sets.union(visible, notVisible), getUser("executors1"));
+    Assert.assertEquals(visible, actual);
+
+    // Test visibility of readers1
+    visible = ImmutableSet.of(new NamespaceId("ns1"),
+                              new ApplicationId("ns1", "app1"),
+                              new FlowId("ns1", "app1", "prog1"),
+                              new DatasetId("ns1", "ds1"),
+                              new ArtifactId("ns1", "art", "1"),
+                              new StreamId("ns1", "stream1")
+                              );
+    notVisible = ImmutableSet.of(new NamespaceId("ns2"));
+    actual = authorizer.isVisible(Sets.union(visible, notVisible), getUser("readers1"));
+    Assert.assertEquals(visible, actual);
+
+    // Test visibility of writers1
+    visible = ImmutableSet.of(new NamespaceId("ns1"),
+                              new ApplicationId("ns1", "app1"),
+                              new FlowId("ns1", "app1", "prog1")
+                              );
+    notVisible = ImmutableSet.of(new FlowId("ns2", "app1", "prog1"),
+                                 new FlowId("ns1", "app1", "pr")
+                                 );
+    actual = authorizer.isVisible(Sets.union(visible, notVisible), getUser("writers1"));
+    Assert.assertEquals(visible, actual);
+
+
+    // Test visibility of all_admin
+    visible = ImmutableSet.of(new NamespaceId("ns1"),
+                              new NamespaceId("ns5"),
+                              new NamespaceId("ns8")
+                              );
+    notVisible = ImmutableSet.of(new ApplicationId("ns1", "app1"),
+                                 new DatasetId("ns1", "ds1"),
+                                 new FlowId("ns1", "app1", "prog1"),
+                                 new ArtifactId("ns1", "art", "1"),
+                                 new StreamId("ns2", "stream1")
+                                 );
+    actual = authorizer.isVisible(Sets.union(visible, notVisible), getUser("all_admin"));
+    Assert.assertEquals(visible, actual);
+
+    // Test visibility of rw_ds1
+    visible = ImmutableSet.of(new NamespaceId("ns1"),
+                              new NamespaceId("ns5"),
+                              new NamespaceId("ns8"),
+                              new DatasetId("ns1", "ds1"),
+                              new DatasetId("ns2", "ds1")
+                              );
+    notVisible = ImmutableSet.of(new ApplicationId("ns1", "app1"),
+                                 new FlowId("ns2", "app1", "prog1"),
+                                 new ArtifactId("ns1", "art", "1"),
+                                 new StreamId("ns2", "stream1")
+                                 );
+    actual = authorizer.isVisible(Sets.union(visible, notVisible), getUser("rw_ds1"));
+    Assert.assertEquals(visible, actual);
+  }
+
+  @Test
+  public void testUser1Ns3() throws Exception {
+    // ns3_user1 can read all artifacts in ns3, write to all streams in ns3, execute all programs in ns3,
+    // read all dataset types that is of the form table?? in ns3, and admin all secure keys of form *_key-?? in ns3
+    Principal user = getUser("ns3_user1");
+
+    // artifacts
+    assertAuthorized(new ArtifactId("ns3", "art", "1"), user, Action.READ);
+    assertAuthorized(new ArtifactId("ns3", "art", "2"), user, Action.READ);
+    assertAuthorized(new ArtifactId("ns3", "artifact", "2"), user, Action.READ);
+
+    assertUnauthorized(new ArtifactId("ns5", "artifact", "1"), user, Action.READ);
+    assertUnauthorized(new ArtifactId("ns3", "artifact", "2"), user, Action.WRITE);
+
+    // streams
+    assertAuthorized(new StreamId("ns3", "stream1"), user, Action.WRITE);
+    assertAuthorized(new StreamId("ns3", "stream20"), user, Action.WRITE);
+
+    assertUnauthorized(new StreamId("ns3", "stream1"), user, Action.READ);
+    assertUnauthorized(new StreamId("ns1", "stream1"), user, Action.WRITE);
+
+    // programs
+    assertAuthorized(new ProgramId("ns3", "app1", ProgramType.FLOW, "prog1"), user, Action.EXECUTE);
+    assertAuthorized(new ProgramId("ns3", "app5", ProgramType.SPARK, "p10"), user, Action.EXECUTE);
+    assertAuthorized(new ProgramId("ns3", "a1", ProgramType.SERVICE, "p1"), user, Action.EXECUTE);
+
+    assertUnauthorized(new ProgramId("ns2", "app5", ProgramType.SPARK, "p10"), user, Action.EXECUTE);
+    assertUnauthorized(new ProgramId("ns3", "app5", ProgramType.FLOW, "p10"), user, Action.ADMIN);
+
+    // datasets
+    assertUnauthorized(new DatasetId("ns3", "ds1"), user, Action.READ);
+
+    // dataset types
+    assertAuthorized(new DatasetTypeId("ns3", "table10"), user, Action.READ);
+    assertAuthorized(new DatasetTypeId("ns3", "table-1"), user, Action.READ);
+    assertAuthorized(new DatasetTypeId("ns3", "table1b"), user, Action.READ);
+
+    assertUnauthorized(new DatasetTypeId("ns2", "table1b"), user, Action.READ);
+    assertUnauthorized(new DatasetTypeId("ns3", "table1bc"), user, Action.READ);
+    assertUnauthorized(new DatasetTypeId("ns3", "table1b"), user, Action.WRITE);
+    assertUnauthorized(new DatasetTypeId("ns3", "1table-1"), user, Action.READ);
+
+    // secure keys
+    assertAuthorized(new SecureKeyId("ns3", "secret_key-01"), user, Action.ADMIN);
+    assertAuthorized(new SecureKeyId("ns3", "encrypt_key-ab"), user, Action.ADMIN);
+
+    assertUnauthorized(new SecureKeyId("ns2", "encrypt_key-ab"), user, Action.ADMIN);
+    assertUnauthorized(new SecureKeyId("ns3", "encrypt_key-ab"), user, Action.READ);
+    assertUnauthorized(new SecureKeyId("ns3", "encrypt_keys-ab"), user, Action.ADMIN);
+    assertUnauthorized(new SecureKeyId("ns3", "encrypt-key_ab"), user, Action.ADMIN);
+    assertUnauthorized(new SecureKeyId("ns3", "encrypt_key-abc"), user, Action.ADMIN);
+  }
+
+  @Test
+  public void testUser2Ns3() throws Exception {
+    // ns3_user2 can read any version of artifact art in ns3, write to all datasets in ns3, admin all apps in ns3,
+    // execute all flows in ns3 and all access to dataset modules with name tab_*_mod in ns3
+    Principal user = getUser("ns3_user2");
+
+    assertAuthorized(new ArtifactId("ns3", "art", "1"), user, Action.READ);
+    assertAuthorized(new ArtifactId("ns3", "art", "2"), user, Action.READ);
+
+    assertUnauthorized(new ArtifactId("ns3", "artifact", "2"), user, Action.READ);
+    assertUnauthorized(new ArtifactId("ns5", "art", "1"), user, Action.READ);
+    assertUnauthorized(new ArtifactId("ns3", "art", "1"), user, Action.WRITE);
+
+    // datasets
+    assertAuthorized(new DatasetId("ns3", "ds1"), user, Action.WRITE);
+    assertAuthorized(new DatasetId("ns3", "ds15"), user, Action.WRITE);
+
+    assertUnauthorized(new DatasetId("ns3", "ds1"), user, Action.READ);
+    assertUnauthorized(new DatasetId("ns4", "ds1"), user, Action.WRITE);
+
+    // applications
+    assertAuthorized(new ApplicationId("ns3", "app1"), user, Action.ADMIN);
+    assertAuthorized(new ApplicationId("ns3", "app4"), user, Action.ADMIN);
+
+    assertUnauthorized(new ApplicationId("ns3", "app1"), user, Action.READ);
+    assertUnauthorized(new ApplicationId("ns2", "app1"), user, Action.ADMIN);
+
+    // flows
+    assertAuthorized(new ProgramId("ns3", "app1", ProgramType.FLOW, "prog1"), user, Action.EXECUTE);
+    assertAuthorized(new ProgramId("ns3", "app1", ProgramType.FLOW, "prog2"), user, Action.EXECUTE);
+
+    assertUnauthorized(new ProgramId("ns3", "app1", ProgramType.FLOW, "prog1"), user, Action.READ);
+    assertUnauthorized(new ProgramId("ns3", "a1", ProgramType.SPARK, "s1"), user, Action.EXECUTE);
+
+    // dataset modules
+    assertAuthorized(new DatasetModuleId("ns3", "tab_1_mod"), user, Action.READ);
+    assertAuthorized(new DatasetModuleId("ns3", "tab_data_mod"), user, Action.WRITE);
+    assertAuthorized(new DatasetModuleId("ns3", "tab_da_4_ta_mod"), user, Action.ADMIN);
+
+    assertUnauthorized(new DatasetModuleId("ns2", "tab_1_mod"), user, Action.ADMIN);
+    assertUnauthorized(new DatasetModuleId("ns3", "table_1_mod"), user, Action.ADMIN);
   }
 
   private void testAuthorized(EntityId entityId) throws Exception {
@@ -292,9 +499,22 @@ public class SentryAuthorizerTest {
     authorizer.enforce(entityId, principal, action);
   }
 
+  private void assertAuthorized(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
+    authorizer.enforce(entityId, principal, actions);
+  }
+
   private void assertUnauthorized(EntityId entityId, Principal principal, Action action) throws Exception {
     try {
       authorizer.enforce(entityId, principal, action);
+      Assert.fail("The authorization check should have failed.");
+    } catch (UnauthorizedException expected) {
+      // expected
+    }
+  }
+
+  private void assertUnauthorized(EntityId entityId, Principal principal, Set<Action> actions) throws Exception {
+    try {
+      authorizer.enforce(entityId, principal, actions);
       Assert.fail("The authorization check should have failed.");
     } catch (UnauthorizedException expected) {
       // expected

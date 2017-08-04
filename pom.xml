@@ -67,6 +67,7 @@
     <cdap.version>4.3.0-SNAPSHOT</cdap.version>
     <slf4j.version>1.7.5</slf4j.version>
     <junit.version>4.11</junit.version>
+    <surefire.redirectTestOutputToFile>true</surefire.redirectTestOutputToFile>
   </properties>
 
   <repositories>
@@ -166,6 +167,96 @@
             </dependency>
           </dependencies>
         </plugin>
+
+        <plugin>
+          <groupId>org.apache.rat</groupId>
+          <artifactId>apache-rat-plugin</artifactId>
+          <version>0.10</version>
+          <dependencies>
+            <dependency>
+              <groupId>org.apache.maven.doxia</groupId>
+              <artifactId>doxia-core</artifactId>
+              <version>1.6</version>
+              <exclusions>
+                <exclusion>
+                  <groupId>xerces</groupId>
+                  <artifactId>xercesImpl</artifactId>
+                </exclusion>
+              </exclusions>
+            </dependency>
+          </dependencies>
+          <executions>
+            <execution>
+              <id>rat-check</id>
+              <phase>validate</phase>
+              <goals>
+                <goal>check</goal>
+              </goals>
+              <configuration>
+                <excludes>
+                  <exclude>build-number.txt</exclude>
+                  <exclude>LICENSE*.txt</exclude>
+                  <exclude>*.rst</exclude>
+                  <exclude>*.md</exclude>
+                  <exclude>**/*.md</exclude>
+                  <exclude>logs/**</exclude>
+                  <exclude>**/grok/patterns/**</exclude>
+                  <exclude>conf/**</exclude>
+                  <exclude>data/**</exclude>
+                  <exclude>plugins/**</exclude>
+                  <exclude>**/Apache-LICENSE-2.0</exclude>
+                  <exclude>**/VERSION</exclude>
+                  <exlcude>**/*.patch</exlcude>
+                  <exclude>**/logrotate.d/**</exclude>
+                  <exclude>**/limits.d/**</exclude>
+                  <!-- Excludes AVRO schema files -->
+                  <exclude>**/*.avsc</exclude>
+                  <exclude>**/*.json</exclude>
+                  <exclude>**/resources/**/*.properties</exclude>
+                  <exclude>**/*.json.template</exclude>
+                  <exclude>**/MANIFEST.MF</exclude>
+                  <exclude>**/.rubocop*.yml</exclude>
+                  <exclude>**/setup.cfg</exclude>
+                </excludes>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>2.14.1</version>
+          <configuration>
+            <argLine>-Xmx5000m -Djava.awt.headless=true -XX:MaxPermSize=256m -XX:+UseConcMarkSweepGC -XX:OnOutOfMemoryError="kill -9 %p" -XX:+HeapDumpOnOutOfMemoryError</argLine>
+            <redirectTestOutputToFile>${surefire.redirectTestOutputToFile}</redirectTestOutputToFile>
+            <reuseForks>false</reuseForks>
+            <reportFormat>plain</reportFormat>
+            <trimStackTrace>false</trimStackTrace>
+            <systemPropertyVariables>
+              <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
+              <derby.stream.error.file>${basedir}/target/derby.log</derby.stream.error.file>
+            </systemPropertyVariables>
+            <includes>
+              <include>**/*TestsSuite.java</include>
+              <include>**/*TestSuite.java</include>
+              <include>**/Test*.java</include>
+              <include>**/*Test.java</include>
+              <include>**/*TestCase.java</include>
+            </includes>
+            <excludes>
+              <exclude>**/*TestRun.java</exclude>
+              <exclude>**/*TestBase.java</exclude>
+            </excludes>
+          </configuration>
+          <dependencies>
+            <dependency>
+              <groupId>org.apache.maven.surefire</groupId>
+              <artifactId>surefire-junit47</artifactId>
+              <version>2.14</version>
+            </dependency>
+          </dependencies>
+        </plugin>
       </plugins>
     </pluginManagement>
 
@@ -180,6 +271,16 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.1</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.rat</groupId>
+        <artifactId>apache-rat-plugin</artifactId>
+        <version>0.10</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.14.1</version>
       </plugin>
     </plugins>
 
