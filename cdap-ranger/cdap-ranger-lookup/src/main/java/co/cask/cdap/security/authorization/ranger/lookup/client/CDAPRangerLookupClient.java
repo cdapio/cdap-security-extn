@@ -15,15 +15,22 @@
  */
 package co.cask.cdap.security.authorization.ranger.lookup.client;
 
+import co.cask.cdap.api.artifact.ArtifactSummary;
 import co.cask.cdap.cli.util.InstanceURIParser;
 import co.cask.cdap.client.ApplicationClient;
+import co.cask.cdap.client.ArtifactClient;
 import co.cask.cdap.client.DatasetClient;
+import co.cask.cdap.client.DatasetModuleClient;
+import co.cask.cdap.client.DatasetTypeClient;
 import co.cask.cdap.client.NamespaceClient;
+import co.cask.cdap.client.SecureStoreClient;
 import co.cask.cdap.client.StreamClient;
 import co.cask.cdap.client.config.ClientConfig;
 import co.cask.cdap.client.config.ConnectionConfig;
 import co.cask.cdap.proto.ApplicationRecord;
+import co.cask.cdap.proto.DatasetModuleMeta;
 import co.cask.cdap.proto.DatasetSpecificationSummary;
+import co.cask.cdap.proto.DatasetTypeMeta;
 import co.cask.cdap.proto.NamespaceMeta;
 import co.cask.cdap.proto.StreamDetail;
 import co.cask.cdap.proto.id.NamespaceId;
@@ -72,6 +79,10 @@ public class CDAPRangerLookupClient {
   private final StreamClient streamClient;
   private final ApplicationClient applicationClient;
   private final DatasetClient datasetClient;
+  private final ArtifactClient artifactClient;
+  private final DatasetModuleClient datasetModuleClient;
+  private final DatasetTypeClient datasetTypeClient;
+  private final SecureStoreClient secureStoreClient;
   private AccessToken accessToken;
 
   CDAPRangerLookupClient(String serviceName, String instanceURL, String username, String password) {
@@ -85,6 +96,10 @@ public class CDAPRangerLookupClient {
     this.streamClient = new StreamClient(clientConfig);
     this.datasetClient = new DatasetClient(clientConfig);
     this.applicationClient = new ApplicationClient(clientConfig);
+    this.artifactClient = new ArtifactClient(clientConfig);
+    this.datasetModuleClient = new DatasetModuleClient(clientConfig);
+    this.datasetTypeClient = new DatasetTypeClient(clientConfig);
+    this.secureStoreClient = new SecureStoreClient(clientConfig);
     //TODO create more cdap clients here
   }
 
@@ -146,6 +161,10 @@ public class CDAPRangerLookupClient {
     List<String> streamList = null;
     List<String> datasetList = null;
     List<String> appList = null;
+    List<String> artifactList = null;
+    List<String> datasetModuleList = null;
+    List<String> datasetTypeList = null;
+    List<String> secureKeyList = null;
 
 
     if (LOG.isDebugEnabled()) {
@@ -159,6 +178,10 @@ public class CDAPRangerLookupClient {
         streamList = resourceMap.get(RangerCommons.KEY_STREAM);
         appList = resourceMap.get(RangerCommons.KEY_APPLICATION);
         datasetList = resourceMap.get(RangerCommons.KEY_DATASET);
+        artifactList = resourceMap.get(RangerCommons.KEY_ARTIFACT);
+        datasetModuleList = resourceMap.get(RangerCommons.KEY_DATASET_MODULE);
+        datasetTypeList = resourceMap.get(RangerCommons.KEY_DATASET_TYPE);
+        secureKeyList = resourceMap.get(RangerCommons.KEY_SECUREKEY);
       }
 
       try {
@@ -168,6 +191,10 @@ public class CDAPRangerLookupClient {
         final List<String> finalStreamList = streamList;
         final List<String> finalAppList = appList;
         final List<String> finalDatasetList = datasetList;
+        final List<String> finalArtifactList = artifactList;
+        final List<String> finalDatasetModuleList = datasetModuleList;
+        final List<String> finalDatasetTypeList = datasetTypeList;
+        final List<String> finalSecureKeyList = secureKeyList;
 
         // get the DBList for given Input
         callableObj = new Callable<List<String>>() {
@@ -187,6 +214,14 @@ public class CDAPRangerLookupClient {
                   list = getApplications(finalAppList, namespace);
                 } else if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_DATASET)) {
                   list = getDatasets(finalDatasetList, namespace);
+                } else if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_ARTIFACT)) {
+                  list = getArtifacts(finalArtifactList, namespace);
+                } else if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_DATASET_MODULE)) {
+                  list = getDatasetModules(finalDatasetModuleList, namespace);
+                } else if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_DATASET_TYPE)) {
+                  list = getDatasetTypes(finalDatasetTypeList, namespace);
+                } else if (resource.trim().equalsIgnoreCase(RangerCommons.KEY_SECUREKEY)) {
+                  list = getSecureKeys(finalSecureKeyList, namespace);
                 }
               }
               Preconditions.checkNotNull(list, "Failed to list resources of type %s", resource.trim());
@@ -292,6 +327,54 @@ public class CDAPRangerLookupClient {
     return datasets;
   }
 
+  private List<String> getDatasetModules(@Nullable List<String> datasetModuleList, NamespaceId namespace) throws
+    Exception {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("==> CDAPRangerLookupClient.getDatasetModules() ExcludeDatasetModuleList :" + datasetModuleList);
+    }
+
+    List<String> datasetModules = new ArrayList<>();
+    if (datasetModuleClient != null) {
+      for (DatasetModuleMeta datasetSpecificationSummary : datasetModuleClient.list(namespace)) {
+        String name = datasetSpecificationSummary.getName();
+        if (datasetModuleList == null || !datasetModuleList.contains(name)) {
+          datasetModules.add(name);
+        }
+      }
+    } else {
+      LOG.warn("Failed to get Datasets Modules. DatasetModuleClient is not initialized.");
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== CDAPRangerLookupClient.getDatasetModules(): " + datasetModules);
+    }
+    return datasetModules;
+  }
+
+  private List<String> getDatasetTypes(@Nullable List<String> datasetTypeList, NamespaceId namespace) throws
+    Exception {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("==> CDAPRangerLookupClient.getDatasetTypes() ExcludeDatasetModuleList :" + datasetTypeList);
+    }
+
+    List<String> datasetTypes = new ArrayList<>();
+    if (datasetTypeClient != null) {
+      for (DatasetTypeMeta datasetTypeMeta : datasetTypeClient.list(namespace)) {
+        String name = datasetTypeMeta.getName();
+        if (datasetTypeList == null || !datasetTypeList.contains(name)) {
+          datasetTypes.add(name);
+        }
+      }
+    } else {
+      LOG.warn("Failed to get Datasets Types. DatasetTypeClient is not initialized.");
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== CDAPRangerLookupClient.getDatasetTypes(): " + datasetTypes);
+    }
+    return datasetTypes;
+  }
+
   private List<String> getApplications(@Nullable List<String> appList, NamespaceId namespace) throws Exception {
     if (LOG.isDebugEnabled()) {
       LOG.debug("==> CDAPRangerLookupClient.getApplications() ExcludeApplicationList :" + appList);
@@ -313,6 +396,52 @@ public class CDAPRangerLookupClient {
       LOG.debug("<== CDAPRangerLookupClient.getApplications(): " + applications);
     }
     return applications;
+  }
+
+  private List<String> getSecureKeys(@Nullable List<String> secureKeyList, NamespaceId namespace) throws Exception {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("==> CDAPRangerLookupClient.getSecureKeys() ExcludeArtifactList :" + secureKeyList);
+    }
+
+    List<String> secureKeys = new ArrayList<>();
+    if (secureStoreClient != null) {
+      for (String secureKey : secureStoreClient.listKeys(namespace).keySet()) {
+        if (secureKeyList == null || !secureKeys.contains(secureKey)) {
+          secureKeys.add(secureKey);
+        }
+      }
+    } else {
+      LOG.warn("Failed to get Secure Keys. SecureStoreClient is not initialized.");
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== CDAPRangerLookupClient.getSecureKeys(): " + secureKeys);
+    }
+    return secureKeys;
+  }
+
+  private List<String> getArtifacts(@Nullable List<String> artifactList, NamespaceId namespace) throws Exception {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("==> CDAPRangerLookupClient.getArtifacts() ExcludeArtifactList :" + artifactList);
+    }
+
+    List<String> artifacts = new ArrayList<>();
+    if (artifactClient != null) {
+      for (ArtifactSummary artifactSummary : artifactClient.list(namespace)) {
+        String name = artifactSummary.getName();
+        String version = artifactSummary.getVersion();
+        if (artifactList == null || !artifacts.contains(name)) {
+          artifacts.add(name + "(Version: " + version + ")");
+        }
+      }
+    } else {
+      LOG.warn("Failed to get Artifacts. ArtifactClient is not initialized.");
+    }
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("<== CDAPRangerLookupClient.getArtifacts(): " + artifacts);
+    }
+    return artifacts;
   }
 
   /**
