@@ -43,7 +43,7 @@ public class CDAPConnectionManager {
     String username = configs.get(USERNAME);
     String password = configs.get(PASSWORD);
     if (!(Strings.isNullOrEmpty(instanceURL) || Strings.isNullOrEmpty(username) || Strings.isNullOrEmpty(password))) {
-      return new CDAPRangerLookupClient(serviceName, instanceURL, username, password);
+      return new CDAPRangerLookupClient(instanceURL, username, password);
     }
     throw new IllegalArgumentException("Required properties are not set for "
                           + serviceName + ". CDAP instance url with port, username and password must be provided.");
@@ -54,7 +54,7 @@ public class CDAPConnectionManager {
    *
    * @param serviceName the name of the service
    * @param configs the configs for the connection
-   * @return Map<String, Object> Connection test response
+   * @return Map&lt;String, Object&gt; Connection test response
    */
   public static Map<String, Object> testConnection(String serviceName, Map<String, String> configs) throws Exception {
     CDAPRangerLookupClient cdapRangerLookupClient = getCDAPClient(serviceName, configs);
