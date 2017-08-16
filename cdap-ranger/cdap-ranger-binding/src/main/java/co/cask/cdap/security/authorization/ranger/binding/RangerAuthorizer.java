@@ -41,15 +41,18 @@ import com.google.common.base.Preconditions;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.ranger.audit.provider.MiscUtil;
 import org.apache.ranger.plugin.audit.RangerDefaultAuditHandler;
+import org.apache.ranger.plugin.policyengine.RangerAccessRequest;
 import org.apache.ranger.plugin.policyengine.RangerAccessRequestImpl;
 import org.apache.ranger.plugin.policyengine.RangerAccessResourceImpl;
 import org.apache.ranger.plugin.policyengine.RangerAccessResult;
+import org.apache.ranger.plugin.policyengine.RangerPolicyEngine;
 import org.apache.ranger.plugin.service.RangerBasePlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 
@@ -89,56 +92,9 @@ public class RangerAuthorizer extends AbstractAuthorizer {
 
   @Override
   public void enforce(EntityId entity, Principal principal, Action action) throws Exception {
-    LOG.debug("Enforce called on entity {}, principal {}, action {}", entity, principal, action);
-    if (rangerPlugin == null) {
-      throw new RuntimeException("CDAP Ranger Authorizer is not initialized.");
-    }
-
-    if (principal.getType() != Principal.PrincipalType.USER) {
-      throw new IllegalArgumentException(String.format("The principal type for current enforcement request is '%s'. " +
-                                                         "Authorization enforcement is only supported for '%s'.",
-                                                       principal.getType(), Principal.PrincipalType.USER));
-    }
-    String requestingUser = principal.getName();
-    String ip = InetAddress.getLocalHost().getHostName();
-    Set<String> userGroups = MiscUtil.getGroupsForRequestUser(requestingUser);
-
-    LOG.debug("Requesting user {}, ip {}, requesting user groups {}", requestingUser, ip, userGroups);
-
-    Date eventTime = new Date();
-    String accessType = toRangerAccessType(action);
-    RangerAccessRequestImpl rangerRequest = new RangerAccessRequestImpl();
-    rangerRequest.setUser(requestingUser);
-    rangerRequest.setUserGroups(userGroups);
-    rangerRequest.setClientIPAddress(ip);
-    rangerRequest.setAccessTime(eventTime);
-
-    RangerAccessResourceImpl rangerResource = new RangerAccessResourceImpl();
-    rangerRequest.setResource(rangerResource);
-    rangerRequest.setAccessType(accessType);
-    rangerRequest.setAction(accessType);
-    rangerRequest.setRequestData(entity.toString());
-
-    setAccessResource(entity, rangerResource);
-
-    boolean isAuthorized = false;
-
-    try {
-      RangerAccessResult result = rangerPlugin.isAccessAllowed(rangerRequest);
-      if (result == null) {
-        LOG.warn("Unauthorized: Ranger Plugin returned null for this authorization enforcement.");
-        isAuthorized = false;
-      } else {
-        isAuthorized = result.getIsAllowed();
-      }
-    } catch (Throwable t) {
-      LOG.warn("Error while calling isAccessAllowed(). request {}", rangerRequest, t);
-      throw t;
-    } finally {
-      LOG.trace("Ranger Request {}, authorization {}.", rangerRequest, (isAuthorized ? "successful" : "failed"));
-    }
-
-    if (!isAuthorized) {
+    // for enforcement we do authorization just on the entity in question unlike isVisible where we also
+    // consider privileges on the children
+    if (!enforce(entity, principal, RangerAccessRequest.ResourceMatchingScope.SELF, toRangerAccessType(action))) {
       throw new UnauthorizedException(principal, action, entity);
     }
   }
@@ -153,9 +109,17 @@ public class RangerAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public Set<? extends EntityId> isVisible(Set<? extends EntityId> set, Principal principal) throws Exception {
-    //TODO: Implement it.
-    return null;
+  public Set<? extends EntityId> isVisible(Set<? extends EntityId> entityIds, Principal principal) throws Exception {
+    // for visibility we take bottom up approach i.e. an entity is visible if the the principal has any privilege on
+    // the entity or any of descendants.
+    Set<EntityId> visibleEntities = new HashSet<>(entityIds.size());
+    for (EntityId entityId : entityIds) {
+      if (enforce(entityId, principal, RangerAccessRequest.ResourceMatchingScope.SELF_OR_DESCENDANTS,
+              RangerPolicyEngine.ANY_ACCESS)) {
+        visibleEntities.add(entityId);
+      }
+    }
+    return visibleEntities;
   }
 
   @Override
@@ -213,6 +177,61 @@ public class RangerAuthorizer extends AbstractAuthorizer {
   public Set<Privilege> listPrivileges(Principal principal) throws Exception {
     LOG.warn("List privileges operation not supported by Ranger for CDAP");
     return null;
+  }
+
+  private boolean enforce(EntityId entity, Principal principal,
+                          RangerAccessRequest.ResourceMatchingScope resourceMatchingScope, String accessType)
+    throws Exception {
+    LOG.debug("Enforce called on entity {}, principal {}, action {} and match scope {}", entity, principal,
+              accessType, resourceMatchingScope);
+    if (rangerPlugin == null) {
+      throw new RuntimeException("CDAP Ranger Authorizer is not initialized.");
+    }
+
+    if (principal.getType() != Principal.PrincipalType.USER) {
+      throw new IllegalArgumentException(String.format("The principal type for current enforcement request is '%s'. " +
+                                                         "Authorization enforcement is only supported for '%s'.",
+                                                       principal.getType(), Principal.PrincipalType.USER));
+    }
+    String requestingUser = principal.getName();
+    String ip = InetAddress.getLocalHost().getHostName();
+    Set<String> userGroups = MiscUtil.getGroupsForRequestUser(requestingUser);
+
+    LOG.debug("Requesting user {}, ip {}, requesting user groups {}", requestingUser, ip, userGroups);
+
+    Date eventTime = new Date();
+    RangerAccessRequestImpl rangerRequest = new RangerAccessRequestImpl();
+    rangerRequest.setUser(requestingUser);
+    rangerRequest.setUserGroups(userGroups);
+    rangerRequest.setClientIPAddress(ip);
+    rangerRequest.setAccessTime(eventTime);
+    rangerRequest.setResourceMatchingScope(resourceMatchingScope);
+
+    RangerAccessResourceImpl rangerResource = new RangerAccessResourceImpl();
+    rangerRequest.setResource(rangerResource);
+    rangerRequest.setAccessType(accessType);
+    rangerRequest.setAction(accessType);
+    rangerRequest.setRequestData(entity.toString());
+
+    setAccessResource(entity, rangerResource);
+
+    boolean isAuthorized = false;
+
+    try {
+      RangerAccessResult result = rangerPlugin.isAccessAllowed(rangerRequest);
+      if (result == null) {
+        LOG.warn("Unauthorized: Ranger Plugin returned null for this authorization enforcement.");
+        isAuthorized = false;
+      } else {
+        isAuthorized = result.getIsAllowed();
+      }
+    } catch (Throwable t) {
+      LOG.warn("Error while calling isAccessAllowed(). request {}", rangerRequest, t);
+      throw t;
+    } finally {
+      LOG.trace("Ranger Request {}, authorization {}.", rangerRequest, (isAuthorized ? "successful" : "failed"));
+    }
+    return isAuthorized;
   }
 
   private String toRangerAccessType(Action action) {
