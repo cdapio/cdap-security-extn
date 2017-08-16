@@ -211,7 +211,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     Set<WildcardPolicy> policies = binding.getPolicies(principal);
     LOG.debug("Got policies {} for principal {}, entity {} and actions {}", policies, principal, entityId, actions);
     if (policies.isEmpty()) {
-      throw new UnauthorizedException(principal, actions, entityId);
+      throw new UnauthorizedException(principal, actions, entityId, true);
     }
 
     List<Authorizable> authorizables = new ArrayList<>();
@@ -232,7 +232,7 @@ public class SentryAuthorizer extends AbstractAuthorizer {
     }
 
     if (!checkActions.equals(allowedActions)) {
-      throw new UnauthorizedException(principal, actions, entityId);
+      throw new UnauthorizedException(principal, actions, entityId, true);
     }
   }
 
