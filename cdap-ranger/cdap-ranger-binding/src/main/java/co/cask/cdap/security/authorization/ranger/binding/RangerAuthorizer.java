@@ -32,6 +32,7 @@ import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.proto.security.Privilege;
 import co.cask.cdap.proto.security.Role;
+import co.cask.cdap.security.authorization.ranger.commons.RangerCommon;
 import co.cask.cdap.security.spi.authorization.AbstractAuthorizer;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.Authorizer;
@@ -58,22 +59,6 @@ import java.util.Set;
  */
 public class RangerAuthorizer extends AbstractAuthorizer {
   private static final Logger LOG = LoggerFactory.getLogger(RangerAuthorizer.class);
-
-  // just string keys used to store entity in ranger. We don't want them to be derived from entity type or name since
-  // any changes to them on cdap side will make privileges incompatible.
-  private static final String KEY_INSTANCE = "instance";
-  private static final String KEY_NAMESPACE = "namespace";
-  private static final String KEY_ARTIFACT = "artifact";
-  private static final String KEY_APPLICATION = "application";
-  private static final String KEY_DATASET = "dataset";
-  private static final String KEY_STREAM = "stream";
-  private static final String KEY_PROGRAM = "program";
-  private static final String KEY_DATASET_MODULE = "dataset_module";
-  private static final String KEY_DATASET_TYPE = "dataset_type";
-  private static final String KEY_SECUREKEY = "securekey";
-
-  // using # as we don't allow it in entity names
-  private static final String RESOURCE_SEPARATOR = "#";
 
   private static volatile RangerBasePlugin rangerPlugin = null;
   private AuthorizationContext context;
@@ -244,52 +229,52 @@ public class RangerAuthorizer extends AbstractAuthorizer {
     EntityType entityType = entityId.getEntityType();
     switch (entityType) {
       case INSTANCE:
-        rangerAccessResource.setValue(KEY_INSTANCE, ((InstanceId) entityId).getInstance());
+        rangerAccessResource.setValue(RangerCommon.KEY_INSTANCE, ((InstanceId) entityId).getInstance());
         break;
       case NAMESPACE:
         setAccessResource(new InstanceId(instanceName), rangerAccessResource);
-        rangerAccessResource.setValue(KEY_NAMESPACE, ((NamespaceId) entityId).getNamespace());
+        rangerAccessResource.setValue(RangerCommon.KEY_NAMESPACE, ((NamespaceId) entityId).getNamespace());
         break;
       case ARTIFACT:
         ArtifactId artifactId = (ArtifactId) entityId;
         setAccessResource(artifactId.getParent(), rangerAccessResource);
-        rangerAccessResource.setValue(KEY_ARTIFACT, artifactId.getArtifact() + RESOURCE_SEPARATOR +
-          artifactId.getVersion());
+        rangerAccessResource.setValue(RangerCommon.KEY_ARTIFACT, artifactId.getArtifact());
         break;
       case APPLICATION:
         ApplicationId applicationId = (ApplicationId) entityId;
         setAccessResource(applicationId.getParent(), rangerAccessResource);
-        rangerAccessResource.setValue(KEY_APPLICATION, applicationId.getApplication());
+        rangerAccessResource.setValue(RangerCommon.KEY_APPLICATION, applicationId.getApplication());
         break;
       case DATASET:
         DatasetId dataset = (DatasetId) entityId;
         setAccessResource(dataset.getParent(), rangerAccessResource);
-        rangerAccessResource.setValue(KEY_DATASET, dataset.getDataset());
+        rangerAccessResource.setValue(RangerCommon.KEY_DATASET, dataset.getDataset());
         break;
       case DATASET_MODULE:
         DatasetModuleId datasetModuleId = (DatasetModuleId) entityId;
         setAccessResource(datasetModuleId.getParent(), rangerAccessResource);
-        rangerAccessResource.setValue(KEY_DATASET_MODULE, datasetModuleId.getModule());
+        rangerAccessResource.setValue(RangerCommon.KEY_DATASET_MODULE, datasetModuleId.getModule());
         break;
       case DATASET_TYPE:
         DatasetTypeId datasetTypeId = (DatasetTypeId) entityId;
         setAccessResource(datasetTypeId.getParent(), rangerAccessResource);
-        rangerAccessResource.setValue(KEY_DATASET_TYPE, datasetTypeId.getType());
+        rangerAccessResource.setValue(RangerCommon.KEY_DATASET_TYPE, datasetTypeId.getType());
         break;
       case STREAM:
         StreamId streamId = (StreamId) entityId;
         setAccessResource(streamId.getParent(), rangerAccessResource);
-        rangerAccessResource.setValue(KEY_STREAM, streamId.getStream());
+        rangerAccessResource.setValue(RangerCommon.KEY_STREAM, streamId.getStream());
         break;
       case PROGRAM:
         ProgramId programId = (ProgramId) entityId;
         setAccessResource(programId.getParent(), rangerAccessResource);
-        rangerAccessResource.setValue(KEY_PROGRAM, programId.getType() + RESOURCE_SEPARATOR + programId.getProgram());
+        rangerAccessResource.setValue(RangerCommon.KEY_PROGRAM, programId.getType() +
+          RangerCommon.RESOURCE_SEPARATOR + programId.getProgram());
         break;
       case SECUREKEY:
         SecureKeyId secureKeyId = (SecureKeyId) entityId;
         setAccessResource(secureKeyId.getParent(), rangerAccessResource);
-        rangerAccessResource.setValue(KEY_SECUREKEY, secureKeyId.getName());
+        rangerAccessResource.setValue(RangerCommon.KEY_SECUREKEY, secureKeyId.getName());
         break;
       default:
         throw new IllegalArgumentException(String.format("The entity %s is of unknown type %s", entityId, entityType));
