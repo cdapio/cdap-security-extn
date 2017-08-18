@@ -110,6 +110,7 @@ public class PrivilegeValidator implements org.apache.sentry.policy.common.Privi
       case STREAM:
       case DATASET:
       case PROGRAM:
+      case PRINCIPAL:
         validTypes = new HashSet<>(); // we don't expect any other authorizable after this
     }
     return validTypes;

@@ -24,6 +24,7 @@ import co.cask.cdap.proto.id.DatasetModuleId;
 import co.cask.cdap.proto.id.DatasetTypeId;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.id.InstanceId;
+import co.cask.cdap.proto.id.KerberosPrincipalId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.SecureKeyId;
@@ -39,6 +40,7 @@ import co.cask.cdap.security.authorization.sentry.model.DatasetModule;
 import co.cask.cdap.security.authorization.sentry.model.DatasetType;
 import co.cask.cdap.security.authorization.sentry.model.Instance;
 import co.cask.cdap.security.authorization.sentry.model.Namespace;
+import co.cask.cdap.security.authorization.sentry.model.Principal;
 import co.cask.cdap.security.authorization.sentry.model.Program;
 import co.cask.cdap.security.authorization.sentry.model.SecureKey;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
@@ -69,6 +71,7 @@ public class AuthBindingEntityToAuthMapperTest {
   private static final String DATASET_TYPE = "dt";
   private static final String PROGRAM = "p1";
   private static final String SECUREKEY = "k1";
+  private static final String PRINCIPAL = "alice";
 
   private static AuthBinding binding;
 
@@ -132,6 +135,11 @@ public class AuthBindingEntityToAuthMapperTest {
     entityId = new SecureKeyId(NAMESPACE, SECUREKEY);
     authorizables = binding.toSentryAuthorizables(entityId);
     Assert.assertEquals(getAuthorizablesList(AuthorizableType.SECUREKEY), authorizables);
+
+    // principal
+    entityId = new KerberosPrincipalId(PRINCIPAL);
+    authorizables = binding.toSentryAuthorizables(entityId);
+    Assert.assertEquals(getAuthorizablesList(AuthorizableType.PRINCIPAL), authorizables);
   }
 
   @Test
@@ -140,14 +148,17 @@ public class AuthBindingEntityToAuthMapperTest {
     InstanceId instanceId = new InstanceId(INSTANCE);
     ArtifactId artifactId = new ArtifactId(NAMESPACE, ARTIFACT, ARTIFACT_VERSION);
     ProgramId programId = new ProgramId(NAMESPACE, APPLICATION, ProgramType.FLOW, PROGRAM);
+    KerberosPrincipalId principalId = new KerberosPrincipalId(PRINCIPAL);
 
     sentryPrivileges.add(binding.toTSentryPrivilege(instanceId, Action.ADMIN));
     sentryPrivileges.add(binding.toTSentryPrivilege(artifactId, Action.READ));
     sentryPrivileges.add(binding.toTSentryPrivilege(programId, Action.WRITE));
+    sentryPrivileges.add(binding.toTSentryPrivilege(principalId, Action.ADMIN));
 
     Assert.assertEquals(ImmutableSet.of(new Privilege(instanceId, Action.ADMIN),
                                         new Privilege(artifactId, Action.READ),
-                                        new Privilege(programId, Action.WRITE)),
+                                        new Privilege(programId, Action.WRITE),
+                                        new Privilege(principalId, Action.ADMIN)),
                         binding.toPrivileges(sentryPrivileges));
   }
 
@@ -199,6 +210,10 @@ public class AuthBindingEntityToAuthMapperTest {
       case SECUREKEY:
         getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
         authorizableList.add(new SecureKey(SECUREKEY));
+        break;
+      case PRINCIPAL:
+        getAuthorizablesList(AuthorizableType.INSTANCE, authorizableList);
+        authorizableList.add(new Principal(PRINCIPAL));
         break;
       default:
         throw new IllegalArgumentException(String.format("Authorizable Types %s is invalid.", authzType));
