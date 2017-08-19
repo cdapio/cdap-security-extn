@@ -197,14 +197,16 @@ public class CDAPRangerLookupClient {
               // note that in the the list calls resourceMap is used to exclude entities which has already been added
               // to the list being displayed to the user as an option for selection.
               List<String> list = null;
-              NamespaceId namespace = resourceMap.containsKey(RangerCommon.KEY_NAMESPACE) ?
-                new NamespaceId(resourceMap.get(RangerCommon.KEY_NAMESPACE).get(0)) : null;
+              NamespaceId namespace =
+                resourceMap.containsKey(RangerCommon.KEY_NAMESPACE) &&
+                  !resourceMap.get(RangerCommon.KEY_NAMESPACE).isEmpty() ?
+                  new NamespaceId(resourceMap.get(RangerCommon.KEY_NAMESPACE).get(0)) : null;
               switch (resource.trim().toLowerCase()) {
                 case RangerCommon.KEY_NAMESPACE:
                   list = getNamespaces(resourceMap.get(RangerCommon.KEY_NAMESPACE));
                   break;
                 case RangerCommon.KEY_STREAM:
-                  list = getStreams(namespace, resourceMap.get(RangerCommon.KEY_NAMESPACE));
+                  list = getStreams(namespace, resourceMap.get(RangerCommon.KEY_STREAM));
                   break;
                 case RangerCommon.KEY_APPLICATION:
                   list = getApplications(namespace, resourceMap.get(RangerCommon.KEY_APPLICATION));
