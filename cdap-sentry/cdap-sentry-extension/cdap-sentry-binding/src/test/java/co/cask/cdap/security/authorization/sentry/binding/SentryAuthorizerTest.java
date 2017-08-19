@@ -34,6 +34,7 @@ import co.cask.cdap.proto.id.DatasetModuleId;
 import co.cask.cdap.proto.id.DatasetTypeId;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.id.FlowId;
+import co.cask.cdap.proto.id.KerberosPrincipalId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.SecureKeyId;
@@ -267,6 +268,11 @@ public class SentryAuthorizerTest {
     assertAuthorized(new NamespaceId("ns2"), getUser("all_admin"), Action.ADMIN);
     assertAuthorized(new NamespaceId("ns3"), getUser("all_admin"), Action.ADMIN);
 
+    // check principal authorization
+    assertAuthorized(new KerberosPrincipalId("alice"), getUser("admin1"), Action.ADMIN);
+    assertAuthorized(new KerberosPrincipalId("bobby"), getUser("admin2"), Action.ADMIN);
+    assertAuthorized(new KerberosPrincipalId("eve/host1.com@domain.net"), getUser("all_admin"), Action.ADMIN);
+
     // check multi-actions
     assertAuthorized(new DatasetId("ns1", "ds1"), getUser("all1"),
                      ImmutableSet.of(Action.READ, Action.WRITE, Action.EXECUTE, Action.ADMIN));
@@ -303,6 +309,11 @@ public class SentryAuthorizerTest {
     assertUnauthorized(new ProgramId("ns1", "app1", ProgramType.FLOW, "prog1"),
                        getUser("all_admin"), Action.EXECUTE);
     assertUnauthorized(new ApplicationId("ns1", "app1"), getUser("all_admin"), Action.ADMIN);
+
+    // check principal authorization
+    assertUnauthorized(new KerberosPrincipalId("alice"), getUser("admin2"), Action.ADMIN);
+    assertUnauthorized(new KerberosPrincipalId("alice"), getUser("admin1"), Action.EXECUTE);
+    assertUnauthorized(new KerberosPrincipalId("bobby"), getUser("admin1"), Action.ADMIN);
 
     // check multi-actions
     assertUnauthorized(new DatasetId("ns1", "ds1"), getUser("readers1"),

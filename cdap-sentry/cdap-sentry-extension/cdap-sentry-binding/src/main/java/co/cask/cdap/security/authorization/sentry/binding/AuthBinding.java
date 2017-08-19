@@ -24,6 +24,7 @@ import co.cask.cdap.proto.id.DatasetModuleId;
 import co.cask.cdap.proto.id.DatasetTypeId;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.id.InstanceId;
+import co.cask.cdap.proto.id.KerberosPrincipalId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.SecureKeyId;
@@ -743,6 +744,10 @@ class AuthBinding {
         SecureKey secureKey = (SecureKey) authorizable;
         assertNonNullParent(parent, Authorizable.AuthorizableType.SECUREKEY);
         return ((NamespaceId) parent).secureKey(secureKey.getName());
+      case PRINCIPAL:
+        co.cask.cdap.security.authorization.sentry.model.Principal principal =
+          (co.cask.cdap.security.authorization.sentry.model.Principal) authorizable;
+        return new KerberosPrincipalId(principal.getName());
       default:
         throw new IllegalArgumentException(String.format("Sentry Authorizable %s has invalid type %s",
                                                          tAuthorizable.getName(), tAuthorizable.getType()));
@@ -810,6 +815,11 @@ class AuthBinding {
         SecureKeyId secureKeyId = (SecureKeyId) entityId;
         toAuthorizables(secureKeyId.getParent(), authorizables);
         authorizables.add(new SecureKey(secureKeyId.getName()));
+        break;
+      case KERBEROSPRINCIPAL:
+        KerberosPrincipalId principalId = (KerberosPrincipalId) entityId;
+        toAuthorizables(new InstanceId(instanceName), authorizables);
+        authorizables.add(new co.cask.cdap.security.authorization.sentry.model.Principal(principalId.getPrincipal()));
         break;
       default:
         throw new IllegalArgumentException(String.format("The entity %s is of unknown type %s", entityId, entityType));
