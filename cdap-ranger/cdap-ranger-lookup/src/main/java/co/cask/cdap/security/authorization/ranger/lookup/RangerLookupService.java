@@ -25,7 +25,6 @@ import org.apache.ranger.plugin.model.RangerServiceDef;
 import org.apache.ranger.plugin.service.RangerBaseService;
 import org.apache.ranger.plugin.service.ResourceLookupContext;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -71,22 +70,22 @@ public class RangerLookupService extends RangerBaseService {
 
   @Override
   public List<String> lookupResource(ResourceLookupContext context) throws Exception {
-    List<String> ret = null;
+    List<String> resource = null;
     if (LOG.isDebugEnabled()) {
       LOG.debug("==> RangerLookupService.lookupResource Context: (" + context + ")");
     }
     if (context != null) {
       try {
         CDAPRangerLookupClient client = CDAPConnectionManager.getCDAPClient(serviceName, configs);
-        // TODO do resource lookup here
+        resource  = client.getResources(context);
       } catch (Exception e) {
         LOG.error("<== RangerServiceHive.lookupResource Error : " + e);
         throw e;
       }
     }
     if (LOG.isDebugEnabled()) {
-      LOG.debug("<== RangerLookupService.lookupResource Response: (" + ret + ")");
+      LOG.debug("<== RangerLookupService.lookupResource Response: (" + resource + ")");
     }
-    return Collections.emptyList();
+    return resource;
   }
 }
