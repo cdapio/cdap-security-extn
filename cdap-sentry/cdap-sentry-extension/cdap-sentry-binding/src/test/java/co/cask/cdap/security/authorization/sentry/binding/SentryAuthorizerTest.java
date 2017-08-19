@@ -271,6 +271,7 @@ public class SentryAuthorizerTest {
     // check principal authorization
     assertAuthorized(new KerberosPrincipalId("alice"), getUser("admin1"), Action.ADMIN);
     assertAuthorized(new KerberosPrincipalId("bobby"), getUser("admin2"), Action.ADMIN);
+    assertAuthorized(new KerberosPrincipalId("eve/host1.com@domain.net"), getUser("all_admin"), Action.ADMIN);
 
     // check multi-actions
     assertAuthorized(new DatasetId("ns1", "ds1"), getUser("all1"),
