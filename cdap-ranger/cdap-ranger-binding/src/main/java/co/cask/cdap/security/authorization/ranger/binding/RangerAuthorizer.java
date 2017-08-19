@@ -24,6 +24,7 @@ import co.cask.cdap.proto.id.DatasetModuleId;
 import co.cask.cdap.proto.id.DatasetTypeId;
 import co.cask.cdap.proto.id.EntityId;
 import co.cask.cdap.proto.id.InstanceId;
+import co.cask.cdap.proto.id.KerberosPrincipalId;
 import co.cask.cdap.proto.id.NamespaceId;
 import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.SecureKeyId;
@@ -294,6 +295,10 @@ public class RangerAuthorizer extends AbstractAuthorizer {
         SecureKeyId secureKeyId = (SecureKeyId) entityId;
         setAccessResource(secureKeyId.getParent(), rangerAccessResource);
         rangerAccessResource.setValue(RangerCommon.KEY_SECUREKEY, secureKeyId.getName());
+        break;
+      case KERBEROSPRINCIPAL:
+        setAccessResource(new InstanceId(instanceName), rangerAccessResource);
+        rangerAccessResource.setValue(RangerCommon.KEY_PRINCIPAL, ((KerberosPrincipalId) entityId).getPrincipal());
         break;
       default:
         throw new IllegalArgumentException(String.format("The entity %s is of unknown type %s", entityId, entityType));
