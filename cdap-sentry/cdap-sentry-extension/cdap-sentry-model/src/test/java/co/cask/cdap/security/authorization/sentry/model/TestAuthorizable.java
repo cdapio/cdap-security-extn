@@ -59,5 +59,9 @@ public class TestAuthorizable {
     Dataset dataset = new Dataset(name);
     Assert.assertEquals(name, dataset.getName());
     Assert.assertEquals(Authorizable.AuthorizableType.DATASET, dataset.getAuthzType());
+
+    Principal principal = new Principal(name);
+    Assert.assertEquals(name, principal.getName());
+    Assert.assertEquals(Authorizable.AuthorizableType.PRINCIPAL, principal.getAuthzType());
   }
 }

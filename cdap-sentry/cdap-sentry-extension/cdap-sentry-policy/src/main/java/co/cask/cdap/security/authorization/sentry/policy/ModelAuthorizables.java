@@ -25,6 +25,7 @@ import co.cask.cdap.security.authorization.sentry.model.DatasetModule;
 import co.cask.cdap.security.authorization.sentry.model.DatasetType;
 import co.cask.cdap.security.authorization.sentry.model.Instance;
 import co.cask.cdap.security.authorization.sentry.model.Namespace;
+import co.cask.cdap.security.authorization.sentry.model.Principal;
 import co.cask.cdap.security.authorization.sentry.model.Program;
 import co.cask.cdap.security.authorization.sentry.model.SecureKey;
 import co.cask.cdap.security.authorization.sentry.model.Stream;
@@ -97,6 +98,8 @@ public final class ModelAuthorizables {
         return new DatasetType(name);
       case SECUREKEY:
         return new SecureKey(name);
+      case PRINCIPAL:
+        return new Principal(name);
       default:
         throw new NoSuchElementException(String.format("Given AuthorizableType %s does not exist.", type));
     }
