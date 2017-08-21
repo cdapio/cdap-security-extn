@@ -63,6 +63,11 @@
       <artifactId>cdap-ranger-common</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>ant-contrib</groupId>
+      <artifactId>ant-contrib</artifactId>
+      <version>1.0b3</version>
+    </dependency>
   </dependencies>
 
   <build>
