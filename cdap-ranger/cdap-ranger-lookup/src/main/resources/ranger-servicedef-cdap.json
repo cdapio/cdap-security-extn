@@ -196,6 +196,27 @@
     },
     {
       "itemId": 100,
+      "name": "principal",
+      "type": "string",
+      "level": 20,
+      "parent": "instance",
+      "mandatory": false,
+      "lookupSupported": false,
+      "recursiveSupported": false,
+      "excludesSupported": true,
+      "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+      "matcherOptions": {
+        "wildCard": true,
+        "ignoreCase": false
+      },
+      "validationRegEx": "",
+      "validationMessage": "",
+      "uiHint": "",
+      "label": "Principal",
+      "description": "Kerberos Principal"
+    },
+    {
+      "itemId": 110,
       "name": "program",
       "type": "string",
       "level": 40,
