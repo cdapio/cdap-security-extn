@@ -32,6 +32,7 @@ public class RangerCommon {
   public static final String KEY_DATASET_MODULE = "dataset_module";
   public static final String KEY_DATASET_TYPE = "dataset_type";
   public static final String KEY_SECUREKEY = "securekey";
+  public static final String KEY_PRINCIPAL = "principal";
 
   // using # as we don't allow it in entity names
   public static final String RESOURCE_SEPARATOR = "#";

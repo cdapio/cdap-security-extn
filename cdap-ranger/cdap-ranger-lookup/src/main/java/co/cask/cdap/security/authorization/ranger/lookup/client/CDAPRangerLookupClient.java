@@ -54,6 +54,7 @@ import org.apache.ranger.plugin.util.TimedEventUtil;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -233,6 +234,9 @@ public class CDAPRangerLookupClient {
                 case RangerCommon.KEY_SECUREKEY:
                   list = getSecureKeys(namespace, resourceMap.get(RangerCommon.KEY_SECUREKEY));
                   break;
+                case RangerCommon.KEY_PRINCIPAL:
+                  // Cannot list principals
+                  list = Collections.emptyList();
               }
               Preconditions.checkNotNull(list, "Failed to list resources of type %s", resource.trim());
               if (!userInput.isEmpty()) {
