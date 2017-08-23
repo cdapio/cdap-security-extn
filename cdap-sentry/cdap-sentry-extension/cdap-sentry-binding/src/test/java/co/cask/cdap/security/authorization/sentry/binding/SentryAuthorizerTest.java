@@ -16,7 +16,6 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
-import co.cask.cdap.api.Predicate;
 import co.cask.cdap.api.TxRunnable;
 import co.cask.cdap.api.data.DatasetInstantiationException;
 import co.cask.cdap.api.dataset.Dataset;
@@ -40,7 +39,9 @@ import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.SecureKeyId;
 import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
+import co.cask.cdap.proto.security.Authorizable;
 import co.cask.cdap.proto.security.Principal;
+import co.cask.cdap.proto.security.Privilege;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
@@ -286,6 +287,23 @@ public class SentryAuthorizerTest {
   }
 
   @Test
+  public void testListPrivileges() throws Exception {
+    Set<Privilege> privileges = authorizer.listPrivileges(getUser("ns3_user1"));
+    ImmutableSet<Privilege> expectedPrivileges = ImmutableSet.of(
+      new Privilege(Authorizable.fromString("securekey:ns3.*_key-??"), Action.ADMIN),
+      new Privilege(Authorizable.fromString("artifact:ns3.*"), Action.READ),
+      (new Privilege(Authorizable.fromString("dataset_type:ns3.table??"), Action.READ))
+    );
+
+    Assert.assertTrue(privileges.containsAll(expectedPrivileges));
+    privileges = authorizer.listPrivileges(getUser("admin1"));
+    expectedPrivileges = ImmutableSet.of(
+      new Privilege(Authorizable.fromString("application:ns1.app1"), Action.ADMIN),
+      new Privilege(Authorizable.fromString("instance:cdap"), Action.ADMIN));
+    Assert.assertTrue(privileges.containsAll(expectedPrivileges));
+  }
+
+  @Test
   public void testUnauthorized() throws Exception {
     // do some invalid operations
     // admin1 is not admin of ns2
@@ -458,8 +476,8 @@ public class SentryAuthorizerTest {
 
     assertAuthorized(new ArtifactId("ns3", "art", "1"), user, Action.READ);
     assertAuthorized(new ArtifactId("ns3", "art", "2"), user, Action.READ);
+    assertAuthorized(new ArtifactId("ns3", "artifact", "2"), user, Action.READ);
 
-    assertUnauthorized(new ArtifactId("ns3", "artifact", "2"), user, Action.READ);
     assertUnauthorized(new ArtifactId("ns5", "art", "1"), user, Action.READ);
     assertUnauthorized(new ArtifactId("ns3", "art", "1"), user, Action.WRITE);
 

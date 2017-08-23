@@ -16,19 +16,9 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
+import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.element.EntityType;
-import co.cask.cdap.proto.id.ApplicationId;
-import co.cask.cdap.proto.id.ArtifactId;
-import co.cask.cdap.proto.id.DatasetId;
-import co.cask.cdap.proto.id.DatasetModuleId;
-import co.cask.cdap.proto.id.DatasetTypeId;
 import co.cask.cdap.proto.id.EntityId;
-import co.cask.cdap.proto.id.InstanceId;
-import co.cask.cdap.proto.id.KerberosPrincipalId;
-import co.cask.cdap.proto.id.NamespaceId;
-import co.cask.cdap.proto.id.ProgramId;
-import co.cask.cdap.proto.id.SecureKeyId;
-import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.proto.security.Privilege;
@@ -87,8 +77,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -96,7 +88,7 @@ import javax.annotation.Nullable;
 /**
  * This class instantiate the {@link AuthorizationProvider} configured in {@link AuthConf} and is responsible for
  * performing different authorization operation on CDAP entities by mapping them to authorizables
- * {@link #toSentryAuthorizables(EntityId)}
+ * {@link #toSentryAuthorizables(co.cask.cdap.proto.security.Authorizable)}
  */
 class AuthBinding {
   private static final Logger LOG = LoggerFactory.getLogger(AuthBinding.class);
@@ -172,99 +164,85 @@ class AuthBinding {
   }
 
   /**
-   * Grants the specified {@link Action actions} on the specified {@link EntityId} to the specified {@link Role} as the
-   * {@link #sentryAdminGroup}. This is used to grant privileges to the dot role created for an entity.
+   * Grants the specified {@link Action actions} on the specified {@link co.cask.cdap.proto.security.Authorizable}
+   * to the specified {@link Role}.
    *
-   * @param entityId the entity on which the actions need to be granted
-   * @param role the role to which the actions need to granted
-   * @param actions the actions which need to be granted
-   * @throws Exception when there is any exception while running the client command to grant
-   */
-  void grant(EntityId entityId, Role role, Set<Action> actions) throws Exception {
-    grant(entityId, role, actions, sentryAdminGroup);
-  }
-
-  /**
-   * Grants the specified {@link Action actions} on the specified {@link EntityId} to the specified {@link Role} as the
-   * {@link #sentryAdminGroup}.
-   *
-   * @param entityId the entity on which the actions need to be granted
+   * @param authorizable the authorizable on which the actions need to be granted
    * @param role the role to which the actions need to granted
    * @param actions the actions which need to be granted
    * @param requestingUser the user executing this operation
    * @throws Exception when there is any exception while running the client command to grant for user
    */
-  void grant(final EntityId entityId, final Role role, Set<Action> actions,
+  void grant(final co.cask.cdap.proto.security.Authorizable authorizable, final Role role, final Set<Action> actions,
              final String requestingUser) throws Exception {
-    if (!roleExists(role)) {
-      throw new NotFoundException(role);
-    }
     LOG.debug("Granting actions {} on entity {} for role {}; Requesting user: {}",
-              actions, entityId, role, requestingUser);
-    for (final Action action : actions) {
-      execute(new Command<Void>() {
-        @Override
-        public Void run(SentryGenericServiceClient client) throws Exception {
-          client.grantPrivilege(requestingUser, role.getName(), COMPONENT_NAME, toTSentryPrivilege(entityId, action));
-          return null;
+              actions, authorizable, role, requestingUser);
+    execute(new Command<Void>() {
+      @Override
+      public Void run(SentryGenericServiceClient client) throws Exception {
+        for (final Action action : actions) {
+          client.grantPrivilege(requestingUser, role.getName(), COMPONENT_NAME, toTSentryPrivilege(authorizable,
+                                                                                                   action));
         }
-      });
-    }
+        return null;
+      }
+    });
   }
 
   /**
    * Revokes a {@link Role role's} authorization to perform a set of {@link Action actions} on
-   * an {@link EntityId}.
+   * an {@link co.cask.cdap.proto.security.Authorizable}.
    *
-   * @param entityId the {@link EntityId} whose {@link Action actions} are to be revoked
+   * @param authorizable the {@link co.cask.cdap.proto.security.Authorizable} whose {@link Action actions} are to be
+   * revoked
    * @param role the {@link Role} from which the actions needs to be revoked
    * @param actions the set of {@link Action actions} to revoke
    * @param requestingUser the user executing this operation
    * @throws Exception if there was any exception while running the client command for dropping privileges
    */
-  void revoke(final EntityId entityId, final Role role, Set<Action> actions,
+  void revoke(final co.cask.cdap.proto.security.Authorizable authorizable, final Role role, final Set<Action> actions,
               final String requestingUser) throws Exception {
-    if (!roleExists(role)) {
-      throw new NotFoundException(role);
-    }
     LOG.debug("Revoking actions {} on entity {} from role {}; Requesting user: {}",
-              actions, entityId, role, requestingUser);
-    for (final Action action : actions) {
-      execute(new Command<Void>() {
-        @Override
-        public Void run(SentryGenericServiceClient client) throws Exception {
-          client.revokePrivilege(requestingUser, role.getName(), COMPONENT_NAME, toTSentryPrivilege(entityId, action));
-          return null;
+              actions, authorizable, role, requestingUser);
+    execute(new Command<Void>() {
+      @Override
+      public Void run(SentryGenericServiceClient client) throws Exception {
+        for (final Action action : actions) {
+          client.revokePrivilege(requestingUser, role.getName(), COMPONENT_NAME,
+                                 toTSentryPrivilege(authorizable, action));
         }
-      });
-    }
+        return null;
+      }
+    });
   }
 
   /**
-   * Revoke all privileges on a CDAP entity. This is a privileged operation executed either to clean up orphaned
+   * Revoke all privileges on a CDAP authorizable. This is a privileged operation executed either to clean up orphaned
    * privileges on an entity before creating it, or to revoke all privileges on an entity once the entity is deleted.
    * This operation is executed as the {@link #sentryAdminGroup}.
    *
-   * @param entityId the {@link EntityId} on which all privileges have to be revoked
+   * @param authorizable the {@link co.cask.cdap.proto.security.Authorizable} on which all privileges have to be revoked
    * @throws Exception if there was any exception while running the client command for dropping privileges
    */
-  void revoke(EntityId entityId) throws Exception {
-    revoke(entityId, sentryAdminGroup);
+  void revoke(co.cask.cdap.proto.security.Authorizable authorizable) throws Exception {
+    revoke(authorizable, sentryAdminGroup);
   }
 
   /**
    * Revokes all {@link Principal principals'} authorization to perform any {@link Action} on the given
-   * {@link EntityId}.
+   * {@link co.cask.cdap.proto.security.Authorizable}.
    *
-   * @param entityId the {@link EntityId} on which all {@link Action actions} are to be revoked
+   * @param authorizable the {@link co.cask.cdap.proto.security.Authorizable} on which all {@link Action actions} are to
+   * be revoked
    * @param requestingUser the user executing this operation
    * @throws Exception if there was any exception while running the client command for dropping privileges
    */
-  private void revoke(EntityId entityId, final String requestingUser) throws Exception {
+  private void revoke(co.cask.cdap.proto.security.Authorizable authorizable, final String requestingUser)
+    throws Exception {
     Set<Role> allRoles = listAllRoles();
     final List<TSentryPrivilege> allPrivileges = getAllPrivileges(allRoles);
-    final List<TAuthorizable> tAuthorizables = toTAuthorizable(entityId);
-    LOG.debug("Revoking all actions for all users from entity {}; Requesting user: {}", entityId, requestingUser);
+    final List<TAuthorizable> tAuthorizables = toTAuthorizable(authorizable);
+    LOG.debug("Revoking all actions for all users from entity {}; Requesting user: {}", authorizable, requestingUser);
     execute(new Command<Void>() {
       @Override
       public Void run(SentryGenericServiceClient client) throws Exception {
@@ -301,25 +279,24 @@ class AuthBinding {
       if (authorizables.isEmpty()) {
         continue;
       }
-      EntityId parent = null;
+      EntityType entityType = null;
+      Map<EntityType, String> entityParts = new LinkedHashMap<>();
       for (TAuthorizable authorizable : authorizables) {
-        parent = toEntityId(authorizable, parent);
+        // we only need to keep the final entity type since authorizable are ordered top down and the last entity
+        // type is the entity type of authorizable
+        entityType = addToEntityParts(authorizable, entityParts);
       }
-      privileges.add(new Privilege(parent, Action.valueOf(sentryPrivilege.getAction().toUpperCase())));
+      // for entity type other than instance we don't include instance in the Authorizable string as in cdap entities
+      // don't inherit instance.
+      Preconditions.checkNotNull(entityType, "Failed to determine entityType for the sentry authorizable %s",
+                                 authorizables);
+      if (!entityType.equals(EntityType.INSTANCE)) {
+        entityParts.remove(EntityType.INSTANCE);
+      }
+      privileges.add(new Privilege(new co.cask.cdap.proto.security.Authorizable(entityType, entityParts),
+                                   Action.valueOf(sentryPrivilege.getAction().toUpperCase())));
     }
     return Collections.unmodifiableSet(privileges);
-  }
-
-  /**
-   * Creates a role as a {@link #sentryAdminGroup}. This is necessary for creating an entity role to automatically
-   * grant privileges to a {@link Principal} when he successfully creates an entity.
-   *
-   * @param role the role to create
-   * @throws AlreadyExistsException if the role already exists
-   * @throws Exception if there was any exception while running the client command for creating the role
-   */
-  void createRole(Role role) throws Exception {
-    createRole(role, sentryAdminGroup);
   }
 
   /**
@@ -330,9 +307,6 @@ class AuthBinding {
    * @throws Exception if there was any exception while running the client command for creating role for user
    */
   void createRole(final Role role, final String requestingUser) throws Exception {
-    if (roleExists(role)) {
-      throw new AlreadyExistsException(role);
-    }
     execute(new Command<Void>() {
       @Override
       public Void run(SentryGenericServiceClient client) throws Exception {
@@ -344,17 +318,6 @@ class AuthBinding {
   }
 
   /**
-   * Drops the specified role as the {@link #sentryAdminGroup}. This is used to drop the dot role created for an entity
-   * when it was first created.
-   *
-   * @param role the role to drop
-   * @throws Exception if there was any exception while running the client command for dropping the role
-   */
-  void dropRole(Role role) throws Exception {
-    dropRole(role, sentryAdminGroup);
-  }
-
-  /**
    * Drops the given role.
    *
    * @param role the role to dropped
@@ -362,9 +325,6 @@ class AuthBinding {
    * @throws Exception if there was any exception while running the client command for dropping the role for user
    */
   void dropRole(final Role role, final String requestingUser) throws Exception {
-    if (!roleExists(role)) {
-      throw new NotFoundException(role);
-    }
     execute(new Command<Void>() {
       @Override
       public Void run(SentryGenericServiceClient client) throws Exception {
@@ -398,18 +358,6 @@ class AuthBinding {
   }
 
   /**
-   * Adds the specified role to the specified {@link Principal group} as the {@link #sentryAdminGroup}. This is used
-   * to add the dot role for an entity to the creator when the entity is first created.
-   *
-   * @param role the dot role to add to the group
-   * @param principal the group to add the dot role to
-   * @throws Exception if there was any exception while running the client command for adding role to group
-   */
-  void addRoleToGroup(Role role, Principal principal) throws Exception {
-    addRoleToGroup(role, principal, sentryAdminGroup);
-  }
-
-  /**
    * Add a role to group principal
    *
    * @param role the role which needs to be added to the group principal
@@ -419,9 +367,6 @@ class AuthBinding {
    */
   void addRoleToGroup(final Role role, final Principal principal,
                       final String requestingUser) throws Exception {
-    if (!roleExists(role)) {
-      throw new NotFoundException(role);
-    }
     execute(new Command<Void>() {
       @Override
       public Void run(SentryGenericServiceClient client) throws Exception {
@@ -443,9 +388,6 @@ class AuthBinding {
    */
   void removeRoleFromGroup(final Role role, final Principal principal,
                            final String requestingUser) throws Exception {
-    if (!roleExists(role)) {
-      throw new NotFoundException(role);
-    }
     execute(new Command<Void>() {
       @Override
       public Void run(SentryGenericServiceClient client) throws Exception {
@@ -457,17 +399,24 @@ class AuthBinding {
     });
   }
 
+  // just a helper for unit tests
+  @VisibleForTesting
+  List<org.apache.sentry.core.common.Authorizable> toSentryAuthorizables(EntityId entityId) {
+    return toSentryAuthorizables(co.cask.cdap.proto.security.Authorizable.fromEntityId(entityId));
+  }
+
   /**
    * Maps the given {@link EntityId} to {@link Authorizable}. To see a valid set of {@link Authorizable}
    * please see {@link PrivilegeValidator} which is responsible for validating these authorizables positions and action.
    *
-   * @param entityId the {@link EntityId} which needs to be mapped to list of {@link Authorizable}
+   * @param authorizable the {@link EntityId} which needs to be mapped to list of {@link Authorizable}
    * @return a {@link List} of {@link Authorizable} which represents the given {@link EntityId}
    */
   @VisibleForTesting
-  List<org.apache.sentry.core.common.Authorizable> toSentryAuthorizables(final EntityId entityId) {
+  private List<org.apache.sentry.core.common.Authorizable>
+  toSentryAuthorizables(final co.cask.cdap.proto.security.Authorizable authorizable) {
     List<org.apache.sentry.core.common.Authorizable> authorizables = new LinkedList<>();
-    toAuthorizables(entityId, authorizables);
+    toSentryAuthorizables(authorizable.getEntityType(), authorizable, authorizables);
     return authorizables;
   }
 
@@ -509,20 +458,6 @@ class AuthBinding {
       LOG.debug("Listed roles {} for principal {}; Requesting user: {}", roles, principal, requestingUser);
     }
     return Collections.unmodifiableSet(roles);
-  }
-
-  /**
-   * Checks if the given role exists
-   *
-   * @param role the role to be checked for existence
-   * @return {@code true} if the specified role exists, {@code false} otherwise
-   * @throws Exception if there were any exception while running client command to check role existence
-   */
-  private boolean roleExists(Role role) throws Exception {
-    Set<Role> roles = listAllRoles();
-    // Sentry lowercases all roles, so while checking for existence, lower case the role as well
-    Role lowerCaseRole = new Role(role.getName().toLowerCase());
-    return roles.contains(lowerCaseRole);
   }
 
   private AuthConf initAuthzConf(String sentrySite) {
@@ -623,9 +558,15 @@ class AuthBinding {
     });
   }
 
+  // just a helper for unit tests
   @VisibleForTesting
   TSentryPrivilege toTSentryPrivilege(EntityId entityId, Action action) {
-    List<TAuthorizable> tAuthorizables = toTAuthorizable(entityId);
+    return toTSentryPrivilege(co.cask.cdap.proto.security.Authorizable.fromEntityId(entityId), action);
+  }
+
+  @VisibleForTesting
+  private TSentryPrivilege toTSentryPrivilege(co.cask.cdap.proto.security.Authorizable authorizable, Action action) {
+    List<TAuthorizable> tAuthorizables = toTAuthorizable(authorizable);
     TSentryPrivilege tSentryPrivilege = new TSentryPrivilege(COMPONENT_NAME, instanceName,
                                                              tAuthorizables, action.name());
     // CDAP-9029 Set grant options to true so that sentry will allow the privileges to be passed on to some other user
@@ -635,22 +576,11 @@ class AuthBinding {
     return tSentryPrivilege;
   }
 
-  /**
-   * Performs revoke as sentry admin. This is needed since in sentry revoke is kind of role
-   * management command and can only be done by sentry admin group. In CDAP when a revoke is done
-   * CDAP already checks that the user who is requesting revoke has ADMIN on the entity.
-   * @throws Exception if there was any exception while running the client command to revoke the role
-   */
-  void revoke(final EntityId entityId, final Role role, Set<Action> actions)
-    throws Exception {
-    revoke(entityId, role, actions, sentryAdminGroup);
-  }
-
-  private List<TAuthorizable> toTAuthorizable(EntityId entityId) {
-    List<org.apache.sentry.core.common.Authorizable> authorizables = toSentryAuthorizables(entityId);
+  private List<TAuthorizable> toTAuthorizable(co.cask.cdap.proto.security.Authorizable authorizable) {
+    List<org.apache.sentry.core.common.Authorizable> sentryAuthorizables = toSentryAuthorizables(authorizable);
     List<TAuthorizable> tAuthorizables = new ArrayList<>();
-    for (org.apache.sentry.core.common.Authorizable authorizable : authorizables) {
-      tAuthorizables.add(new TAuthorizable(authorizable.getTypeName(), authorizable.getName()));
+    for (org.apache.sentry.core.common.Authorizable authz : sentryAuthorizables) {
+      tAuthorizables.add(new TAuthorizable(authz.getTypeName(), authz.getName()));
     }
     return tAuthorizables;
   }
@@ -692,137 +622,148 @@ class AuthBinding {
     return SentryGenericServiceClientFactory.create(authConf);
   }
 
-  /**
-   * Maps a {@link TAuthorizable sentry authorizable} to {@link EntityId}
-   *
-   * @param tAuthorizable the TAuthorizable which needs to be mapped to entity
-   * @param parent the parent entity of this TAuthorizable
-   * @return {@link EntityId} for the given {@link TAuthorizable}
-   */
-  private EntityId toEntityId(TAuthorizable tAuthorizable, @Nullable EntityId parent) {
-    Authorizable authorizable = ModelAuthorizables.from(tAuthorizable.getType(), tAuthorizable.getName());
+  private EntityType addToEntityParts(TAuthorizable tAuthorizable, Map<EntityType, String> entityParts) {
+    Authorizable sentryAuthorizable = ModelAuthorizables.from(tAuthorizable.getType(), tAuthorizable.getName());
     switch (Authorizable.AuthorizableType.valueOf(tAuthorizable.getType())) {
       case INSTANCE:
-        return new InstanceId(instanceName);
+        entityParts.put(EntityType.INSTANCE, instanceName);
+        return EntityType.INSTANCE;
       case NAMESPACE:
-        Namespace namespace = (Namespace) authorizable;
-        return new NamespaceId(namespace.getName());
+        Namespace namespace = (Namespace) sentryAuthorizable;
+        entityParts.put(EntityType.NAMESPACE, namespace.getName());
+        return EntityType.NAMESPACE;
       case ARTIFACT:
-        Artifact artifact = (Artifact) authorizable;
-        assertNonNullParent(parent, Authorizable.AuthorizableType.ARTIFACT);
-        // TODO: this method will be remmoved CDAP-12100
-        //noinspection ConstantConditions
-        return ((NamespaceId) parent).artifact(artifact.getArtifactName(), artifact.getArtifactVersion());
+        Artifact artifact = (Artifact) sentryAuthorizable;
+        Preconditions.checkArgument(entityParts.containsKey(EntityType.NAMESPACE),
+                                    "Artifact %s must belong to a namespace. Currently known entity parts are %s",
+                                    artifact, entityParts);
+        entityParts.put(EntityType.ARTIFACT, artifact.getName());
+        return EntityType.ARTIFACT;
       case APPLICATION:
-        Application application = (Application) authorizable;
-        assertNonNullParent(parent, Authorizable.AuthorizableType.APPLICATION);
-        return ((NamespaceId) parent).app(application.getName());
+        Application application = (Application) sentryAuthorizable;
+        Preconditions.checkArgument(entityParts.containsKey(EntityType.NAMESPACE),
+                                    "Application %s must belong to a namespace. Currently known entity parts are %s",
+                                    application, entityParts);
+        entityParts.put(EntityType.APPLICATION, application.getName());
+        return EntityType.APPLICATION;
       case PROGRAM:
-        Program program = (Program) authorizable;
-        assertNonNullParent(parent, Authorizable.AuthorizableType.PROGRAM);
-        ApplicationId applicationId = (ApplicationId) parent;
-        // TODO: this method will be remmoved CDAP-12100
-        //noinspection ConstantConditions
-        return applicationId.program(program.getProgramType(), program.getProgramName());
+        Program program = (Program) sentryAuthorizable;
+        Preconditions.checkArgument(entityParts.containsKey(EntityType.APPLICATION),
+                                    "Program %s must belong to a application. Currently known entity parts are %s",
+                                    program, entityParts);
+        StringBuilder builder = new StringBuilder();
+        if (program.getProgramType() != null) {
+          builder.append(program.getProgramType().getPrettyName().toLowerCase());
+          builder.append(EntityId.IDSTRING_PART_SEPARATOR);
+        }
+        builder.append(program.getProgramName());
+        entityParts.put(EntityType.PROGRAM, builder.toString());
+        return EntityType.PROGRAM;
       case DATASET:
-        Dataset dataset = (Dataset) authorizable;
-        assertNonNullParent(parent, Authorizable.AuthorizableType.DATASET);
-        return ((NamespaceId) parent).dataset(dataset.getName());
+        Dataset dataset = (Dataset) sentryAuthorizable;
+        Preconditions.checkArgument(entityParts.containsKey(EntityType.NAMESPACE),
+                                    "Dataset %s must belong to a namespace.  Currently known entity parts are %s",
+                                    dataset, entityParts);
+        entityParts.put(EntityType.DATASET, dataset.getName());
+        return EntityType.DATASET;
       case DATASET_MODULE:
-        DatasetModule datasetModule = (DatasetModule) authorizable;
-        assertNonNullParent(parent, Authorizable.AuthorizableType.DATASET_MODULE);
-        return ((NamespaceId) parent).datasetModule(datasetModule.getName());
+        DatasetModule datasetModule = (DatasetModule) sentryAuthorizable;
+        Preconditions.checkArgument(entityParts.containsKey(EntityType.NAMESPACE),
+                                    "DatasetModule %s must belong to a namespace. Currently known entity parts are %s",
+                                    datasetModule, entityParts);
+        entityParts.put(EntityType.DATASET_MODULE, datasetModule.getName());
+        return EntityType.DATASET_MODULE;
       case DATASET_TYPE:
-        DatasetType datasetType = (DatasetType) authorizable;
-        assertNonNullParent(parent, Authorizable.AuthorizableType.DATASET_TYPE);
-        return ((NamespaceId) parent).datasetType(datasetType.getName());
+        DatasetType datasetType = (DatasetType) sentryAuthorizable;
+        Preconditions.checkArgument(entityParts.containsKey(EntityType.NAMESPACE),
+                                    "DatasetType %s must belong to a namespace. Currently known entity parts are %s",
+                                    datasetType, entityParts);
+        entityParts.put(EntityType.DATASET_TYPE, datasetType.getName());
+        return EntityType.DATASET_TYPE;
       case STREAM:
-        Stream stream = (Stream) authorizable;
-        assertNonNullParent(parent, Authorizable.AuthorizableType.STREAM);
-        return ((NamespaceId) parent).stream(stream.getName());
+        Stream stream = (Stream) sentryAuthorizable;
+        Preconditions.checkArgument(entityParts.containsKey(EntityType.NAMESPACE),
+                                    "Stream %s must belong to a namespace. Currently known entity parts are %s",
+                                    stream, entityParts);
+        entityParts.put(EntityType.STREAM, stream.getName());
+        return EntityType.STREAM;
       case SECUREKEY:
-        SecureKey secureKey = (SecureKey) authorizable;
-        assertNonNullParent(parent, Authorizable.AuthorizableType.SECUREKEY);
-        return ((NamespaceId) parent).secureKey(secureKey.getName());
+        SecureKey secureKey = (SecureKey) sentryAuthorizable;
+        Preconditions.checkArgument(entityParts.containsKey(EntityType.NAMESPACE),
+                                    "SecureKey %s must belong to a namespace. Currently known entity parts are %s",
+                                    secureKey, entityParts);
+        entityParts.put(EntityType.SECUREKEY, secureKey.getName());
+        return EntityType.SECUREKEY;
       case PRINCIPAL:
         co.cask.cdap.security.authorization.sentry.model.Principal principal =
-          (co.cask.cdap.security.authorization.sentry.model.Principal) authorizable;
-        return new KerberosPrincipalId(principal.getName());
+          (co.cask.cdap.security.authorization.sentry.model.Principal) sentryAuthorizable;
+        entityParts.put(EntityType.KERBEROSPRINCIPAL, principal.getName());
+        return EntityType.KERBEROSPRINCIPAL;
       default:
         throw new IllegalArgumentException(String.format("Sentry Authorizable %s has invalid type %s",
                                                          tAuthorizable.getName(), tAuthorizable.getType()));
     }
   }
 
-  private void assertNonNullParent(EntityId parent, Authorizable.AuthorizableType authorizableType) {
-    Preconditions.checkNotNull(parent, "%s must have a parent", authorizableType);
-  }
-
   /**
-   * Maps {@link EntityId} to a {@link List} of {@link Authorizable}
+   * Maps {@link co.cask.cdap.proto.security.Authorizable} to a {@link List} of {@link Authorizable}
    * by recursively working its way from a given entity.
    *
-   * @param entityId {@link EntityId} the entity which needs to be mapped to a list of authorizables
-   * @param authorizables {@link List} of {@link Authorizable} to
-   * add authorizables to
+   * @param curType entity type
+   * @param authorizable the cdap authorizable which needs to be mapped
+   * @param sentryAuthorizables list of sentry authorizable
    */
-  void toAuthorizables(EntityId entityId, List<? super Authorizable> authorizables) {
-    EntityType entityType = entityId.getEntityType();
-    switch (entityType) {
+  void toSentryAuthorizables(EntityType curType, co.cask.cdap.proto.security.Authorizable authorizable,
+                             List<? super Authorizable> sentryAuthorizables) {
+    switch (curType) {
       case INSTANCE:
-        authorizables.add(new Instance(((InstanceId) entityId).getInstance()));
+        sentryAuthorizables.add(new Instance(authorizable.getEntityParts().get(EntityType.INSTANCE)));
         break;
       case NAMESPACE:
-        toAuthorizables(new InstanceId(instanceName), authorizables);
-        authorizables.add(new Namespace(((NamespaceId) entityId).getNamespace()));
+        sentryAuthorizables.add(new Instance(instanceName));
+        sentryAuthorizables.add(new Namespace(authorizable.getEntityParts().get(curType)));
         break;
       case ARTIFACT:
-        ArtifactId artifactId = (ArtifactId) entityId;
-        toAuthorizables(artifactId.getParent(), authorizables);
-        authorizables.add(new Artifact(artifactId.getArtifact(), artifactId.getVersion()));
+        toSentryAuthorizables(EntityType.NAMESPACE, authorizable, sentryAuthorizables);
+        sentryAuthorizables.add(new Artifact(authorizable.getEntityParts().get(curType)));
         break;
       case APPLICATION:
-        ApplicationId applicationId = (ApplicationId) entityId;
-        toAuthorizables(applicationId.getParent(), authorizables);
-        authorizables.add(new Application(applicationId.getApplication()));
+        toSentryAuthorizables(EntityType.NAMESPACE, authorizable, sentryAuthorizables);
+        sentryAuthorizables.add(new Application(authorizable.getEntityParts().get(curType)));
         break;
       case DATASET:
-        DatasetId dataset = (DatasetId) entityId;
-        toAuthorizables(dataset.getParent(), authorizables);
-        authorizables.add(new Dataset(dataset.getDataset()));
+        toSentryAuthorizables(EntityType.NAMESPACE, authorizable, sentryAuthorizables);
+        sentryAuthorizables.add(new Dataset(authorizable.getEntityParts().get(curType)));
         break;
       case DATASET_MODULE:
-        DatasetModuleId datasetModuleId = (DatasetModuleId) entityId;
-        toAuthorizables(datasetModuleId.getParent(), authorizables);
-        authorizables.add(new DatasetModule(datasetModuleId.getModule()));
+        toSentryAuthorizables(EntityType.NAMESPACE, authorizable, sentryAuthorizables);
+        sentryAuthorizables.add(new DatasetModule(authorizable.getEntityParts().get(curType)));
         break;
       case DATASET_TYPE:
-        DatasetTypeId datasetTypeId = (DatasetTypeId) entityId;
-        toAuthorizables(datasetTypeId.getParent(), authorizables);
-        authorizables.add(new DatasetType(datasetTypeId.getType()));
+        toSentryAuthorizables(EntityType.NAMESPACE, authorizable, sentryAuthorizables);
+        sentryAuthorizables.add(new DatasetType(authorizable.getEntityParts().get(curType)));
         break;
       case STREAM:
-        StreamId streamId = (StreamId) entityId;
-        toAuthorizables(streamId.getParent(), authorizables);
-        authorizables.add(new Stream((streamId).getStream()));
+        toSentryAuthorizables(EntityType.NAMESPACE, authorizable, sentryAuthorizables);
+        sentryAuthorizables.add(new Stream(authorizable.getEntityParts().get(curType)));
         break;
       case PROGRAM:
-        ProgramId programId = (ProgramId) entityId;
-        toAuthorizables(programId.getParent(), authorizables);
-        authorizables.add(new Program(programId.getType(), programId.getProgram()));
+        toSentryAuthorizables(EntityType.APPLICATION, authorizable, sentryAuthorizables);
+        String[] programDetails = authorizable.getEntityParts().get(curType).split("\\.");
+        sentryAuthorizables.add(new Program(ProgramType.valueOf(programDetails[0].toUpperCase()), programDetails[1]));
         break;
       case SECUREKEY:
-        SecureKeyId secureKeyId = (SecureKeyId) entityId;
-        toAuthorizables(secureKeyId.getParent(), authorizables);
-        authorizables.add(new SecureKey(secureKeyId.getName()));
+        toSentryAuthorizables(EntityType.NAMESPACE, authorizable, sentryAuthorizables);
+        sentryAuthorizables.add(new SecureKey(authorizable.getEntityParts().get(curType)));
         break;
       case KERBEROSPRINCIPAL:
-        KerberosPrincipalId principalId = (KerberosPrincipalId) entityId;
-        toAuthorizables(new InstanceId(instanceName), authorizables);
-        authorizables.add(new co.cask.cdap.security.authorization.sentry.model.Principal(principalId.getPrincipal()));
+        sentryAuthorizables.add(new Instance(instanceName));
+        sentryAuthorizables.add(new co.cask.cdap.security.authorization.sentry.model.Principal(
+          authorizable.getEntityParts().get(curType)));
         break;
       default:
-        throw new IllegalArgumentException(String.format("The entity %s is of unknown type %s", entityId, entityType));
+        throw new IllegalArgumentException(String.format("The entity %s is of unknown type %s",
+                                                         authorizable.getEntityParts(), authorizable.getEntityType()));
     }
   }
 
@@ -834,7 +775,7 @@ class AuthBinding {
     return Collections.unmodifiableSet(sentryActions);
   }
 
-  private static List<Authorizable> toAuthorizables(List<TAuthorizable> tAuthorizables) {
+  private static List<Authorizable> toSentryAuthorizables(List<TAuthorizable> tAuthorizables) {
     List<Authorizable> authorizables = new ArrayList<>(tAuthorizables.size());
     for (TAuthorizable tAuthorizable : tAuthorizables) {
       authorizables.add(ModelAuthorizables.from(tAuthorizable.getType(), tAuthorizable.getName()));
@@ -875,7 +816,7 @@ class AuthBinding {
 
     Set<WildcardPolicy> policies = new HashSet<>(sentryPrivileges.size());
     for (TSentryPrivilege sentryPrivilege : sentryPrivileges) {
-      policies.add(new WildcardPolicy(toAuthorizables(sentryPrivilege.getAuthorizables()),
+      policies.add(new WildcardPolicy(toSentryAuthorizables(sentryPrivilege.getAuthorizables()),
                                       new ActionFactory.Action(sentryPrivilege.getAction())));
     }
 
