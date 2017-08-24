@@ -30,6 +30,7 @@ import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.SecureKeyId;
 import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
+import co.cask.cdap.proto.security.Authorizable;
 import co.cask.cdap.proto.security.Principal;
 import co.cask.cdap.proto.security.Privilege;
 import co.cask.cdap.proto.security.Role;
@@ -116,7 +117,7 @@ public class RangerAuthorizer extends AbstractAuthorizer {
     Set<EntityId> visibleEntities = new HashSet<>(entityIds.size());
     for (EntityId entityId : entityIds) {
       if (enforce(entityId, principal, RangerAccessRequest.ResourceMatchingScope.SELF_OR_DESCENDANTS,
-              RangerPolicyEngine.ANY_ACCESS)) {
+                  RangerPolicyEngine.ANY_ACCESS)) {
         visibleEntities.add(entityId);
       }
     }
@@ -124,60 +125,55 @@ public class RangerAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public void grant(EntityId entity, Principal principal, java.util.Set<Action> actions) throws Exception {
-    LOG.warn("Grant operation not supported by Ranger for CDAP");
+  public void grant(Authorizable authorizable, Principal principal, Set<Action> set) throws Exception {
+    throw new UnsupportedOperationException("Please use Ranger Admin UI to grant privileges.");
   }
 
   @Override
-  public void revoke(EntityId entity, Principal principal, java.util.Set<Action> actions) throws Exception {
-    LOG.warn("Revoke operation not supported by Ranger for CDAP");
+  public void revoke(Authorizable authorizable, Principal principal, Set<Action> set) throws Exception {
+    throw new UnsupportedOperationException("Please use Ranger Admin UI to revoke privileges.");
   }
 
   @Override
-  public void revoke(EntityId entity) throws Exception {
-    LOG.warn("Revoke for entity operation not supported by Ranger for CDAP");
+  public void revoke(Authorizable authorizable) throws Exception {
+    throw new UnsupportedOperationException("Please use Ranger Admin UI to revoke privileges.");
   }
 
   @Override
   public void createRole(Role role) throws Exception {
-    LOG.warn("Create role operation not supported by Ranger for CDAP");
-
+    throw new UnsupportedOperationException("Roles are not supported in Ranger plugin.");
   }
 
   @Override
   public void dropRole(Role role) throws Exception {
-    LOG.warn("Drop role operation not supported by Ranger for CDAP");
-
+    throw new UnsupportedOperationException("Roles are not supported in Ranger plugin.");
   }
 
   @Override
   public void addRoleToPrincipal(Role role, Principal principal) throws Exception {
-    LOG.warn("Add role to principal operation not supported by Ranger for CDAP");
+    throw new UnsupportedOperationException("Roles are not supported in Ranger plugin.");
 
   }
 
   @Override
   public void removeRoleFromPrincipal(Role role, Principal principal) throws Exception {
-    LOG.warn("Remove role from principal operation not supported by Ranger for CDAP");
+    throw new UnsupportedOperationException("Roles are not supported in Ranger plugin.");
 
   }
 
   @Override
   public Set<Role> listRoles(Principal principal) throws Exception {
-    LOG.warn("List roles operation not supported by Ranger for CDAP");
-    return null;
+    throw new UnsupportedOperationException("Roles are not supported in Ranger plugin.");
   }
 
   @Override
   public Set<Role> listAllRoles() throws Exception {
-    LOG.warn("List all roles operation not supported by Ranger for CDAP");
-    return null;
+    throw new UnsupportedOperationException("Roles are not supported in Ranger plugin.");
   }
 
   @Override
   public Set<Privilege> listPrivileges(Principal principal) throws Exception {
-    LOG.warn("List privileges operation not supported by Ranger for CDAP");
-    return null;
+    throw new UnsupportedOperationException("Please use Ranger Admin UI to list privileges.");
   }
 
   private boolean enforce(EntityId entity, Principal principal,

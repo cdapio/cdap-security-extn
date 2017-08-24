@@ -55,7 +55,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Test for {@link AuthBinding#toSentryAuthorizables(EntityId)}. For others please see
+ * Test for {@link AuthBinding#toSentryAuthorizables(co.cask.cdap.proto.security.Authorizable)}. For others please see
  * {@link SentryAuthorizerTest} since {@link SentryAuthorizer} delegates to {@link AuthBinding}
  */
 public class AuthBindingEntityToAuthMapperTest {
@@ -181,7 +181,7 @@ public class AuthBindingEntityToAuthMapperTest {
         break;
       case ARTIFACT:
         getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
-        authorizableList.add(new Artifact(ARTIFACT, ARTIFACT_VERSION));
+        authorizableList.add(new Artifact(ARTIFACT));
         break;
       case APPLICATION:
         getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
