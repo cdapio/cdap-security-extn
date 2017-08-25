@@ -16,7 +16,6 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
-import co.cask.cdap.api.Predicate;
 import co.cask.cdap.api.TxRunnable;
 import co.cask.cdap.api.data.DatasetInstantiationException;
 import co.cask.cdap.api.dataset.Dataset;
@@ -40,7 +39,10 @@ import co.cask.cdap.proto.id.ProgramId;
 import co.cask.cdap.proto.id.SecureKeyId;
 import co.cask.cdap.proto.id.StreamId;
 import co.cask.cdap.proto.security.Action;
+import co.cask.cdap.proto.security.Authorizable;
 import co.cask.cdap.proto.security.Principal;
+import co.cask.cdap.proto.security.Privilege;
+import co.cask.cdap.proto.security.Role;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.spi.authorization.AuthorizationContext;
 import co.cask.cdap.security.spi.authorization.UnauthorizedException;
@@ -124,7 +126,7 @@ public class SentryAuthorizerTest {
 
       @Override
       public Principal getPrincipal() {
-        return new Principal(System.getProperty("user.name"), Principal.PrincipalType.USER);
+        return new Principal(TestSentryService.ADMIN_USER, Principal.PrincipalType.USER);
       }
 
       @Override
@@ -286,6 +288,23 @@ public class SentryAuthorizerTest {
   }
 
   @Test
+  public void testListPrivileges() throws Exception {
+    Set<Privilege> privileges = authorizer.listPrivileges(getUser("ns3_user1"));
+    ImmutableSet<Privilege> expectedPrivileges = ImmutableSet.of(
+      new Privilege(Authorizable.fromString("securekey:ns3.*_key-??"), Action.ADMIN),
+      new Privilege(Authorizable.fromString("artifact:ns3.*"), Action.READ),
+      (new Privilege(Authorizable.fromString("dataset_type:ns3.co.cask.table??"), Action.READ))
+    );
+
+    Assert.assertTrue(privileges.containsAll(expectedPrivileges));
+    privileges = authorizer.listPrivileges(getUser("admin1"));
+    expectedPrivileges = ImmutableSet.of(
+      new Privilege(Authorizable.fromString("application:ns1.app1"), Action.ADMIN),
+      new Privilege(Authorizable.fromString("instance:cdap"), Action.ADMIN));
+    Assert.assertTrue(privileges.containsAll(expectedPrivileges));
+  }
+
+  @Test
   public void testUnauthorized() throws Exception {
     // do some invalid operations
     // admin1 is not admin of ns2
@@ -430,14 +449,14 @@ public class SentryAuthorizerTest {
     assertUnauthorized(new DatasetId("ns3", "ds1"), user, Action.READ);
 
     // dataset types
-    assertAuthorized(new DatasetTypeId("ns3", "table10"), user, Action.READ);
-    assertAuthorized(new DatasetTypeId("ns3", "table-1"), user, Action.READ);
-    assertAuthorized(new DatasetTypeId("ns3", "table1b"), user, Action.READ);
+    assertAuthorized(new DatasetTypeId("ns3", "co.cask.table10"), user, Action.READ);
+    assertAuthorized(new DatasetTypeId("ns3", "co.cask.table-1"), user, Action.READ);
+    assertAuthorized(new DatasetTypeId("ns3", "co.cask.table1b"), user, Action.READ);
 
-    assertUnauthorized(new DatasetTypeId("ns2", "table1b"), user, Action.READ);
-    assertUnauthorized(new DatasetTypeId("ns3", "table1bc"), user, Action.READ);
-    assertUnauthorized(new DatasetTypeId("ns3", "table1b"), user, Action.WRITE);
-    assertUnauthorized(new DatasetTypeId("ns3", "1table-1"), user, Action.READ);
+    assertUnauthorized(new DatasetTypeId("ns2", "co.cask.table1b"), user, Action.READ);
+    assertUnauthorized(new DatasetTypeId("ns3", "co.cask.table1bc"), user, Action.READ);
+    assertUnauthorized(new DatasetTypeId("ns3", "co.cask.table1b"), user, Action.WRITE);
+    assertUnauthorized(new DatasetTypeId("ns3", "1co.cask.table-1"), user, Action.READ);
 
     // secure keys
     assertAuthorized(new SecureKeyId("ns3", "secret_key-01"), user, Action.ADMIN);
@@ -458,8 +477,8 @@ public class SentryAuthorizerTest {
 
     assertAuthorized(new ArtifactId("ns3", "art", "1"), user, Action.READ);
     assertAuthorized(new ArtifactId("ns3", "art", "2"), user, Action.READ);
+    assertAuthorized(new ArtifactId("ns3", "artifact", "2"), user, Action.READ);
 
-    assertUnauthorized(new ArtifactId("ns3", "artifact", "2"), user, Action.READ);
     assertUnauthorized(new ArtifactId("ns5", "art", "1"), user, Action.READ);
     assertUnauthorized(new ArtifactId("ns3", "art", "1"), user, Action.WRITE);
 
@@ -485,12 +504,29 @@ public class SentryAuthorizerTest {
     assertUnauthorized(new ProgramId("ns3", "a1", ProgramType.SPARK, "s1"), user, Action.EXECUTE);
 
     // dataset modules
-    assertAuthorized(new DatasetModuleId("ns3", "tab_1_mod"), user, Action.READ);
-    assertAuthorized(new DatasetModuleId("ns3", "tab_data_mod"), user, Action.WRITE);
-    assertAuthorized(new DatasetModuleId("ns3", "tab_da_4_ta_mod"), user, Action.ADMIN);
+    assertAuthorized(new DatasetModuleId("ns3", "co.cask.tab_1_mod"), user, Action.READ);
+    assertAuthorized(new DatasetModuleId("ns3", "co.cask.tab_data_mod"), user, Action.WRITE);
+    assertAuthorized(new DatasetModuleId("ns3", "co.cask.tab_da_4_ta_mod"), user, Action.ADMIN);
 
-    assertUnauthorized(new DatasetModuleId("ns2", "tab_1_mod"), user, Action.ADMIN);
-    assertUnauthorized(new DatasetModuleId("ns3", "table_1_mod"), user, Action.ADMIN);
+    assertUnauthorized(new DatasetModuleId("ns2", "co.cask.tab_1_mod"), user, Action.ADMIN);
+    assertUnauthorized(new DatasetModuleId("ns3", "co.cask.table_1_mod"), user, Action.ADMIN);
+  }
+
+  @Test
+  public void testRoleGrant() throws Exception {
+    String allPrograms = "program:gold.new_pipeline.*";
+    Principal execRolePrincipal = new Principal("exec-role", Principal.PrincipalType.ROLE);
+    Role execRole = new Role(execRolePrincipal.getName());
+    authorizer.createRole(execRole);
+    authorizer.grant(Authorizable.fromString(allPrograms),
+                     execRolePrincipal,
+                     ImmutableSet.of(Action.EXECUTE));
+    authorizer.addRoleToPrincipal(execRole,
+                                  new Principal("spare_group", Principal.PrincipalType.GROUP));
+    assertAuthorized(new ProgramId("gold", "new_pipeline", ProgramType.FLOW, "flow1"),
+                     getUser("spare_user"),
+                     ImmutableSet.of(Action.EXECUTE));
+    authorizer.dropRole(execRole);
   }
 
   private void testAuthorized(EntityId entityId) throws Exception {

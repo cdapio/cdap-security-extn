@@ -38,9 +38,8 @@ public class TestAuthorizable {
     Assert.assertEquals(name, namespace.getName());
     Assert.assertEquals(Authorizable.AuthorizableType.NAMESPACE, namespace.getAuthzType());
 
-    Artifact artifact = new Artifact("art", "1");
-    Assert.assertEquals("art", artifact.getArtifactName());
-    Assert.assertEquals("1", artifact.getArtifactVersion());
+    Artifact artifact = new Artifact("art");
+    Assert.assertEquals("art", artifact.getName());
     Assert.assertEquals(Authorizable.AuthorizableType.ARTIFACT, artifact.getAuthzType());
 
     Application application = new Application(name);

@@ -16,7 +16,6 @@
 
 package co.cask.cdap.security.authorization.sentry.binding;
 
-import co.cask.cdap.proto.security.Action;
 import co.cask.cdap.security.authorization.sentry.binding.conf.AuthConf;
 import co.cask.cdap.security.authorization.sentry.model.Authorizable;
 import co.cask.cdap.security.authorization.sentry.policy.ModelAuthorizables;
@@ -53,7 +52,7 @@ import java.util.concurrent.TimeoutException;
  */
 class TestSentryService {
 
-  private static final String ADMIN_USER = "cdap";
+  static final String ADMIN_USER = "cdap";
   private static final String COMPONENT = "cdap";
 
   private final File tempDir;
@@ -99,9 +98,7 @@ class TestSentryService {
     try {
       importPolicy(sentryClient);
     } finally {
-      if (sentryClient != null) {
-        sentryClient.close();
-      }
+      sentryClient.close();
     }
   }
 

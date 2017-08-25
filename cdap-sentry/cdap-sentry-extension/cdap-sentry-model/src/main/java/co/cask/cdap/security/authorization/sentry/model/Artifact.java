@@ -16,9 +16,6 @@
 
 package co.cask.cdap.security.authorization.sentry.model;
 
-import co.cask.cdap.api.artifact.ArtifactId;
-import com.google.common.base.Preconditions;
-
 import java.util.Objects;
 import javax.annotation.Nullable;
 
@@ -27,40 +24,15 @@ import javax.annotation.Nullable;
  */
 public class Artifact implements Authorizable {
 
-  private static final String ARTIFACT_DETAILS_SEPARATOR = ".";
-
   private final String artifactName;
-  // artifact version can be null when wildcards are used
-  @Nullable
-  private final String artifactVersion;
-
-  /**
-   * Create an {@link Authorizable.AuthorizableType#ARTIFACT} authorizable of the given name.
-   *
-   * @param artifactDetails Details of the {@link Authorizable.AuthorizableType#ARTIFACT} which must be in the
-   * following format {@link ArtifactId#name artifactName}.{@link ArtifactId#version artifactVersion}
-   */
-  public Artifact(String artifactDetails) {
-    String splitter = "\\" + ARTIFACT_DETAILS_SEPARATOR;
-    String[] artifactNameVersion = artifactDetails.trim().split(splitter, 2);
-    Preconditions.checkArgument(
-      artifactNameVersion.length <= 2,
-      "Invalid artifact details %s. It must be in the format: artifactName%sartifactVersion, or a wildcard",
-                                artifactDetails, ARTIFACT_DETAILS_SEPARATOR);
-
-    this.artifactName = artifactNameVersion[0];
-    this.artifactVersion = artifactNameVersion.length == 2 ? artifactNameVersion[1] : null;
-  }
 
   /**
    * Construct an {@link Authorizable.AuthorizableType#ARTIFACT} authorizable with a known artifact name and version
    *
    * @param artifactName the artifact name
-   * @param artifactVersion the artifact version
    */
-  public Artifact(String artifactName, String artifactVersion) {
+  public Artifact(String artifactName) {
     this.artifactName = artifactName;
-    this.artifactVersion = artifactVersion;
   }
 
   /**
@@ -74,14 +46,11 @@ public class Artifact implements Authorizable {
   }
 
   /**
-   * Get the artifact details of the {@link Authorizable.AuthorizableType#ARTIFACT} in the following format
-   * {@link ArtifactId#name artifactName}.{@link ArtifactId#version artifactVersion}
-   *
    * @return Name of the {@link Authorizable.AuthorizableType#ARTIFACT}.
    */
   @Override
   public String getName() {
-    return artifactVersion == null ? artifactName : artifactName + ARTIFACT_DETAILS_SEPARATOR + artifactVersion;
+    return artifactName;
   }
 
   @Nullable
@@ -89,25 +58,6 @@ public class Artifact implements Authorizable {
   public String getSubType() {
     // Artifact does not have a sub type
     return null;
-  }
-
-  /**
-   * Gets name of the {@link Authorizable.AuthorizableType#ARTIFACT}.
-   *
-   * @return name of the {@link Authorizable.AuthorizableType#ARTIFACT}.
-   */
-  public String getArtifactName() {
-    return artifactName;
-  }
-
-  /**
-   * Gets version of the {@link Authorizable.AuthorizableType#ARTIFACT}.
-   *
-   * @return version of the {@link Authorizable.AuthorizableType#ARTIFACT}.
-   */
-  @Nullable
-  public String getArtifactVersion() {
-    return artifactVersion;
   }
 
   /**
@@ -129,11 +79,11 @@ public class Artifact implements Authorizable {
       return false;
     }
     Artifact that = (Artifact) o;
-    return Objects.equals(artifactName, that.artifactName) && Objects.equals(artifactVersion, that.artifactVersion);
+    return Objects.equals(artifactName, that.artifactName);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(artifactName, artifactVersion);
+    return Objects.hash(artifactName);
   }
 }
