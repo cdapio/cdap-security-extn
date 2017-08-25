@@ -750,7 +750,12 @@ class AuthBinding {
       case PROGRAM:
         toSentryAuthorizables(EntityType.APPLICATION, authorizable, sentryAuthorizables);
         String[] programDetails = authorizable.getEntityParts().get(curType).split("\\.");
-        sentryAuthorizables.add(new Program(ProgramType.valueOf(programDetails[0].toUpperCase()), programDetails[1]));
+        if (programDetails.length == 1) {
+          // We allow * when program type is not provided
+          sentryAuthorizables.add(new Program(programDetails[0]));
+        } else {
+          sentryAuthorizables.add(new Program(ProgramType.valueOf(programDetails[0].toUpperCase()), programDetails[1]));
+        }
         break;
       case SECUREKEY:
         toSentryAuthorizables(EntityType.NAMESPACE, authorizable, sentryAuthorizables);
