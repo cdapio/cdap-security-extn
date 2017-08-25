@@ -234,6 +234,7 @@
                   <exclude>**/MANIFEST.MF</exclude>
                   <exclude>**/.rubocop*.yml</exclude>
                   <exclude>**/setup.cfg</exclude>
+                  <exclude>**/*.iml</exclude>
                 </excludes>
               </configuration>
             </execution>
