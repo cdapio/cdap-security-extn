@@ -207,8 +207,8 @@ public class RangerAuthorizer extends AbstractAuthorizer {
     RangerAccessResourceImpl rangerResource = new RangerAccessResourceImpl();
     rangerRequest.setResource(rangerResource);
     rangerRequest.setAccessType(accessType);
-    rangerRequest.setAction(accessType);
-    rangerRequest.setRequestData(entity.toString());
+//    rangerRequest.setAction(accessType);
+//    rangerRequest.setRequestData(entity.toString());
 
     setAccessResource(entity, rangerResource);
 
