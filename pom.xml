@@ -21,7 +21,7 @@
 
   <groupId>co.cask.cdap</groupId>
   <artifactId>cdap-security-extensions</artifactId>
-  <version>0.6.0-SNAPSHOT</version>
+  <version>0.6.0</version>
 
   <modules>
     <module>cdap-sentry</module>
@@ -64,7 +64,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <cdap.version>4.3.0-SNAPSHOT</cdap.version>
+    <cdap.version>4.3.0</cdap.version>
     <slf4j.version>1.7.5</slf4j.version>
     <junit.version>4.11</junit.version>
     <surefire.redirectTestOutputToFile>true</surefire.redirectTestOutputToFile>
