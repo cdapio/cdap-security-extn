@@ -24,6 +24,7 @@
   <version>0.6.0</version>
 
   <modules>
+    <module>cdap-ranger</module>
     <module>cdap-sentry</module>
     <module>cdap-security-extensions-dist</module>
   </modules>

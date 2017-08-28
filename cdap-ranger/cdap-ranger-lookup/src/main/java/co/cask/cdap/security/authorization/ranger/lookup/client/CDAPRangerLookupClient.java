@@ -241,7 +241,13 @@ public class CDAPRangerLookupClient {
               Preconditions.checkNotNull(list, "Failed to list resources of type %s", resource.trim());
               if (!userInput.isEmpty()) {
                 for (String value : list) {
-                  if (value.startsWith(userInput)) {
+                  // programs are taken as programtype.programname but for matching purpose we only want to match on
+                  // the program name.
+                  String matchPart = value;
+                  if (resource.trim().toLowerCase().equalsIgnoreCase(RangerCommon.KEY_PROGRAM)) {
+                    matchPart = value.substring(value.indexOf(".") + 1, value.length());
+                  }
+                  if (matchPart.startsWith(userInput)) {
                     retList.add(value);
                   }
                 }
@@ -467,7 +473,8 @@ public class CDAPRangerLookupClient {
         String name = programRecord.getName();
         if (programList == null || !programs.contains(name)) {
           // we display program type as suffix because if its in prefix the lookup user will need to enter type first
-          programs.add(Joiner.on(":").join(name, programRecord.getType().getPrettyName()));
+          programs.add(Joiner.on(RangerCommon.RESOURCE_SEPARATOR).
+            join(programRecord.getType().getPrettyName().toLowerCase(), name));
         }
       }
     } else {

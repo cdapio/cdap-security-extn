@@ -207,8 +207,6 @@ public class RangerAuthorizer extends AbstractAuthorizer {
     RangerAccessResourceImpl rangerResource = new RangerAccessResourceImpl();
     rangerRequest.setResource(rangerResource);
     rangerRequest.setAccessType(accessType);
-    rangerRequest.setAction(accessType);
-    rangerRequest.setRequestData(entity.toString());
 
     setAccessResource(entity, rangerResource);
 
@@ -284,7 +282,7 @@ public class RangerAuthorizer extends AbstractAuthorizer {
       case PROGRAM:
         ProgramId programId = (ProgramId) entityId;
         setAccessResource(programId.getParent(), rangerAccessResource);
-        rangerAccessResource.setValue(RangerCommon.KEY_PROGRAM, programId.getType() +
+        rangerAccessResource.setValue(RangerCommon.KEY_PROGRAM, programId.getType().getPrettyName().toLowerCase() +
           RangerCommon.RESOURCE_SEPARATOR + programId.getProgram());
         break;
       case SECUREKEY:
