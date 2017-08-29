@@ -2,7 +2,7 @@
 CDAP Security Extensions
 ========================
 
-This repository contains various security extensions for `CDAP <http://docs.cask.co/cdap>`__. Currently, the following 
+This repository contains various security extensions for `CDAP <https://docs.cask.co/cdap/current/en/index.html>`__. Currently, the following 
 extensions have been implemented:
 
 CDAP Sentry
