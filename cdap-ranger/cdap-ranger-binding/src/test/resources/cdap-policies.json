@@ -1,0 +1,881 @@
+{
+  "serviceName": "cdap",
+  "serviceId": 11,
+  "policyVersion": 5,
+  "policyUpdateTime": "20170220-14:17:37.000-+0000",
+  "policies": [
+    {
+      "service": "cdapdev",
+      "name": "shankar policy",
+      "policyType": 0,
+      "description": "",
+      "isAuditEnabled": true,
+      "resources": {
+        "instance": {
+          "values": [
+            "cdap"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "application": {
+          "values": [
+            "testapp"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "namespace": {
+          "values": [
+            "default"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "program": {
+          "values": [
+            "workflow.?*"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "accesses": [
+            {
+              "type": "admin",
+              "isAllowed": true
+            }
+          ],
+          "users": [
+            "shankar"
+          ],
+          "groups": [],
+          "conditions": [],
+          "delegateAdmin": false
+        }
+      ],
+      "denyPolicyItems": [],
+      "allowExceptions": [],
+      "denyExceptions": [],
+      "dataMaskPolicyItems": [],
+      "rowFilterPolicyItems": [],
+      "id": 355,
+      "isEnabled": true,
+      "version": 1
+    },
+    {
+      "service": "cdapdev",
+      "name": "rsinha",
+      "policyType": 0,
+      "description": "",
+      "isAuditEnabled": true,
+      "resources": {
+        "artifact": {
+          "values": [
+            "*"
+          ],
+          "isExcludes": true,
+          "isRecursive": false
+        },
+        "instance": {
+          "values": [
+            "cdap"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "namespace": {
+          "values": [
+            "default"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "accesses": [
+            {
+              "type": "admin",
+              "isAllowed": true
+            }
+          ],
+          "users": [
+            "rsinha"
+          ],
+          "groups": [],
+          "conditions": [],
+          "delegateAdmin": false
+        }
+      ],
+      "denyPolicyItems": [],
+      "allowExceptions": [],
+      "denyExceptions": [],
+      "dataMaskPolicyItems": [],
+      "rowFilterPolicyItems": [],
+      "id": 356,
+      "isEnabled": true,
+      "version": 1
+    },
+    {
+      "service": "cdapdev",
+      "name": "sagar",
+      "policyType": 0,
+      "description": "",
+      "isAuditEnabled": true,
+      "resources": {
+        "instance": {
+          "values": [
+            "cdap"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "stream": {
+          "values": [
+            "?*"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "namespace": {
+          "values": [
+            "default"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "accesses": [
+            {
+              "type": "admin",
+              "isAllowed": true
+            }
+          ],
+          "users": [
+            "sagar"
+          ],
+          "groups": [],
+          "conditions": [],
+          "delegateAdmin": false
+        }
+      ],
+      "denyPolicyItems": [],
+      "allowExceptions": [],
+      "denyExceptions": [],
+      "dataMaskPolicyItems": [],
+      "rowFilterPolicyItems": [],
+      "id": 357,
+      "isEnabled": true,
+      "version": 1
+    },
+    {
+      "service": "cdapdev",
+      "name": "ali",
+      "policyType": 0,
+      "description": "",
+      "isAuditEnabled": true,
+      "resources": {
+        "instance": {
+          "values": [
+            "cdap"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "stream": {
+          "values": [
+            "teststream"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "namespace": {
+          "values": [
+            "default"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "accesses": [
+            {
+              "type": "admin",
+              "isAllowed": true
+            }
+          ],
+          "users": [
+            "ali"
+          ],
+          "groups": [],
+          "conditions": [],
+          "delegateAdmin": false
+        }
+      ],
+      "denyPolicyItems": [],
+      "allowExceptions": [],
+      "denyExceptions": [],
+      "dataMaskPolicyItems": [],
+      "rowFilterPolicyItems": [],
+      "id": 358,
+      "isEnabled": true,
+      "version": 1
+    },
+    {
+      "service": "cdapdev",
+      "name": "poorna",
+      "policyType": 0,
+      "description": "",
+      "isAuditEnabled": true,
+      "resources": {
+        "instance": {
+          "values": [
+            "cdap"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "application": {
+          "values": [
+            "*"
+          ],
+          "isExcludes": true,
+          "isRecursive": false
+        },
+        "namespace": {
+          "values": [
+            "*"
+          ],
+          "isExcludes": true,
+          "isRecursive": false
+        },
+        "program": {
+          "values": [
+            "*"
+          ],
+          "isExcludes": true,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "accesses": [
+            {
+              "type": "read",
+              "isAllowed": true
+            }
+          ],
+          "users": [
+            "poorna"
+          ],
+          "groups": [],
+          "conditions": [],
+          "delegateAdmin": false
+        }
+      ],
+      "denyPolicyItems": [],
+      "allowExceptions": [],
+      "denyExceptions": [],
+      "dataMaskPolicyItems": [],
+      "rowFilterPolicyItems": [],
+      "id": 359,
+      "isEnabled": true,
+      "version": 1
+    },
+    {
+      "service": "cdapdev",
+      "name": "matt",
+      "policyType": 0,
+      "description": "",
+      "isAuditEnabled": true,
+      "resources": {
+        "instance": {
+          "values": [
+            "cdap"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "application": {
+          "values": [
+            "testapp"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "namespace": {
+          "values": [
+            "anotherns"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "program": {
+          "values": [
+            "workflow.testworkflow"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "accesses": [
+            {
+              "type": "read",
+              "isAllowed": true
+            },
+            {
+              "type": "execute",
+              "isAllowed": true
+            }
+          ],
+          "users": [
+            "matt"
+          ],
+          "groups": [],
+          "conditions": [],
+          "delegateAdmin": false
+        }
+      ],
+      "denyPolicyItems": [],
+      "allowExceptions": [],
+      "denyExceptions": [],
+      "dataMaskPolicyItems": [],
+      "rowFilterPolicyItems": [],
+      "id": 360,
+      "isEnabled": true,
+      "version": 2
+    },
+    {
+      "service": "cdapdev",
+      "name": "derek",
+      "policyType": 0,
+      "description": "",
+      "isAuditEnabled": true,
+      "resources": {
+        "instance": {
+          "values": [
+            "cdap"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "dataset_type": {
+          "values": [
+            "co.cask.table_1_mod"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "namespace": {
+          "values": [
+            "default"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "accesses": [
+            {
+              "type": "read",
+              "isAllowed": true
+            }
+          ],
+          "users": [
+            "derek"
+          ],
+          "groups": [],
+          "conditions": [],
+          "delegateAdmin": false
+        }
+      ],
+      "denyPolicyItems": [],
+      "allowExceptions": [],
+      "denyExceptions": [],
+      "dataMaskPolicyItems": [],
+      "rowFilterPolicyItems": [],
+      "id": 361,
+      "isEnabled": true,
+      "version": 2
+    },
+    {
+      "service": "cdapdev",
+      "name": "albert",
+      "policyType": 0,
+      "description": "",
+      "isAuditEnabled": true,
+      "resources": {
+        "instance": {
+          "values": [
+            "cdap"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "dataset_module": {
+          "values": [
+            "co.cask.*"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "namespace": {
+          "values": [
+            "default"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "accesses": [
+            {
+              "type": "read",
+              "isAllowed": true
+            }
+          ],
+          "users": [
+            "albert"
+          ],
+          "groups": [],
+          "conditions": [],
+          "delegateAdmin": false
+        }
+      ],
+      "denyPolicyItems": [],
+      "allowExceptions": [],
+      "denyExceptions": [],
+      "dataMaskPolicyItems": [],
+      "rowFilterPolicyItems": [],
+      "id": 362,
+      "isEnabled": true,
+      "version": 2
+    },
+    {
+      "service": "cdapdev",
+      "name": "sree",
+      "policyType": 0,
+      "description": "",
+      "isAuditEnabled": true,
+      "resources": {
+        "instance": {
+          "values": [
+            "cdap"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "artifact": {
+          "values": [
+            "DataPipeline"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "namespace": {
+          "values": [
+            "default"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "accesses": [
+            {
+              "type": "read",
+              "isAllowed": true
+            }
+          ],
+          "users": [
+            "sree"
+          ],
+          "groups": [],
+          "conditions": [],
+          "delegateAdmin": false
+        }
+      ],
+      "denyPolicyItems": [],
+      "allowExceptions": [],
+      "denyExceptions": [],
+      "dataMaskPolicyItems": [],
+      "rowFilterPolicyItems": [],
+      "id": 363,
+      "isEnabled": true,
+      "version": 2
+    },
+    {
+      "service": "cdapdev",
+      "name": "yaojie",
+      "policyType": 0,
+      "description": "",
+      "isAuditEnabled": true,
+      "resources": {
+        "instance": {
+          "values": [
+            "cdap"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "application": {
+          "values": [
+            "testapp"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "namespace": {
+          "values": [
+            "default"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        },
+        "program": {
+          "values": [
+            "?*"
+          ],
+          "isExcludes": false,
+          "isRecursive": false
+        }
+      },
+      "policyItems": [
+        {
+          "accesses": [
+            {
+              "type": "execute",
+              "isAllowed": true
+            }
+          ],
+          "users": [
+            "yaojie"
+          ],
+          "groups": [],
+          "conditions": [],
+          "delegateAdmin": false
+        }
+      ],
+      "denyPolicyItems": [],
+      "allowExceptions": [],
+      "denyExceptions": [],
+      "dataMaskPolicyItems": [],
+      "rowFilterPolicyItems": [],
+      "id": 364,
+      "isEnabled": true,
+      "version": 1
+    }
+  ],
+  "serviceDef": {
+    "id": 11,
+    "name": "cdap",
+    "implClass": "co.cask.cdap.security.authorization.ranger.lookup.RangerLookupService",
+    "label": "CDAP",
+    "description": "CDAP",
+    "resources": [
+      {
+        "itemId": 1,
+        "name": "instance",
+        "type": "string",
+        "level": 10,
+        "parent": "",
+        "mandatory": true,
+        "lookupSupported": false,
+        "recursiveSupported": false,
+        "excludesSupported": false,
+        "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+        "matcherOptions": {
+          "wildCard": true,
+          "ignoreCase": false
+        },
+        "validationRegEx": "",
+        "validationMessage": "",
+        "uiHint": "",
+        "label": "CDAP Instance",
+        "description": "CDAP Instance"
+      },
+      {
+        "itemId": 2,
+        "name": "namespace",
+        "type": "string",
+        "level": 20,
+        "parent": "instance",
+        "mandatory": true,
+        "lookupSupported": true,
+        "recursiveSupported": false,
+        "excludesSupported": true,
+        "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+        "matcherOptions": {
+          "wildCard": true,
+          "ignoreCase": false
+        },
+        "validationRegEx": "",
+        "validationMessage": "",
+        "uiHint": "",
+        "label": "Namespace",
+        "description": "CDAP Namespace"
+      },
+      {
+        "itemId": 30,
+        "name": "application",
+        "type": "string",
+        "level": 30,
+        "parent": "namespace",
+        "mandatory": true,
+        "lookupSupported": true,
+        "recursiveSupported": false,
+        "excludesSupported": true,
+        "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+        "matcherOptions": {
+          "wildCard": true,
+          "ignoreCase": false
+        },
+        "validationRegEx": "",
+        "validationMessage": "",
+        "uiHint": "",
+        "label": "Application",
+        "description": "CDAP Application"
+      },
+      {
+        "itemId": 40,
+        "name": "artifact",
+        "type": "string",
+        "level": 30,
+        "parent": "namespace",
+        "mandatory": true,
+        "lookupSupported": true,
+        "recursiveSupported": false,
+        "excludesSupported": true,
+        "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+        "matcherOptions": {
+          "wildCard": true,
+          "ignoreCase": false
+        },
+        "validationRegEx": "",
+        "validationMessage": "",
+        "uiHint": "",
+        "label": "Artifact",
+        "description": "CDAP Artifact"
+      },
+      {
+        "itemId": 50,
+        "name": "dataset",
+        "type": "string",
+        "level": 30,
+        "parent": "namespace",
+        "mandatory": true,
+        "lookupSupported": true,
+        "recursiveSupported": false,
+        "excludesSupported": true,
+        "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+        "matcherOptions": {
+          "wildCard": true,
+          "ignoreCase": false
+        },
+        "validationRegEx": "",
+        "validationMessage": "",
+        "uiHint": "",
+        "label": "Dataset",
+        "description": "CDAP Dataset"
+      },
+      {
+        "itemId": 60,
+        "name": "dataset_module",
+        "type": "string",
+        "level": 30,
+        "parent": "namespace",
+        "mandatory": true,
+        "lookupSupported": true,
+        "recursiveSupported": false,
+        "excludesSupported": true,
+        "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+        "matcherOptions": {
+          "wildCard": true,
+          "ignoreCase": false
+        },
+        "validationRegEx": "",
+        "validationMessage": "",
+        "uiHint": "",
+        "label": "Dataset Module",
+        "description": "CDAP Dataset Module"
+      },
+      {
+        "itemId": 70,
+        "name": "dataset_type",
+        "type": "string",
+        "level": 30,
+        "parent": "namespace",
+        "mandatory": true,
+        "lookupSupported": true,
+        "recursiveSupported": false,
+        "excludesSupported": true,
+        "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+        "matcherOptions": {
+          "wildCard": true,
+          "ignoreCase": false
+        },
+        "validationRegEx": "",
+        "validationMessage": "",
+        "uiHint": "",
+        "label": "Dataset Type",
+        "description": "CDAP Dataset Type"
+      },
+      {
+        "itemId": 80,
+        "name": "secure_key",
+        "type": "string",
+        "level": 30,
+        "parent": "namespace",
+        "mandatory": true,
+        "lookupSupported": true,
+        "recursiveSupported": false,
+        "excludesSupported": true,
+        "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+        "matcherOptions": {
+          "wildCard": true,
+          "ignoreCase": false
+        },
+        "validationRegEx": "",
+        "validationMessage": "",
+        "uiHint": "",
+        "label": "Secure Key",
+        "description": "CDAP Secure Key"
+      },
+      {
+        "itemId": 90,
+        "name": "stream",
+        "type": "string",
+        "level": 30,
+        "parent": "namespace",
+        "mandatory": true,
+        "lookupSupported": true,
+        "recursiveSupported": false,
+        "excludesSupported": true,
+        "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+        "matcherOptions": {
+          "wildCard": true,
+          "ignoreCase": false
+        },
+        "validationRegEx": "",
+        "validationMessage": "",
+        "uiHint": "",
+        "label": "Stream",
+        "description": "CDAP Stream"
+      },
+      {
+        "itemId": 100,
+        "name": "principal",
+        "type": "string",
+        "level": 20,
+        "parent": "instance",
+        "mandatory": true,
+        "lookupSupported": false,
+        "recursiveSupported": false,
+        "excludesSupported": true,
+        "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+        "matcherOptions": {
+          "wildCard": true,
+          "ignoreCase": false
+        },
+        "validationRegEx": "",
+        "validationMessage": "",
+        "uiHint": "",
+        "label": "Principal",
+        "description": "Kerberos Principal"
+      },
+      {
+        "itemId": 110,
+        "name": "program",
+        "type": "string",
+        "level": 40,
+        "parent": "application",
+        "mandatory": true,
+        "lookupSupported": true,
+        "recursiveSupported": false,
+        "excludesSupported": true,
+        "matcher": "org.apache.ranger.plugin.resourcematcher.RangerDefaultResourceMatcher",
+        "matcherOptions": {
+          "wildCard": true,
+          "ignoreCase": false
+        },
+        "validationRegEx": "",
+        "validationMessage": "",
+        "uiHint": "",
+        "label": "Program",
+        "description": "CDAP Program"
+      }
+    ],
+    "accessTypes": [
+      {
+        "itemId": 1,
+        "name": "read",
+        "label": "Read"
+      },
+      {
+        "itemId": 2,
+        "name": "write",
+        "label": "Write"
+      },
+      {
+        "itemId": 3,
+        "name": "execute",
+        "label": "Execute"
+      },
+      {
+        "itemId": 4,
+        "name": "admin",
+        "label": "Admin"
+      }
+    ],
+    "configs": [
+      {
+        "itemId": 1,
+        "name": "cdap.username",
+        "type": "string",
+        "subType": "",
+        "mandatory": true,
+        "validationRegEx": "",
+        "validationMessage": "",
+        "uiHint": "",
+        "label": "Username"
+      },
+      {
+        "itemId": 2,
+        "name": "cdap.password",
+        "type": "password",
+        "subType": "",
+        "mandatory": true,
+        "validationRegEx": "",
+        "validationMessage": "",
+        "uiHint": "",
+        "label": "Password"
+      },
+      {
+        "itemId": 3,
+        "name": "cdap.instance.url",
+        "type": "string",
+        "subType": "",
+        "mandatory": true,
+        "label": "Instance URL",
+        "defaultValue": "",
+        "validationRegEx": "",
+        "validationMessage": ""
+      }
+    ],
+    "enums": [],
+    "contextEnrichers": [],
+    "policyConditions": []
+  },
+  "auditMode": "audit-default"
+}
