@@ -28,21 +28,6 @@ Installation
 Before enabling CDAP Authorization please read the following
 `documentation <https://docs.cask.co/cdap/current/en/admin-manual/security/authorization.html#admin-authorization>`__.
 
-Building Ranger Extension
--------------------------
-
-CDAP Ranger extension can be built from source code by running the
-following command:
-
-    mvn clean package
-
-To build without running unit tests
-
-    mvn clean package -DskipTests
-
-Optionally, you can download pre-built extension jars from `maven
-central <https://search.maven.org/#search%7Cga%7C1%7Ccdap%20ranger>`__.
-
 Installing CDAP Lookup in Ranger
 --------------------------------
 
@@ -217,6 +202,21 @@ on ``namespace:default``. Notice that the value for ``application`` and
 
 .. image:: _images/policy_management.png
   :align: center
+
+Building Ranger Extension
+=========================
+
+CDAP Ranger extension can be built from source code by running the
+following command:
+
+    mvn clean package
+
+To build without running unit tests
+
+    mvn clean package -DskipTests
+
+Optionally, you can download pre-built extension jars from `maven
+central <https://search.maven.org/#search%7Cga%7C1%7Ccdap%20ranger>`__.
 
 Share and Discuss!
 ==================
