@@ -189,6 +189,9 @@ will work fine in most cases.
 Policy Management
 =================
 
+Policies on mid-level entities
+------------------------------
+
 CDAP Policies can be managed in Ranger just like other service policies.
 Please read the `Ranger
 documentation <https://cwiki.apache.org/confluence/display/RANGER/Apache+Ranger+0.5+-+User+Guide>`__
@@ -202,6 +205,18 @@ on ``namespace:default``. Notice that the value for ``application`` and
 
 .. image:: _images/policy_management.png
   :align: center
+
+Wildcard Policies
+-----------------
+
+CDAP Ranger plugin allows to `grant wildcard policies <https://docs.cask
+.co/cdap/current/en/admin-manual/security/authorization.html#wildcard-privileges>`__ on entities.
+The supported wildcards are ``*`` and ``?``. ``*`` wildcard in Ranger matches 0 or more characters. CDAP does not
+expect wildcard ``*`` to match 0 characters (absence of value) so a ``*`` should always be prefixed with ``?``. For
+example to grant a user privilege on all ``programs`` the wildcard value should be as shown below.
+
+.. image:: _images/policy_management_wildcard.png
+:align: center
 
 Building Ranger Extension
 =========================
