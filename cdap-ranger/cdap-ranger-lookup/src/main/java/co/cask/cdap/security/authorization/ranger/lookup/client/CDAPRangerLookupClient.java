@@ -198,10 +198,14 @@ public class CDAPRangerLookupClient {
               // note that in the the list calls resourceMap is used to exclude entities which has already been added
               // to the list being displayed to the user as an option for selection.
               List<String> list = null;
-              NamespaceId namespace =
-                resourceMap.containsKey(RangerCommon.KEY_NAMESPACE) &&
-                  !resourceMap.get(RangerCommon.KEY_NAMESPACE).isEmpty() ?
-                  new NamespaceId(resourceMap.get(RangerCommon.KEY_NAMESPACE).get(0)) : null;
+              NamespaceId namespace = null;
+              // if user is still entering the namespace the resourceMap.get(RangerCommon.KEY_NAMESPACE).get(0) will
+              // be empty string in that case we don't want to initialize the namespaceId
+              if (resourceMap.containsKey(RangerCommon.KEY_NAMESPACE) &&
+                !resourceMap.get(RangerCommon.KEY_NAMESPACE).isEmpty() &&
+                !resourceMap.get(RangerCommon.KEY_NAMESPACE).get(0).isEmpty()) {
+                namespace = new NamespaceId(resourceMap.get(RangerCommon.KEY_NAMESPACE).get(0));
+              }
               switch (resource.trim().toLowerCase()) {
                 case RangerCommon.KEY_NAMESPACE:
                   list = getNamespaces(resourceMap.get(RangerCommon.KEY_NAMESPACE));
@@ -241,7 +245,13 @@ public class CDAPRangerLookupClient {
               Preconditions.checkNotNull(list, "Failed to list resources of type %s", resource.trim());
               if (!userInput.isEmpty()) {
                 for (String value : list) {
-                  if (value.startsWith(userInput)) {
+                  // programs are taken as programtype.programname but for matching purpose we only want to match on
+                  // the program name.
+                  String matchPart = value;
+                  if (resource.trim().toLowerCase().equalsIgnoreCase(RangerCommon.KEY_PROGRAM)) {
+                    matchPart = value.substring(value.indexOf(".") + 1, value.length());
+                  }
+                  if (matchPart.startsWith(userInput)) {
                     retList.add(value);
                   }
                 }
@@ -467,7 +477,8 @@ public class CDAPRangerLookupClient {
         String name = programRecord.getName();
         if (programList == null || !programs.contains(name)) {
           // we display program type as suffix because if its in prefix the lookup user will need to enter type first
-          programs.add(Joiner.on(":").join(name, programRecord.getType().getPrettyName()));
+          programs.add(Joiner.on(RangerCommon.RESOURCE_SEPARATOR).
+            join(programRecord.getType().getPrettyName().toLowerCase(), name));
         }
       }
     } else {

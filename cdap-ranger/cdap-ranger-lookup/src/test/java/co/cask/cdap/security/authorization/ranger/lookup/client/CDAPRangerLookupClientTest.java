@@ -26,6 +26,7 @@ import co.cask.cdap.proto.ProgramType;
 import co.cask.cdap.proto.StreamDetail;
 import co.cask.cdap.proto.id.ApplicationId;
 import co.cask.cdap.proto.id.NamespaceId;
+import co.cask.cdap.security.authorization.ranger.commons.RangerCommon;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -117,8 +118,9 @@ public class CDAPRangerLookupClientTest {
                                                                              ImmutableList.of("dummyApp")));
     List<String> resources = client.getResources(resourceLookupContext);
     Assert.assertEquals(2, resources.size());
-    Assert.assertEquals(ImmutableList.of(Joiner.on(":").join("prog1", ProgramType.FLOW.getPrettyName()),
-                                         Joiner.on(":").join("prog2", ProgramType.MAPREDUCE.getPrettyName())),
+    Assert.assertEquals(ImmutableList.of(
+      Joiner.on(RangerCommon.RESOURCE_SEPARATOR).join(ProgramType.FLOW.getPrettyName().toLowerCase(), "prog1"),
+      Joiner.on(RangerCommon.RESOURCE_SEPARATOR).join(ProgramType.MAPREDUCE.getPrettyName().toLowerCase(), "prog2")),
                         resources);
   }
 }
