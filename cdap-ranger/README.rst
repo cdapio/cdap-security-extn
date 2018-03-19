@@ -1,6 +1,5 @@
-================================================
 CDAP Authorization Extension using Apache Ranger 
-================================================
+------------------------------------------------
 
 Introduction
 ============
@@ -216,7 +215,158 @@ expect wildcard ``*`` to match 0 characters (absence of value) so a ``*`` should
 example to grant a user privilege on all ``programs`` the wildcard value should be as shown below.
 
 .. image:: _images/policy_management_wildcard.png
-:align: center
+  :align: center
+
+A Case Study
+============
+
+Consider a common use case for secure environments, especially data lakes:
+
+- There are different "categories" of data. For example, click events, financial data, operational metrics, etc.
+- Users typically have access to some but not all data. Therefore, data that is commonly accessed together,
+  is grouped into a category, for example, ``finance``.
+- All data in a category is owned by a headless service account, and access to the data is given through group
+  permissions or similar, more coarse, privilege roles.
+- Nobody ever logs on as the headless service account.
+- The applications and pipelines that create and process the data are managed by Operators, that is,
+  real persons who log on to the UI with their own user name and password.
+- Consumers of the data are data scientists (real persons) or downstream applications (headless).
+
+In CDAP, this is implemented as a namespace that impersonates the headless service account. Let's study
+such a use case at the hand of an example. Suppose that:
+
+- There are two data categories: finance and clicks, represented as namespaces of the name names.
+- Each namespace is owned and impersonated by a headless user: ``svcfinance`` and ``svcclicks``,
+  respectively.
+- These headless users have a keytab associated with them, which will be used to impersonate the
+  corresponding Kerberos principals.
+- All data in each namespace is owned by the headless user, and all data pipelines in that namespace
+  are run as the corresponding Kerberos principal.
+- Alice and Bob are both operators and they deploy, manage and monitor the pipelines in all namespaces.
+
+In a cluster with Ranger authorization, what are the Ranger policies required to enable this scenario?
+Let’s go through the steps:
+
+1. To begin with, we need two Unix users with Kerberos principals and keytab files that will
+   allow impersonating them:
+
+   .. image:: _images/ranger-case-study-keytabs.png
+
+   Note that these key tabs must be readable for the cdap system account.
+
+2. To create the ``clicks`` namespace, Alice logs into the CDAP UI. Initially, she cannot access any
+   namespaces:
+
+   .. image:: _images/ranger-case-study-no-access.png
+
+   To allow her the creation of these two namespaces with impersonation, we need to give her privileges
+   on the principals and the namespaces in Ranger:
+
+   .. image:: _images/ranger-case-study-policy-principals.png
+
+   Here, we give Alice ``ADMIN`` right on any principal starting with ``svc``.
+   If you need more control, you can also give an explicit list of principals, as we
+   do here for the namespaces:
+
+   .. image:: _images/ranger-case-study-policy-namespace.png
+
+   Due to a limitation in Ranger, it is not possible to assign policies for “intermediate”
+   entities in the entity hierarchy. Because of that, we need to use the work-around above:
+   Specify ``*`` for both the application and the program, and select “exclude” for both of them.
+   This is the way to define a policy for a namespace.
+
+3. Now Alice can create the two namespaces, for example, ``clicks``:
+
+   .. image:: _images/ranger-case-study-create-ns.png
+
+   .. image:: _images/ranger-case-study-create-ns2.png
+
+   .. image:: _images/ranger-case-study-create-ns3.png
+
+   .. image:: _images/ranger-case-study-create-ns4.png
+
+4. Now let’s create a pipeline. Without additional policies in Ranger, this will fail:
+
+   .. image:: _images/ranger-case-study-deploy-fail1.png
+
+   We are required to give Alice ``ADMIN`` privileges on the pipeline applications she deploys.
+
+   Note that in CDAP, an application is a group of programs that logically belong together.
+   A pipeline is an application with the same name as the pipeline. It contains the Data Pipeline
+   Workflow and the MapReduce or Spark programs that execute the pipeline. For deploying the pipeline,
+   we need ``ADMIN`` rights on this application. Here, we give these rights for all applications
+   in the namespace, that is, Alice can deploy any pipeline:
+
+   .. image:: _images/ranger-case-study-policy-apps.png
+
+   Similar to namespace policies, we need to work around a ranger limitation to assign
+   policies to an application. Enter ``?*`` for "application" and ``*`` for "program" and
+   select “exclude” for the program.
+
+   Now let’s try to deploy the pipeline again:
+
+   .. image:: _images/ranger-case-study-deploy-fail2.png
+
+   This still fails because the pipeline is trying to create the datasets for its source and sink,
+   but we have not given any privileges on datasets yet. Because the pipeline is impersonated as
+   the service account ``svcclicks``, we must assign these privileges to that user. Strictly speaking,
+   only ``ADMIN`` is required to create the datasets, but later on, when we run the pipeline, it will
+   need read and write access, too. Therefore, we just assign all these privileges now:
+
+   .. image:: _images/ranger-case-study-policy-datasets.png
+
+   With this, pipeline deployment succeeds.
+
+5. Let’s run the pipeline to ingest some data. Starting the pipeline is equivalent to starting
+   the DataPipelineWorkflow program of the pipeline’s application. This fails with insufficient
+   privileges. However, the error message does not make this obvious:
+
+   .. image:: _images/ranger-case-study-start-fail.png
+
+   Because Alice has no privileges at all on the pipeline’s programs, it is also not allowed
+   to find out about their existence. Therefore, the platform APIs return a “Not Found” error
+   for this request. This can be confusing at first - however, it is common practice for
+   secure APIs to behave this way.
+
+   Let’s assign the missing privileges to Alice:
+
+   .. image:: _images/ranger-case-study-policy-programs.png
+
+   Note that only the ``EXECUTE`` privilege is required to start or stop a pipeline run,
+   and the ``ADMIN`` privilege is needed to schedule the pipeline.
+
+   Now Alice can run this pipeline:
+
+   .. image:: _images/ranger-case-study-start-success.png
+
+6. We can repeat these steps to assign similar privileges to Bob, or to enable the
+   ``finance`` namespace. Also, we could assign privileges to groups rather than
+   individuals - that will make our policies easier to manage over time, especially
+   when new operators enter the team, or existing ones leave: that will simply
+   require adding or removing a user from the group.
+
+Conclusion
+----------
+
+We have created a namespace that is impersonated by a headless service account;
+and we have given privileges to a human user to deploy and operate pipelines in
+the namespace. To summarize all the privileges we had to assign:
+
+- For the headless service principal:
+
+  - ADMIN, READ and WRITE on the datasets in the namespace, required to create,
+    manage, read, and write data;
+
+- For the human operator:
+
+  - ADMIN privilege on the service user’s kerberos principal, required to
+    configure a namespace to impersonate that user;
+  - ADMIN on the namespace, required to create and operate the namespace;
+  - ADMIN on the applications in the namespace, required to create and operate pipelines;
+  - EXECUTE and ADMIN on the programs in the namespace. EXECUTE is required to
+    run a pipeline and ADMIN is required to schedule runs.
+
+This concludes the case study.
 
 Building Ranger Extension
 =========================
