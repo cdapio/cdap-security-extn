@@ -250,25 +250,25 @@ Let’s go through the steps:
 1. To begin with, we need two Unix users with Kerberos principals and keytab files that will
    allow impersonating them:
 
-   .. image:: _images/ranger-case-study-keytabs.png
+.. image:: _images/ranger-case-study-keytabs.png
 
    Note that these key tabs must be readable for the cdap system account.
 
 2. To create the ``clicks`` namespace, Alice logs into the CDAP UI. Initially, she cannot access any
    namespaces:
 
-   .. image:: _images/ranger-case-study-no-access.png
+.. image:: _images/ranger-case-study-no-access.png
 
    To allow her the creation of these two namespaces with impersonation, we need to give her privileges
    on the principals and the namespaces in Ranger:
 
-   .. image:: _images/ranger-case-study-policy-principals.png
+.. image:: _images/ranger-case-study-policy-principals.png
 
    Here, we give Alice ``ADMIN`` right on any principal starting with ``svc``.
    If you need more control, you can also give an explicit list of principals, as we
    do here for the namespaces:
 
-   .. image:: _images/ranger-case-study-policy-namespace.png
+.. image:: _images/ranger-case-study-policy-namespace.png
 
    Due to a limitation in Ranger, it is not possible to assign policies for “intermediate”
    entities in the entity hierarchy. Because of that, we need to use the work-around above:
@@ -277,17 +277,17 @@ Let’s go through the steps:
 
 3. Now Alice can create the two namespaces, for example, ``clicks``:
 
-   .. image:: _images/ranger-case-study-create-ns.png
+.. image:: _images/ranger-case-study-create-ns.png
 
-   .. image:: _images/ranger-case-study-create-ns2.png
+.. image:: _images/ranger-case-study-create-ns2.png
 
-   .. image:: _images/ranger-case-study-create-ns3.png
+.. image:: _images/ranger-case-study-create-ns3.png
 
-   .. image:: _images/ranger-case-study-create-ns4.png
+.. image:: _images/ranger-case-study-create-ns4.png
 
 4. Now let’s create a pipeline. Without additional policies in Ranger, this will fail:
 
-   .. image:: _images/ranger-case-study-deploy-fail1.png
+.. image:: _images/ranger-case-study-deploy-fail1.png
 
    We are required to give Alice ``ADMIN`` privileges on the pipeline applications she deploys.
 
@@ -297,7 +297,7 @@ Let’s go through the steps:
    we need ``ADMIN`` rights on this application. Here, we give these rights for all applications
    in the namespace, that is, Alice can deploy any pipeline:
 
-   .. image:: _images/ranger-case-study-policy-apps.png
+.. image:: _images/ranger-case-study-policy-apps.png
 
    Similar to namespace policies, we need to work around a ranger limitation to assign
    policies to an application. Enter ``?*`` for "application" and ``*`` for "program" and
@@ -305,7 +305,7 @@ Let’s go through the steps:
 
    Now let’s try to deploy the pipeline again:
 
-   .. image:: _images/ranger-case-study-deploy-fail2.png
+.. image:: _images/ranger-case-study-deploy-fail2.png
 
    This still fails because the pipeline is trying to create the datasets for its source and sink,
    but we have not given any privileges on datasets yet. Because the pipeline is impersonated as
@@ -313,7 +313,7 @@ Let’s go through the steps:
    only ``ADMIN`` is required to create the datasets, but later on, when we run the pipeline, it will
    need read and write access, too. Therefore, we just assign all these privileges now:
 
-   .. image:: _images/ranger-case-study-policy-datasets.png
+.. image:: _images/ranger-case-study-policy-datasets.png
 
    With this, pipeline deployment succeeds.
 
@@ -321,7 +321,7 @@ Let’s go through the steps:
    the DataPipelineWorkflow program of the pipeline’s application. This fails with insufficient
    privileges. However, the error message does not make this obvious:
 
-   .. image:: _images/ranger-case-study-start-fail.png
+.. image:: _images/ranger-case-study-start-fail.png
 
    Because Alice has no privileges at all on the pipeline’s programs, it is also not allowed
    to find out about their existence. Therefore, the platform APIs return a “Not Found” error
@@ -330,14 +330,14 @@ Let’s go through the steps:
 
    Let’s assign the missing privileges to Alice:
 
-   .. image:: _images/ranger-case-study-policy-programs.png
+.. image:: _images/ranger-case-study-policy-programs.png
 
    Note that only the ``EXECUTE`` privilege is required to start or stop a pipeline run,
    and the ``ADMIN`` privilege is needed to schedule the pipeline.
 
    Now Alice can run this pipeline:
 
-   .. image:: _images/ranger-case-study-start-success.png
+.. image:: _images/ranger-case-study-start-success.png
 
 6. We can repeat these steps to assign similar privileges to Bob, or to enable the
    ``finance`` namespace. Also, we could assign privileges to groups rather than
