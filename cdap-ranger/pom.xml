@@ -26,7 +26,7 @@
   </parent>
 
   <artifactId>cdap-ranger</artifactId>
-  <version>0.1.4</version>
+  <version>0.1.5</version>
 
   <modules>
     <module>cdap-ranger-lookup</module>
