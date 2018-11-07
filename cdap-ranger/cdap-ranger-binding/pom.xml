@@ -21,7 +21,7 @@
   <parent>
     <artifactId>cdap-ranger</artifactId>
     <groupId>co.cask.cdap</groupId>
-    <version>0.1.4</version>
+    <version>0.8.0</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -49,6 +49,24 @@
       <groupId>org.apache.ranger</groupId>
       <artifactId>ranger-plugins-common</artifactId>
     </dependency>
+    <!-- Dependencies of apache ranger which are not packaged with plugins-common but is needed to create their base
+    class -->
+    <dependency>
+      <groupId>commons-lang</groupId>
+      <artifactId>commons-lang</artifactId>
+      <version>2.6</version>
+    </dependency>
+    <dependency>
+      <groupId>org.codehaus.jackson</groupId>
+      <artifactId>jackson-core-asl</artifactId>
+      <version>1.8.8</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-collections</groupId>
+      <artifactId>commons-collections</artifactId>
+      <version>3.2.1</version>
+    </dependency>
+    <!-- end of plugin-commons dependencies -->
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
