@@ -21,7 +21,7 @@
   <parent>
     <artifactId>cdap-sentry-extension</artifactId>
     <groupId>co.cask.cdap</groupId>
-    <version>0.6.5</version>
+    <version>0.6.6</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
