@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Copyright © 2016 Cask Data, Inc.
+  Copyright © 2016-2019 Cask Data, Inc.
 
   Licensed under the Apache License, Version 2.0 (the "License"); you may not
   use this file except in compliance with the License. You may obtain a copy of
@@ -20,7 +20,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>co.cask.cdap</groupId>
+    <groupId>io.cdap.cdap</groupId>
     <artifactId>cdap-sentry</artifactId>
     <version>0.9.0-SNAPSHOT</version>
   </parent>
@@ -31,6 +31,6 @@
 
   <name>CDAP Hue Extension</name>
   <description>A Hue plugin for CDAP.</description>
-  <url>http://github.com/caskdata/cdap-security-extn/cdap-sentry/cdap-hue-extension</url>
+  <url>http://github.com/cdapio/cdap-security-extn/cdap-sentry/cdap-hue-extension</url>
 
 </project>

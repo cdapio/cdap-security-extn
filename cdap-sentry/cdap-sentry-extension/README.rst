@@ -7,7 +7,7 @@ Overview
 
 This project integrates CDAP with Apache Sentry to delegate authorization (both ACL
 Management and Enforcement) to Apache Sentry. It implements the CDAP `Authorizer 
-<https://github.com/caskdata/cdap/blob/develop/cdap-security/src/main/java/co/cask/cdap/security/authorization/Authorizer.java>`_
+<https://github.com/cdapio/cdap/blob/develop/cdap-security/src/main/java/io/cdap/cdap/security/authorization/Authorizer.java>`_
 interface to achieve this integration. This project is implemented as a CDAP Authorizer
 extension.
 
@@ -82,7 +82,7 @@ the Sentry Service:
 - The ``cdap`` user should be added to ``sentry.service.allow.connect``
 - The ``cdap`` user should be added to ``sentry.service.admin.group``
 - An additional setting, ``sentry.cdap.action.factory``, should be set to
-  ``co.cask.cdap.security.authorization.sentry.model.ActionFactory``; this setting can be
+  ``io.cdap.cdap.security.authorization.sentry.model.ActionFactory``; this setting can be
   added as a *Sentry Service Advanced Configuration Snippet (Safety Valve) for
   sentry-site.xml*
 
@@ -144,7 +144,7 @@ Have a question? Discuss at the `CDAP User Mailing List <https://groups.google.c
 License
 =======
 
-Copyright © 2016-2017 Cask Data, Inc.
+Copyright © 2016-2019 Cask Data, Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may
 not use this file except in compliance with the License. You may obtain
