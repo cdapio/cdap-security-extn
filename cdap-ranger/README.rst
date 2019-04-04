@@ -25,7 +25,7 @@ Installation
 ============
 
 Before enabling CDAP Authorization please read the following
-`documentation <https://docs.cask.co/cdap/current/en/admin-manual/security/authorization.html#admin-authorization>`__.
+`documentation <https://docs.cdap.io/cdap/current/en/admin-manual/security/authorization.html#admin-authorization>`__.
 
 Installing CDAP Lookup in Ranger
 --------------------------------
@@ -55,7 +55,7 @@ Adding CDAP as a service in Ranger
 ----------------------------------
 
 1. You can use the
-   *`ranger-servicedef-cdap.json <https://github.com/caskdata/cdap-security-extn/blob/develop/cdap-ranger/cdap-ranger-lookup/src/main/resources/ranger-servicedef-cdap.json>`__*
+   *`ranger-servicedef-cdap.json <https://github.com/cdapio/cdap-security-extn/blob/develop/cdap-ranger/cdap-ranger-lookup/src/main/resources/ranger-servicedef-cdap.json>`__*
    to add CDAP as a service in Ranger
 
     curl -u ranger-admin-user:ranger-admin-password -X POST -H "Accept:
@@ -138,7 +138,7 @@ Installing CDAP Authorization Binding for Enforcement
     mkdir /usr/local/ranger-cdap-conf
 
 2. Put the following `three
-   files <https://github.com/caskdata/cdap-security-extn/tree/38a974e56912ffc4e06aecaa3aaf9bbc7bc53682/cdap-ranger/cdap-ranger-binding/conf>`__
+   files <https://github.com/cdapio/cdap-security-extn/tree/38a974e56912ffc4e06aecaa3aaf9bbc7bc53682/cdap-ranger/cdap-ranger-binding/conf>`__
    in this directory
 
 -  ranger-cdap-audit.xml
@@ -208,8 +208,8 @@ on ``namespace:default``. Notice that the value for ``application`` and
 Wildcard Policies
 -----------------
 
-CDAP Ranger plugin allows to `grant wildcard policies <https://docs.cask
-.co/cdap/current/en/admin-manual/security/authorization.html#wildcard-privileges>`__ on entities.
+CDAP Ranger plugin allows to `grant wildcard policies 
+<https://docs.cdap.io/cdap/current/en/admin-manual/security/authorization.html#wildcard-privileges>`__ on entities.
 The supported wildcards are ``*`` and ``?``. ``*`` wildcard in Ranger matches 0 or more characters. CDAP does not
 expect wildcard ``*`` to match 0 characters (absence of value) so a ``*`` should always be prefixed with ``?``. For
 example to grant a user privilege on all ``programs`` the wildcard value should be as shown below.
@@ -406,7 +406,7 @@ Have a question? Discuss at the `CDAP User Mailing List <https://groups.google.c
 License
 =======
 
-Copyright © 2017 Cask Data, Inc.
+Copyright © 2017-2019 Cask Data, Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may
 not use this file except in compliance with the License. You may obtain

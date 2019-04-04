@@ -1,7 +1,7 @@
 {
   "id": 11,
   "name": "cdap",
-  "implClass": "co.cask.cdap.security.authorization.ranger.lookup.RangerLookupService",
+  "implClass": "io.cdap.cdap.security.authorization.ranger.lookup.RangerLookupService",
   "label": "CDAP",
   "description": "CDAP",
   "resources": [

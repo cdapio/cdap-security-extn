@@ -7,7 +7,7 @@ Overview
 
 This project contains a CDAP authorization extension using a custom dataset (``ACLDataset``) to store authorization
 policies. It implements the CDAP
-`Authorizer <https://github.com/caskdata/cdap/blob/develop/cdap-security/src/main/java/co/cask/cdap/security/authorization/Authorizer.java>`_
+`Authorizer <https://github.com/cdapio/cdap/blob/develop/cdap-security/src/main/java/io/cdap/cdap/security/authorization/Authorizer.java>`_
 interface to achieve this integration. The ACLDataset is created in the ``cdap_system`` HBase namespace.
 
 Building
@@ -54,7 +54,7 @@ Have a question? Discuss at the `CDAP User Mailing List <https://groups.google.c
 License
 =======
 
-Copyright © 2016 Cask Data, Inc.
+Copyright © 2016-2019 Cask Data, Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may
 not use this file except in compliance with the License. You may obtain

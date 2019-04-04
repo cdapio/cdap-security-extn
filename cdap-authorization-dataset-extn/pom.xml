@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Copyright © 2015-2016 Cask Data, Inc.
+  Copyright © 2015-2019 Cask Data, Inc.
 
   Licensed under the Apache License, Version 2.0 (the "License"); you may not
   use this file except in compliance with the License. You may obtain a copy of
@@ -20,7 +20,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>co.cask.cdap</groupId>
+    <groupId>io.cdap.cdap</groupId>
     <artifactId>cdap-security-extensions</artifactId>
     <version>0.6.0-SNAPSHOT</version>
   </parent>
@@ -30,54 +30,54 @@
   <description>A CDAP authorization extension that uses a CDAP dataset as a backing store for ACLs.</description>
 
   <properties>
-    <security.authorizer.class>co.cask.cdap.security.authorization.DatasetBasedAuthorizer</security.authorizer.class>
+    <security.authorizer.class>io.cdap.cdap.security.authorization.DatasetBasedAuthorizer</security.authorizer.class>
     <guava.version>13.0.1</guava.version>
   </properties>
 
   <dependencies>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-security-spi</artifactId>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-api-common</artifactId>
       <version>${cdap.version}</version>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-security-spi</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-security</artifactId>
       <version>${cdap.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-data-fabric</artifactId>
       <version>${cdap.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-data-fabric</artifactId>
       <version>${cdap.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-app-fabric</artifactId>
       <version>${cdap.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-common</artifactId>
       <version>${cdap.version}</version>
       <type>test-jar</type>

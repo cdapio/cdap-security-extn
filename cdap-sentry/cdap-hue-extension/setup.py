@@ -1,5 +1,5 @@
 # coding=utf8
-# Copyright © 2016 Cask Data, Inc.
+# Copyright © 2016-2019 Cask Data, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License. You may obtain a copy of
@@ -38,7 +38,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 setup(
   name='cdap',
   version='0.1',
-  url='https://github.com/caskdata/cdap-security-extn',
+  url='https://github.com/cdapio/cdap-security-extn',
   description='Hue Integration with CDAP',
   author='Cask Data, Inc.',
   packages=find_packages('src'),

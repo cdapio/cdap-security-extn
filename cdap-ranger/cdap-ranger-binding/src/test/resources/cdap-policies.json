@@ -369,7 +369,7 @@
         },
         "dataset_type": {
           "values": [
-            "co.cask.table_1_mod"
+            "io.cdap.table_1_mod"
           ],
           "isExcludes": false,
           "isRecursive": false
@@ -423,7 +423,7 @@
         },
         "dataset_module": {
           "values": [
-            "co.cask.*"
+            "io.cdap.*"
           ],
           "isExcludes": false,
           "isRecursive": false
@@ -580,7 +580,7 @@
   "serviceDef": {
     "id": 11,
     "name": "cdap",
-    "implClass": "co.cask.cdap.security.authorization.ranger.lookup.RangerLookupService",
+    "implClass": "io.cdap.cdap.security.authorization.ranger.lookup.RangerLookupService",
     "label": "CDAP",
     "description": "CDAP",
     "resources": [
