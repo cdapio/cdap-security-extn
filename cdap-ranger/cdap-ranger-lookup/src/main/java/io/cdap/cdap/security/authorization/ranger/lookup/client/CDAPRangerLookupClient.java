@@ -15,7 +15,13 @@
  */
 package io.cdap.cdap.security.authorization.ranger.lookup.client;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.base.Throwables;
 import io.cdap.cdap.api.artifact.ArtifactSummary;
+import io.cdap.cdap.api.security.store.SecureStoreMetadata;
 import io.cdap.cdap.cli.util.InstanceURIParser;
 import io.cdap.cdap.client.ApplicationClient;
 import io.cdap.cdap.client.ArtifactClient;
@@ -24,7 +30,6 @@ import io.cdap.cdap.client.DatasetModuleClient;
 import io.cdap.cdap.client.DatasetTypeClient;
 import io.cdap.cdap.client.NamespaceClient;
 import io.cdap.cdap.client.SecureStoreClient;
-import io.cdap.cdap.client.StreamClient;
 import io.cdap.cdap.client.config.ClientConfig;
 import io.cdap.cdap.client.config.ConnectionConfig;
 import io.cdap.cdap.proto.ApplicationRecord;
@@ -33,18 +38,12 @@ import io.cdap.cdap.proto.DatasetSpecificationSummary;
 import io.cdap.cdap.proto.DatasetTypeMeta;
 import io.cdap.cdap.proto.NamespaceMeta;
 import io.cdap.cdap.proto.ProgramRecord;
-import io.cdap.cdap.proto.StreamDetail;
 import io.cdap.cdap.proto.id.ApplicationId;
 import io.cdap.cdap.proto.id.NamespaceId;
 import io.cdap.cdap.security.authentication.client.AccessToken;
 import io.cdap.cdap.security.authentication.client.AuthenticationClient;
 import io.cdap.cdap.security.authentication.client.basic.BasicAuthenticationClient;
 import io.cdap.cdap.security.authorization.ranger.commons.RangerCommon;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.ranger.plugin.client.BaseClient;
@@ -82,7 +81,6 @@ public class CDAPRangerLookupClient {
   private final String password;
   private AuthenticationClient authClient;
   private NamespaceClient nsClient;
-  private StreamClient streamClient;
   private ApplicationClient applicationClient;
   private DatasetClient datasetClient;
   private ArtifactClient artifactClient;
@@ -97,13 +95,12 @@ public class CDAPRangerLookupClient {
   // for testing only. does not use authentication client
   @VisibleForTesting
   CDAPRangerLookupClient(String instanceURL, String username, String password,
-                         NamespaceClient nsClient, StreamClient streamClient, ApplicationClient applicationClient,
+                         NamespaceClient nsClient, ApplicationClient applicationClient,
                          DatasetClient datasetClient, ArtifactClient artifactClient,
                          DatasetModuleClient datasetModuleClient, DatasetTypeClient datasetTypeClient,
                          SecureStoreClient secureStoreClient) throws IOException {
     this(instanceURL, username, password, false);
     this.nsClient = nsClient;
-    this.streamClient = streamClient;
     this.applicationClient = applicationClient;
     this.datasetClient = datasetClient;
     this.artifactClient = artifactClient;
@@ -133,7 +130,6 @@ public class CDAPRangerLookupClient {
         initAuthClient(username, password);
         ClientConfig clientConfig = getClientConfig();
         this.nsClient = new NamespaceClient(clientConfig);
-        this.streamClient = new StreamClient(clientConfig);
         this.datasetClient = new DatasetClient(clientConfig);
         this.applicationClient = new ApplicationClient(clientConfig);
         this.artifactClient = new ArtifactClient(clientConfig);
@@ -189,80 +185,73 @@ public class CDAPRangerLookupClient {
     }
     if (userInput != null && resource != null && resourceMap != null && !resourceMap.isEmpty()) {
       try {
-        Callable<List<String>> callableObj;
-        callableObj = new Callable<List<String>>() {
-          @Override
-          public List<String> call() {
-            List<String> retList = new ArrayList<>();
-            try {
-              // note that in the the list calls resourceMap is used to exclude entities which has already been added
-              // to the list being displayed to the user as an option for selection.
-              List<String> list = null;
-              NamespaceId namespace = null;
-              // if user is still entering the namespace the resourceMap.get(RangerCommon.KEY_NAMESPACE).get(0) will
-              // be empty string in that case we don't want to initialize the namespaceId
-              if (resourceMap.containsKey(RangerCommon.KEY_NAMESPACE) &&
-                !resourceMap.get(RangerCommon.KEY_NAMESPACE).isEmpty() &&
-                !resourceMap.get(RangerCommon.KEY_NAMESPACE).get(0).isEmpty()) {
-                namespace = new NamespaceId(resourceMap.get(RangerCommon.KEY_NAMESPACE).get(0));
-              }
-              switch (resource.trim().toLowerCase()) {
-                case RangerCommon.KEY_NAMESPACE:
-                  list = getNamespaces(resourceMap.get(RangerCommon.KEY_NAMESPACE));
-                  break;
-                case RangerCommon.KEY_STREAM:
-                  list = getStreams(namespace, resourceMap.get(RangerCommon.KEY_STREAM));
-                  break;
-                case RangerCommon.KEY_APPLICATION:
-                  list = getApplications(namespace, resourceMap.get(RangerCommon.KEY_APPLICATION));
-                  break;
-                case RangerCommon.KEY_DATASET:
-                  list = getDatasets(namespace, resourceMap.get(RangerCommon.KEY_DATASET));
-                  break;
-                case RangerCommon.KEY_PROGRAM:
-                  Preconditions.checkNotNull(resourceMap.get(RangerCommon.KEY_APPLICATION));
-                  @SuppressWarnings("ConstantConditions")
-                  ApplicationId applicationId = new ApplicationId(namespace.getNamespace(), resourceMap.get
-                    (RangerCommon.KEY_APPLICATION).get(0));
-                  list = getPrograms(applicationId, resourceMap.get(RangerCommon.KEY_PROGRAM));
-                  break;
-                case RangerCommon.KEY_ARTIFACT:
-                  list = getArtifacts(namespace, resourceMap.get(RangerCommon.KEY_ARTIFACT));
-                  break;
-                case RangerCommon.KEY_DATASET_MODULE:
-                  list = getDatasetModules(namespace, resourceMap.get(RangerCommon.KEY_DATASET_MODULE));
-                  break;
-                case RangerCommon.KEY_DATASET_TYPE:
-                  list = getDatasetTypes(namespace, resourceMap.get(RangerCommon.KEY_DATASET_TYPE));
-                  break;
-                case RangerCommon.KEY_SECUREKEY:
-                  list = getSecureKeys(namespace, resourceMap.get(RangerCommon.KEY_SECUREKEY));
-                  break;
-                case RangerCommon.KEY_PRINCIPAL:
-                  // Cannot list principals
-                  list = Collections.emptyList();
-              }
-              Preconditions.checkNotNull(list, "Failed to list resources of type %s", resource.trim());
-              if (!userInput.isEmpty()) {
-                for (String value : list) {
-                  // programs are taken as programtype.programname but for matching purpose we only want to match on
-                  // the program name.
-                  String matchPart = value;
-                  if (resource.trim().toLowerCase().equalsIgnoreCase(RangerCommon.KEY_PROGRAM)) {
-                    matchPart = value.substring(value.indexOf(".") + 1, value.length());
-                  }
-                  if (matchPart.startsWith(userInput)) {
-                    retList.add(value);
-                  }
-                }
-              } else {
-                retList.addAll(list);
-              }
-            } catch (Exception ex) {
-              LOG.error("Error getting resource.", ex);
+        Callable<List<String>> callableObj = () -> {
+          List<String> retList = new ArrayList<>();
+          try {
+            // note that in the the list calls resourceMap is used to exclude entities which has already been added
+            // to the list being displayed to the user as an option for selection.
+            List<String> list = null;
+            NamespaceId namespace = null;
+            // if user is still entering the namespace the resourceMap.get(RangerCommon.KEY_NAMESPACE).get(0) will
+            // be empty string in that case we don't want to initialize the namespaceId
+            if (resourceMap.containsKey(RangerCommon.KEY_NAMESPACE) &&
+              !resourceMap.get(RangerCommon.KEY_NAMESPACE).isEmpty() &&
+              !resourceMap.get(RangerCommon.KEY_NAMESPACE).get(0).isEmpty()) {
+              namespace = new NamespaceId(resourceMap.get(RangerCommon.KEY_NAMESPACE).get(0));
             }
-            return retList;
+            switch (resource.trim().toLowerCase()) {
+              case RangerCommon.KEY_NAMESPACE:
+                list = getNamespaces(resourceMap.get(RangerCommon.KEY_NAMESPACE));
+                break;
+              case RangerCommon.KEY_APPLICATION:
+                list = getApplications(namespace, resourceMap.get(RangerCommon.KEY_APPLICATION));
+                break;
+              case RangerCommon.KEY_DATASET:
+                list = getDatasets(namespace, resourceMap.get(RangerCommon.KEY_DATASET));
+                break;
+              case RangerCommon.KEY_PROGRAM:
+                Preconditions.checkNotNull(resourceMap.get(RangerCommon.KEY_APPLICATION));
+                @SuppressWarnings("ConstantConditions")
+                ApplicationId applicationId = new ApplicationId(namespace.getNamespace(), resourceMap.get
+                  (RangerCommon.KEY_APPLICATION).get(0));
+                list = getPrograms(applicationId, resourceMap.get(RangerCommon.KEY_PROGRAM));
+                break;
+              case RangerCommon.KEY_ARTIFACT:
+                list = getArtifacts(namespace, resourceMap.get(RangerCommon.KEY_ARTIFACT));
+                break;
+              case RangerCommon.KEY_DATASET_MODULE:
+                list = getDatasetModules(namespace, resourceMap.get(RangerCommon.KEY_DATASET_MODULE));
+                break;
+              case RangerCommon.KEY_DATASET_TYPE:
+                list = getDatasetTypes(namespace, resourceMap.get(RangerCommon.KEY_DATASET_TYPE));
+                break;
+              case RangerCommon.KEY_SECUREKEY:
+                list = getSecureKeys(namespace, resourceMap.get(RangerCommon.KEY_SECUREKEY));
+                break;
+              case RangerCommon.KEY_PRINCIPAL:
+                // Cannot list principals
+                list = Collections.emptyList();
+            }
+            Preconditions.checkNotNull(list, "Failed to list resources of type %s", resource.trim());
+            if (!userInput.isEmpty()) {
+              for (String value : list) {
+                // programs are taken as programtype.programname but for matching purpose we only want to match on
+                // the program name.
+                String matchPart = value;
+                if (resource.trim().toLowerCase().equalsIgnoreCase(RangerCommon.KEY_PROGRAM)) {
+                  matchPart = value.substring(value.indexOf(".") + 1, value.length());
+                }
+                if (matchPart.startsWith(userInput)) {
+                  retList.add(value);
+                }
+              }
+            } else {
+              retList.addAll(list);
+            }
+          } catch (Exception ex) {
+            LOG.error("Error getting resource.", ex);
           }
+          return retList;
         };
 
         synchronized (this) {
@@ -301,29 +290,6 @@ public class CDAPRangerLookupClient {
       LOG.debug("<== CDAPRangerLookupClient.getNamespaces(): " + namespaces);
     }
     return namespaces;
-  }
-
-  private List<String> getStreams(NamespaceId namespace, @Nullable List<String> streamList) throws Exception {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("==> CDAPRangerLookupClient.getStreams() ExcludeStreamList :" + streamList);
-    }
-
-    List<String> streams = new ArrayList<>();
-    if (streamClient != null) {
-      for (StreamDetail streamDetail : streamClient.list(namespace)) {
-        String name = streamDetail.getName();
-        if (streamList == null || !streamList.contains(name)) {
-          streams.add(name);
-        }
-      }
-    } else {
-      LOG.warn("Failed to get Stream. StreamClient is not initialized.");
-    }
-
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("<== CDAPRangerLookupClient.getStreams(): " + streams);
-    }
-    return streams;
   }
 
   private List<String> getDatasets(NamespaceId namespace, @Nullable List<String> datasetList) throws Exception {
@@ -404,9 +370,9 @@ public class CDAPRangerLookupClient {
 
     List<String> secureKeys = new ArrayList<>();
     if (secureStoreClient != null) {
-      for (String secureKey : secureStoreClient.listKeys(namespace).keySet()) {
-        if (secureKeyList == null || !secureKeys.contains(secureKey)) {
-          secureKeys.add(secureKey);
+      for (SecureStoreMetadata meta : secureStoreClient.listKeys(namespace)) {
+        if (secureKeyList == null || !secureKeys.contains(meta.getName())) {
+          secureKeys.add(meta.getName());
         }
       }
     } else {
@@ -529,20 +495,12 @@ public class CDAPRangerLookupClient {
   }
 
   private Supplier<AccessToken> fetchAccessToken() {
-    return new Supplier<AccessToken>() {
-      @Override
-      public AccessToken get() {
-        try {
-          checkServicesWithRetry(new Callable<Boolean>() {
-            @Override
-            public Boolean call() throws Exception {
-              return authClient.getAccessToken() != null;
-            }
-          });
-          return authClient.getAccessToken();
-        } catch (Exception e) {
-          throw Throwables.propagate(e);
-        }
+    return () -> {
+      try {
+        checkServicesWithRetry(() -> authClient.getAccessToken() != null);
+        return authClient.getAccessToken();
+      } catch (Exception e) {
+        throw Throwables.propagate(e);
       }
     };
   }

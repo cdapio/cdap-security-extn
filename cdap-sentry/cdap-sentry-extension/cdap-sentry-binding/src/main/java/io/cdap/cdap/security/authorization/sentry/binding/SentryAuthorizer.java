@@ -16,6 +16,8 @@
 
 package io.cdap.cdap.security.authorization.sentry.binding;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import io.cdap.cdap.proto.id.EntityId;
 import io.cdap.cdap.proto.security.Action;
 import io.cdap.cdap.proto.security.Principal;
@@ -28,8 +30,6 @@ import io.cdap.cdap.security.spi.authorization.AbstractAuthorizer;
 import io.cdap.cdap.security.spi.authorization.AuthorizationContext;
 import io.cdap.cdap.security.spi.authorization.Authorizer;
 import io.cdap.cdap.security.spi.authorization.UnauthorizedException;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

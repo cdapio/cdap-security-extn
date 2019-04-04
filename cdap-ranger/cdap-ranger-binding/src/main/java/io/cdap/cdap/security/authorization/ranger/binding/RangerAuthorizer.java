@@ -15,6 +15,7 @@
  */
 package io.cdap.cdap.security.authorization.ranger.binding;
 
+import com.google.common.base.Preconditions;
 import io.cdap.cdap.common.conf.Constants;
 import io.cdap.cdap.proto.element.EntityType;
 import io.cdap.cdap.proto.id.ApplicationId;
@@ -28,7 +29,6 @@ import io.cdap.cdap.proto.id.KerberosPrincipalId;
 import io.cdap.cdap.proto.id.NamespaceId;
 import io.cdap.cdap.proto.id.ProgramId;
 import io.cdap.cdap.proto.id.SecureKeyId;
-import io.cdap.cdap.proto.id.StreamId;
 import io.cdap.cdap.proto.security.Action;
 import io.cdap.cdap.proto.security.Authorizable;
 import io.cdap.cdap.proto.security.Principal;
@@ -39,7 +39,6 @@ import io.cdap.cdap.security.spi.authorization.AbstractAuthorizer;
 import io.cdap.cdap.security.spi.authorization.AuthorizationContext;
 import io.cdap.cdap.security.spi.authorization.Authorizer;
 import io.cdap.cdap.security.spi.authorization.UnauthorizedException;
-import com.google.common.base.Preconditions;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.ranger.audit.provider.MiscUtil;
 import org.apache.ranger.plugin.audit.RangerDefaultAuditHandler;
@@ -66,13 +65,11 @@ public class RangerAuthorizer extends AbstractAuthorizer {
   private static final Logger LOG = LoggerFactory.getLogger(RangerAuthorizer.class);
 
   private static volatile RangerBasePlugin rangerPlugin = null;
-  private AuthorizationContext context;
   // cdap instance name
   private String instanceName;
 
   @Override
   public synchronized void initialize(AuthorizationContext context) throws Exception {
-    this.context = context;
     Properties properties = context.getExtensionProperties();
     instanceName = properties.containsKey(Constants.INSTANCE_NAME) ?
       properties.getProperty(Constants.INSTANCE_NAME) : "cdap";
@@ -125,54 +122,54 @@ public class RangerAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public void grant(Authorizable authorizable, Principal principal, Set<Action> set) throws Exception {
+  public void grant(Authorizable authorizable, Principal principal, Set<Action> set) {
     throw new UnsupportedOperationException("Please use Ranger Admin UI to grant privileges.");
   }
 
   @Override
-  public void revoke(Authorizable authorizable, Principal principal, Set<Action> set) throws Exception {
+  public void revoke(Authorizable authorizable, Principal principal, Set<Action> set) {
     throw new UnsupportedOperationException("Please use Ranger Admin UI to revoke privileges.");
   }
 
   @Override
-  public void revoke(Authorizable authorizable) throws Exception {
+  public void revoke(Authorizable authorizable) {
     throw new UnsupportedOperationException("Please use Ranger Admin UI to revoke privileges.");
   }
 
   @Override
-  public void createRole(Role role) throws Exception {
+  public void createRole(Role role) {
     throw new UnsupportedOperationException("Roles are not supported in Ranger plugin.");
   }
 
   @Override
-  public void dropRole(Role role) throws Exception {
+  public void dropRole(Role role) {
     throw new UnsupportedOperationException("Roles are not supported in Ranger plugin.");
   }
 
   @Override
-  public void addRoleToPrincipal(Role role, Principal principal) throws Exception {
-    throw new UnsupportedOperationException("Roles are not supported in Ranger plugin.");
-
-  }
-
-  @Override
-  public void removeRoleFromPrincipal(Role role, Principal principal) throws Exception {
+  public void addRoleToPrincipal(Role role, Principal principal) {
     throw new UnsupportedOperationException("Roles are not supported in Ranger plugin.");
 
   }
 
   @Override
-  public Set<Role> listRoles(Principal principal) throws Exception {
+  public void removeRoleFromPrincipal(Role role, Principal principal) {
+    throw new UnsupportedOperationException("Roles are not supported in Ranger plugin.");
+
+  }
+
+  @Override
+  public Set<Role> listRoles(Principal principal) {
     throw new UnsupportedOperationException("Roles are not supported in Ranger plugin.");
   }
 
   @Override
-  public Set<Role> listAllRoles() throws Exception {
+  public Set<Role> listAllRoles() {
     throw new UnsupportedOperationException("Roles are not supported in Ranger plugin.");
   }
 
   @Override
-  public Set<Privilege> listPrivileges(Principal principal) throws Exception {
+  public Set<Privilege> listPrivileges(Principal principal) {
     throw new UnsupportedOperationException("Please use Ranger Admin UI to list privileges.");
   }
 
@@ -273,11 +270,6 @@ public class RangerAuthorizer extends AbstractAuthorizer {
         DatasetTypeId datasetTypeId = (DatasetTypeId) entityId;
         setAccessResource(datasetTypeId.getParent(), rangerAccessResource);
         rangerAccessResource.setValue(RangerCommon.KEY_DATASET_TYPE, datasetTypeId.getType());
-        break;
-      case STREAM:
-        StreamId streamId = (StreamId) entityId;
-        setAccessResource(streamId.getParent(), rangerAccessResource);
-        rangerAccessResource.setValue(RangerCommon.KEY_STREAM, streamId.getStream());
         break;
       case PROGRAM:
         ProgramId programId = (ProgramId) entityId;

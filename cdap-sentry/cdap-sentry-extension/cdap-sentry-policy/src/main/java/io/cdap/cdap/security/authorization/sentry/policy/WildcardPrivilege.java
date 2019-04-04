@@ -16,17 +16,16 @@
 
 package io.cdap.cdap.security.authorization.sentry.policy;
 
-import io.cdap.cdap.security.authorization.sentry.model.ActionConstant;
-import io.cdap.cdap.security.authorization.sentry.model.ActionFactory.Action;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import io.cdap.cdap.security.authorization.sentry.model.ActionConstant;
+import io.cdap.cdap.security.authorization.sentry.model.ActionFactory.Action;
 import org.apache.sentry.policy.common.KeyValue;
 import org.apache.sentry.policy.common.PolicyConstants;
 import org.apache.sentry.policy.common.Privilege;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
 /**

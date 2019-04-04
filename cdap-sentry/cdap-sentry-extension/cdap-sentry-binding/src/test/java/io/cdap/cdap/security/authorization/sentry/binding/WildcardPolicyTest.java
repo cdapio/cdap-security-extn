@@ -16,6 +16,8 @@
 
 package io.cdap.cdap.security.authorization.sentry.binding;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import io.cdap.cdap.security.authorization.sentry.model.ActionFactory;
 import io.cdap.cdap.security.authorization.sentry.model.Application;
 import io.cdap.cdap.security.authorization.sentry.model.Authorizable;
@@ -23,8 +25,6 @@ import io.cdap.cdap.security.authorization.sentry.model.Dataset;
 import io.cdap.cdap.security.authorization.sentry.model.Namespace;
 import io.cdap.cdap.security.authorization.sentry.model.Program;
 import io.cdap.cdap.security.authorization.sentry.policy.ModelAuthorizables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -33,7 +33,7 @@ import org.junit.Test;
  */
 public class WildcardPolicyTest {
   @Test
-  public void testSimplePolicy() throws Exception {
+  public void testSimplePolicy() {
     WildcardPolicy readPolicy = createPolicy("read", toAuth("dataset", "table"));
 
     Assert.assertTrue(readPolicy.isAllowed(ImmutableList.of(new Dataset("table")), new ActionFactory.Action("read")));
@@ -44,27 +44,27 @@ public class WildcardPolicyTest {
   }
 
   @Test
-  public void testProgramPolicy() throws Exception {
+  public void testProgramPolicy() {
     WildcardPolicy readPolicy = createPolicy("execute",
                                              toAuth("namespace", "ns1"),
                                              toAuth("application", "app1"),
-                                             toAuth("program", "Flow.flow1"));
+                                             toAuth("program", "Worker.worker1"));
 
     Assert.assertTrue(readPolicy.isAllowed(ImmutableList.of(new Namespace("ns1"),
                                                             new Application("app1"),
-                                                            new Program("flow.flow1")),
+                                                            new Program("worker.worker1")),
                                            new ActionFactory.Action("execute")));
 
     Assert.assertFalse(readPolicy.isAllowed(ImmutableList.of(new Dataset("app1")),
                                            new ActionFactory.Action("execute")));
     Assert.assertFalse(readPolicy.isAllowed(ImmutableList.of(new Namespace("ns2"),
                                                             new Application("app1"),
-                                                            new Program("flow.flow1")),
+                                                            new Program("worker.worker1")),
                                            new ActionFactory.Action("execute")));
   }
 
   @Test
-  public void testVisibility() throws Exception {
+  public void testVisibility() {
     // Test entity and its ancestors are visible
     WildcardPolicy dsPolicy = createPolicy("read",
                                            toAuth("namespace", "ns1"),
@@ -72,7 +72,7 @@ public class WildcardPolicyTest {
     WildcardPolicy appPolicy = createPolicy("execute",
                                             toAuth("namespace", "ns2"),
                                             toAuth("application", "app1"),
-                                            toAuth("program", "flow.flow1"));
+                                            toAuth("program", "worker.worker1"));
     WildcardPolicy nsPolicy = createPolicy("read", toAuth("namespace", "ns3"));
 
     // Test dsPolicy
@@ -94,13 +94,13 @@ public class WildcardPolicyTest {
     Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns1"), new Application("app11"))));
 
     Assert.assertTrue(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app1"),
-                                                         new Program("flow.flow1"))));
+                                                         new Program("worker.worker1"))));
     Assert.assertTrue(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app1"),
-                                                         new Program("FloW.flow1"))));
+                                                         new Program("Worker.worker1"))));
     Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app1"),
-                                                         new Program("flow.flow2"))));
+                                                         new Program("worker.worker2"))));
     Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns1"), new Application("app1"),
-                                                          new Program("flow.flow1"))));
+                                                          new Program("worker.worker1"))));
 
     // Test nsPolicy
     Assert.assertTrue(nsPolicy.isVisible(ImmutableList.of(new Namespace("ns3"))));
@@ -110,11 +110,11 @@ public class WildcardPolicyTest {
   }
 
   @Test
-  public void testWildcardVisibility() throws Exception {
+  public void testWildcardVisibility() {
     WildcardPolicy appPolicy = createPolicy("execute",
                                             toAuth("namespace", "ns2"),
                                             toAuth("application", "app1"),
-                                            toAuth("program", "flow.*"));
+                                            toAuth("program", "worker.*"));
 
     Assert.assertTrue(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"))));
     Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns1"))));
@@ -123,7 +123,7 @@ public class WildcardPolicyTest {
     Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app2"))));
 
     Assert.assertTrue(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app1"),
-                                                           new Program("flow.flow2"))));
+                                                           new Program("worker.worker2"))));
     Assert.assertFalse(appPolicy.isVisible(ImmutableList.of(new Namespace("ns2"), new Application("app1"),
                                                            new Program("service.service1"))));
   }

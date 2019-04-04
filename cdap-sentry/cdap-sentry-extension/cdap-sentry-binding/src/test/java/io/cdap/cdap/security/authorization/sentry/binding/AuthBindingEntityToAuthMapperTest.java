@@ -16,6 +16,7 @@
 
 package io.cdap.cdap.security.authorization.sentry.binding;
 
+import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.proto.ProgramType;
 import io.cdap.cdap.proto.id.ApplicationId;
 import io.cdap.cdap.proto.id.ArtifactId;
@@ -28,7 +29,6 @@ import io.cdap.cdap.proto.id.KerberosPrincipalId;
 import io.cdap.cdap.proto.id.NamespaceId;
 import io.cdap.cdap.proto.id.ProgramId;
 import io.cdap.cdap.proto.id.SecureKeyId;
-import io.cdap.cdap.proto.id.StreamId;
 import io.cdap.cdap.proto.security.Action;
 import io.cdap.cdap.proto.security.Privilege;
 import io.cdap.cdap.security.authorization.sentry.model.Application;
@@ -43,8 +43,6 @@ import io.cdap.cdap.security.authorization.sentry.model.Namespace;
 import io.cdap.cdap.security.authorization.sentry.model.Principal;
 import io.cdap.cdap.security.authorization.sentry.model.Program;
 import io.cdap.cdap.security.authorization.sentry.model.SecureKey;
-import io.cdap.cdap.security.authorization.sentry.model.Stream;
-import com.google.common.collect.ImmutableSet;
 import org.apache.sentry.provider.db.generic.service.thrift.TSentryPrivilege;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -65,7 +63,6 @@ public class AuthBindingEntityToAuthMapperTest {
   private static final String APPLICATION = "ap1";
   private static final String ARTIFACT = "ar1";
   private static final String ARTIFACT_VERSION = "0";
-  private static final String STREAM = "s1";
   private static final String DATASET = "d1";
   private static final String DATASET_MODULE = "dm";
   private static final String DATASET_TYPE = "dt";
@@ -101,11 +98,6 @@ public class AuthBindingEntityToAuthMapperTest {
     authorizables = binding.toSentryAuthorizables(entityId);
     Assert.assertEquals(getAuthorizablesList(AuthorizableType.ARTIFACT), authorizables);
 
-    // stream
-    entityId = new StreamId(NAMESPACE, STREAM);
-    authorizables = binding.toSentryAuthorizables(entityId);
-    Assert.assertEquals(getAuthorizablesList(AuthorizableType.STREAM), authorizables);
-
     // dataset
     entityId = new DatasetId(NAMESPACE, DATASET);
     authorizables = binding.toSentryAuthorizables(entityId);
@@ -127,7 +119,7 @@ public class AuthBindingEntityToAuthMapperTest {
     Assert.assertEquals(getAuthorizablesList(AuthorizableType.APPLICATION), authorizables);
 
     // program
-    entityId = new ProgramId(NAMESPACE, APPLICATION, ProgramType.FLOW, PROGRAM);
+    entityId = new ProgramId(NAMESPACE, APPLICATION, ProgramType.WORKER, PROGRAM);
     authorizables = binding.toSentryAuthorizables(entityId);
     Assert.assertEquals(getAuthorizablesList(AuthorizableType.PROGRAM), authorizables);
 
@@ -147,7 +139,7 @@ public class AuthBindingEntityToAuthMapperTest {
     List<TSentryPrivilege> sentryPrivileges = new LinkedList<>();
     InstanceId instanceId = new InstanceId(INSTANCE);
     ArtifactId artifactId = new ArtifactId(NAMESPACE, ARTIFACT, ARTIFACT_VERSION);
-    ProgramId programId = new ProgramId(NAMESPACE, APPLICATION, ProgramType.FLOW, PROGRAM);
+    ProgramId programId = new ProgramId(NAMESPACE, APPLICATION, ProgramType.WORKER, PROGRAM);
     KerberosPrincipalId principalId = new KerberosPrincipalId(PRINCIPAL);
 
     sentryPrivileges.add(binding.toTSentryPrivilege(instanceId, Action.ADMIN));
@@ -187,10 +179,6 @@ public class AuthBindingEntityToAuthMapperTest {
         getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
         authorizableList.add(new Application(APPLICATION));
         break;
-      case STREAM:
-        getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
-        authorizableList.add(new Stream(STREAM));
-        break;
       case DATASET:
         getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);
         authorizableList.add(new Dataset(DATASET));
@@ -205,7 +193,7 @@ public class AuthBindingEntityToAuthMapperTest {
         break;
       case PROGRAM:
         getAuthorizablesList(AuthorizableType.APPLICATION, authorizableList);
-        authorizableList.add(new Program(ProgramType.FLOW, PROGRAM));
+        authorizableList.add(new Program(ProgramType.WORKER, PROGRAM));
         break;
       case SECUREKEY:
         getAuthorizablesList(AuthorizableType.NAMESPACE, authorizableList);

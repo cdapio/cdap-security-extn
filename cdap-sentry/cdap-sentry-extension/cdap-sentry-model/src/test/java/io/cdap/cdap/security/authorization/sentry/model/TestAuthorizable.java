@@ -16,7 +16,6 @@
 
 package io.cdap.cdap.security.authorization.sentry.model;
 
-import io.cdap.cdap.proto.ProgramType;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -26,7 +25,7 @@ import org.junit.Test;
 public class TestAuthorizable {
 
   @Test
-  public void testAuth() throws Exception {
+  public void testAuth() {
 
     String name = "test";
 
@@ -45,15 +44,6 @@ public class TestAuthorizable {
     Application application = new Application(name);
     Assert.assertEquals(name, application.getName());
     Assert.assertEquals(Authorizable.AuthorizableType.APPLICATION, application.getAuthzType());
-
-    Program program = new Program(ProgramType.FLOW, "flow1");
-    Assert.assertEquals(ProgramType.FLOW, program.getProgramType());
-    Assert.assertEquals("flow1", program.getProgramName());
-    Assert.assertEquals(Authorizable.AuthorizableType.PROGRAM, program.getAuthzType());
-
-    Stream stream = new Stream(name);
-    Assert.assertEquals(name, stream.getName());
-    Assert.assertEquals(Authorizable.AuthorizableType.STREAM, stream.getAuthzType());
 
     Dataset dataset = new Dataset(name);
     Assert.assertEquals(name, dataset.getName());

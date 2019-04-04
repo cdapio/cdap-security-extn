@@ -35,7 +35,6 @@ public interface Authorizable extends org.apache.sentry.core.common.Authorizable
     DATASET,
     DATASET_MODULE,
     DATASET_TYPE,
-    STREAM,
     SECUREKEY,
     PRINCIPAL
   }

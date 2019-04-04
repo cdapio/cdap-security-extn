@@ -15,6 +15,7 @@
  */
 package io.cdap.cdap.security.authorization.ranger.binding;
 
+import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.proto.ProgramType;
 import io.cdap.cdap.proto.id.EntityId;
 import io.cdap.cdap.proto.id.InstanceId;
@@ -22,7 +23,6 @@ import io.cdap.cdap.proto.id.NamespaceId;
 import io.cdap.cdap.proto.security.Action;
 import io.cdap.cdap.proto.security.Principal;
 import io.cdap.cdap.security.spi.authorization.UnauthorizedException;
-import com.google.common.collect.ImmutableSet;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -57,14 +57,14 @@ public class RangerAuthorizerTest {
 
   @Test
   public void testCompletePrivileges() throws Exception {
-    // Test Privileges for ali who has ADMIN on stream:default:teststream
-    authorizer.enforce(NAMESPACE_DEFAULT.stream("teststream"), ALI, Action.ADMIN);
-    Assert.assertEquals(ImmutableSet.of(NAMESPACE_DEFAULT, NAMESPACE_DEFAULT.stream("teststream")),
+    // Test Privileges for ali who has ADMIN on dataset:default:testdataset
+    authorizer.enforce(NAMESPACE_DEFAULT.dataset("testdataset"), ALI, Action.ADMIN);
+    Assert.assertEquals(ImmutableSet.of(NAMESPACE_DEFAULT, NAMESPACE_DEFAULT.dataset("testdataset")),
                         authorizer.isVisible(ImmutableSet.<EntityId>of(NAMESPACE_DEFAULT,
-                                                                       NAMESPACE_DEFAULT.stream("teststream")), ALI));
-    testEnforceFail(NAMESPACE_DEFAULT.stream("anotherstream"), ALI, Action.ADMIN);
+                                                                       NAMESPACE_DEFAULT.dataset("testdataset")), ALI));
+    testEnforceFail(NAMESPACE_DEFAULT.dataset("anotherdataset"), ALI, Action.ADMIN);
     testVisibleFail(ImmutableSet.<EntityId>of(new NamespaceId("anothernamespace")), ALI);
-    testEnforceFail(NAMESPACE_DEFAULT.stream("teststream"), ALI, Action.READ);
+    testEnforceFail(NAMESPACE_DEFAULT.dataset("testdataset"), ALI, Action.READ);
     testEnforceFail(NAMESPACE_DEFAULT, ALI, Action.ADMIN);
 
     // Test privileges for rsinha who has ADMIN on namespace:default
@@ -72,12 +72,12 @@ public class RangerAuthorizerTest {
     testEnforceFail(new NamespaceId("anothernamespace"), RSINHA, Action.ADMIN);
     Assert.assertEquals(ImmutableSet.of(NAMESPACE_DEFAULT),
                         authorizer.isVisible(ImmutableSet.<EntityId>of(NAMESPACE_DEFAULT,
-                                                                       NAMESPACE_DEFAULT.stream("teststream")),
+                                                                       NAMESPACE_DEFAULT.dataset("testdataset")),
                                              RSINHA));
     testVisibleFail(ImmutableSet.<EntityId>of(new NamespaceId("anothernamespace")), RSINHA);
     testEnforceFail(new InstanceId("cdap"), RSINHA, Action.ADMIN);
     testEnforceFail(NAMESPACE_DEFAULT, RSINHA, Action.WRITE);
-    testEnforceFail(NAMESPACE_DEFAULT.stream("teststream"), RSINHA, Action.ADMIN);
+    testEnforceFail(NAMESPACE_DEFAULT.dataset("testdataset"), RSINHA, Action.ADMIN);
 
     // Test Privileges for poorna who has READ on instance:cdap
     authorizer.enforce(new InstanceId("cdap"), POORNA, Action.READ);
@@ -126,16 +126,17 @@ public class RangerAuthorizerTest {
 
   @Test
   public void testWildcardPrivileges() throws Exception {
-    // Test privileges for sagar who has ADMIN on stream:default.*
-    authorizer.enforce(NAMESPACE_DEFAULT.stream("teststream"), SAGAR, Action.ADMIN);
-    authorizer.enforce(NAMESPACE_DEFAULT.stream("anotherstream"), SAGAR, Action.ADMIN);
-    testEnforceFail(NAMESPACE_DEFAULT.stream("teststream"), SAGAR, Action.READ);
+    // Test privileges for sagar who has ADMIN on dataset:default.*
+    authorizer.enforce(NAMESPACE_DEFAULT.dataset("testdataset"), SAGAR, Action.ADMIN);
+    authorizer.enforce(NAMESPACE_DEFAULT.dataset("anotherdataset"), SAGAR, Action.ADMIN);
+    testEnforceFail(NAMESPACE_DEFAULT.dataset("testdataset"), SAGAR, Action.READ);
     testEnforceFail(NAMESPACE_DEFAULT, SAGAR, Action.ADMIN);
-    Assert.assertEquals(ImmutableSet.of(NAMESPACE_DEFAULT, NAMESPACE_DEFAULT.stream("teststream")),
+    Assert.assertEquals(ImmutableSet.of(NAMESPACE_DEFAULT, NAMESPACE_DEFAULT.dataset("testdataset")),
                         authorizer.isVisible(ImmutableSet.<EntityId>of(NAMESPACE_DEFAULT,
-                                                                       NAMESPACE_DEFAULT.stream("teststream")), SAGAR));
+                                                                       NAMESPACE_DEFAULT.dataset("testdataset")),
+                                             SAGAR));
     testVisibleFail(ImmutableSet.<EntityId>of(new NamespaceId("anothernamespace")), SAGAR);
-    testEnforceFail(new NamespaceId("anothernamespace").stream("teststream"), SAGAR, Action.ADMIN);
+    testEnforceFail(new NamespaceId("anothernamespace").dataset("testdataset"), SAGAR, Action.ADMIN);
 
     // Test privileges for shankar who has ADMIN on program:default.testapp.workflow.*
     authorizer.enforce(NAMESPACE_DEFAULT.app("testapp").program(ProgramType.WORKFLOW, "prog1"), SHANKAR, Action.ADMIN);

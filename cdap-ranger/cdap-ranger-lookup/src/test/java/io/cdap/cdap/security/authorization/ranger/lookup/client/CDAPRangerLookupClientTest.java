@@ -15,21 +15,18 @@
  */
 package io.cdap.cdap.security.authorization.ranger.lookup.client;
 
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.cdap.cdap.api.artifact.ArtifactSummary;
 import io.cdap.cdap.client.ApplicationClient;
 import io.cdap.cdap.client.NamespaceClient;
-import io.cdap.cdap.client.StreamClient;
 import io.cdap.cdap.proto.ApplicationDetail;
 import io.cdap.cdap.proto.NamespaceMeta;
 import io.cdap.cdap.proto.ProgramRecord;
 import io.cdap.cdap.proto.ProgramType;
-import io.cdap.cdap.proto.StreamDetail;
 import io.cdap.cdap.proto.id.ApplicationId;
-import io.cdap.cdap.proto.id.NamespaceId;
 import io.cdap.cdap.security.authorization.ranger.commons.RangerCommon;
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import org.apache.ranger.plugin.service.ResourceLookupContext;
 import org.junit.Assert;
 import org.junit.Before;
@@ -48,7 +45,6 @@ import static org.mockito.Mockito.when;
 public class CDAPRangerLookupClientTest {
 
   private NamespaceClient nsClient;
-  private StreamClient streamClient;
   private ApplicationClient applicationClient;
   private CDAPRangerLookupClient client;
 
@@ -56,11 +52,10 @@ public class CDAPRangerLookupClientTest {
   public void before() throws IOException {
     // mock the clients
     nsClient = Mockito.mock(NamespaceClient.class);
-    streamClient = Mockito.mock(StreamClient.class);
     applicationClient = Mockito.mock(ApplicationClient.class);
     // we don't care about all clients and don't need to test all. We will test one in each hierarchy i.e. namespace,
     // streams (parent:namespace), program (parent:application)
-    client = new CDAPRangerLookupClient("someinstance", "user", "password", nsClient, streamClient, applicationClient,
+    client = new CDAPRangerLookupClient("someinstance", "user", "password", nsClient, applicationClient,
                                         null, null, null, null, null);
   }
 
@@ -76,50 +71,32 @@ public class CDAPRangerLookupClientTest {
     resourceLookupContext.setResourceName("namespace");
     // user is entering n and we expect the completion to show ns1 and ns2 as they start with n and not anotherNs
     resourceLookupContext.setUserInput("n");
-    resourceLookupContext.setResources(ImmutableMap.of("namespace", Collections.<String>emptyList()));
+    resourceLookupContext.setResources(ImmutableMap.of("namespace", Collections.emptyList()));
     List<String> resources = client.getResources(resourceLookupContext);
     Assert.assertEquals(2, resources.size());
     Assert.assertEquals(ImmutableList.of("ns1", "ns2"), resources);
   }
 
   @Test
-  public void testStreams() throws Exception {
-    StreamDetail stream1 = new StreamDetail("stream1");
-    StreamDetail stream2 = new StreamDetail("stream2");
-    StreamDetail anotherStream = new StreamDetail("anotherStream");
-    when(streamClient.list(new NamespaceId("dummy"))).thenReturn(ImmutableList.of(stream1, stream2, anotherStream));
-
-    ResourceLookupContext resourceLookupContext = new ResourceLookupContext();
-    resourceLookupContext.setResourceName("stream");
-    resourceLookupContext.setUserInput("s");
-    resourceLookupContext.setResources(ImmutableMap.<String, List<String>>of("namespace", ImmutableList.of("dummy")));
-    List<String> resources = client.getResources(resourceLookupContext);
-    Assert.assertEquals(2, resources.size());
-    Assert.assertEquals(ImmutableList.of("stream1", "stream2"), resources);
-  }
-
-  @Test
   public void testPrograms() throws Exception {
     // test programs specifically as they are one hierarchy down under application
-    List<ProgramRecord> programRecords = ImmutableList.of(new ProgramRecord(ProgramType.FLOW, "dummyApp", "prog1", ""),
-                                                          new ProgramRecord(ProgramType.MAPREDUCE, "dummyApp",
-                                                                            "prog2", ""),
-                                                          new ProgramRecord(ProgramType.MAPREDUCE, "dummyApp",
-                                                                            "anotherProgram", ""));
+    List<ProgramRecord> programRecords = ImmutableList.of(
+      new ProgramRecord(ProgramType.WORKER, "dummyApp", "prog1", ""),
+      new ProgramRecord(ProgramType.MAPREDUCE, "dummyApp", "prog2", ""),
+      new ProgramRecord(ProgramType.MAPREDUCE, "dummyApp", "anotherProgram", ""));
     ApplicationDetail applicationDetail = new ApplicationDetail("name", "desc", "config", null, null, programRecords,
-                                                                null, new ArtifactSummary("art", "1"));
+                                                                null, new ArtifactSummary("art", "1"), null);
     when(applicationClient.get(new ApplicationId("dummyNs", "dummyApp"))).thenReturn(applicationDetail);
 
     ResourceLookupContext resourceLookupContext = new ResourceLookupContext();
     resourceLookupContext.setResourceName("program");
     resourceLookupContext.setUserInput("p");
-    resourceLookupContext.setResources(ImmutableMap.<String, List<String>>of("namespace", ImmutableList.of("dummyNs"),
-                                                                             "application",
-                                                                             ImmutableList.of("dummyApp")));
+    resourceLookupContext.setResources(ImmutableMap.of("namespace", ImmutableList.of("dummyNs"),
+                                                       "application", ImmutableList.of("dummyApp")));
     List<String> resources = client.getResources(resourceLookupContext);
     Assert.assertEquals(2, resources.size());
     Assert.assertEquals(ImmutableList.of(
-      Joiner.on(RangerCommon.RESOURCE_SEPARATOR).join(ProgramType.FLOW.getPrettyName().toLowerCase(), "prog1"),
+      Joiner.on(RangerCommon.RESOURCE_SEPARATOR).join(ProgramType.WORKER.getPrettyName().toLowerCase(), "prog1"),
       Joiner.on(RangerCommon.RESOURCE_SEPARATOR).join(ProgramType.MAPREDUCE.getPrettyName().toLowerCase(), "prog2")),
                         resources);
   }

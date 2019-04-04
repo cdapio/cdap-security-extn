@@ -42,7 +42,7 @@ public class TestPrivilegeValidator {
   }
 
   @Test
-  public void testValidPrivileges() throws Exception {
+  public void testValidPrivileges() {
     // instance
     testValidPrivilege("instance=instance1->action=admin");
 
@@ -52,9 +52,6 @@ public class TestPrivilegeValidator {
     // artifact
     testValidPrivilege("instance=instance1->namespace=namespace1->artifact=artifact1.0->action=write");
 
-    // stream
-    testValidPrivilege("instance=instance1->namespace=namespace1->stream=stream1->action=all");
-
     // dataset
     testValidPrivilege("instance=instance1->namespace=namespace1->dataset=dataset1->action=write");
 
@@ -62,13 +59,13 @@ public class TestPrivilegeValidator {
     testValidPrivilege("instance=instance1->namespace=namespace1->application=application1->action=read");
 
     // program
-    testValidPrivilege("instance=instance1->namespace=namespace1->application=application1->program=flow.program1" +
+    testValidPrivilege("instance=instance1->namespace=namespace1->application=application1->program=worker.program1" +
                          "->action=execute");
 
   }
 
   @Test
-  public void testInvalidAuthorizables() throws Exception {
+  public void testInvalidAuthorizables() {
     // instance
     testInvalidPrivileges("inNstance=instance1->action=admin");
 
@@ -78,9 +75,6 @@ public class TestPrivilegeValidator {
     // artifact
     testInvalidPrivileges("instance=instance1->namespace=namespace1->artTifact=arttifact1.0->action=write");
 
-    // stream
-    testInvalidPrivileges("instance=instance1->namespace=namespace1->streEam=stream1->action=all");
-
     // dataset
     testInvalidPrivileges("instance=instance1->namespace=namespace1->dataAset=dataset1->action=write");
 
@@ -88,13 +82,13 @@ public class TestPrivilegeValidator {
     testInvalidPrivileges("instance=instance1->namespace=namespace1->appliCcation=application1->action=read");
 
     // program
-    testInvalidPrivileges("instance=instance1->namespace=namespace1->application=application1->progGram=flow." +
+    testInvalidPrivileges("instance=instance1->namespace=namespace1->application=application1->progGram=worker." +
                             "program1->action=execute");
   }
 
   @Test
   public void testPrivilegeNotEndingWithAction() {
-    testInvalidPrivileges("instance=instance1->namespace=namespace1->stream=stream1");
+    testInvalidPrivileges("instance=instance1->namespace=namespace1->dataset=dataset1");
   }
 
   @Test
@@ -104,7 +98,7 @@ public class TestPrivilegeValidator {
 
   @Test
   public void testWithMorePartsInPrivilege() {
-    testInvalidPrivileges("instance=instance1->namespace=namespace1->dataset=dataset1->program=flow." +
+    testInvalidPrivileges("instance=instance1->namespace=namespace1->dataset=dataset1->program=worker." +
                             "program1->action=read");
   }
 

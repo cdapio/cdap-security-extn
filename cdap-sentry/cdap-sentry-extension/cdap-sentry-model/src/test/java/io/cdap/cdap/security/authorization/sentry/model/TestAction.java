@@ -16,8 +16,8 @@
 
 package io.cdap.cdap.security.authorization.sentry.model;
 
-import io.cdap.cdap.security.authorization.sentry.model.ActionFactory.Action;
 import com.google.common.collect.Lists;
+import io.cdap.cdap.security.authorization.sentry.model.ActionFactory.Action;
 import org.junit.Assert;
 import org.junit.Test;
 

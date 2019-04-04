@@ -16,8 +16,8 @@
 
 package io.cdap.cdap.security.authorization.sentry.model;
 
-import io.cdap.cdap.proto.ProgramType;
 import com.google.common.base.Preconditions;
+import io.cdap.cdap.proto.ProgramType;
 
 import java.util.Objects;
 import javax.annotation.Nullable;

@@ -133,7 +133,7 @@
           "isExcludes": false,
           "isRecursive": false
         },
-        "stream": {
+        "dataset": {
           "values": [
             "?*"
           ],
@@ -187,9 +187,9 @@
           "isExcludes": false,
           "isRecursive": false
         },
-        "stream": {
+        "dataset": {
           "values": [
-            "teststream"
+            "testdataset"
           ],
           "isExcludes": false,
           "isRecursive": false
@@ -754,7 +754,7 @@
       },
       {
         "itemId": 90,
-        "name": "stream",
+        "name": "dataset",
         "type": "string",
         "level": 30,
         "parent": "namespace",
@@ -770,8 +770,8 @@
         "validationRegEx": "",
         "validationMessage": "",
         "uiHint": "",
-        "label": "Stream",
-        "description": "CDAP Stream"
+        "label": "dataset",
+        "description": "CDAP dataset"
       },
       {
         "itemId": 100,

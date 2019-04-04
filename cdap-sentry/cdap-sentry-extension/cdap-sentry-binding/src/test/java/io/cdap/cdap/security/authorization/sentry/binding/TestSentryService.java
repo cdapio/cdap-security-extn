@@ -16,12 +16,12 @@
 
 package io.cdap.cdap.security.authorization.sentry.binding;
 
-import io.cdap.cdap.security.authorization.sentry.binding.conf.AuthConf;
-import io.cdap.cdap.security.authorization.sentry.model.Authorizable;
-import io.cdap.cdap.security.authorization.sentry.policy.ModelAuthorizables;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.cdap.cdap.security.authorization.sentry.binding.conf.AuthConf;
+import io.cdap.cdap.security.authorization.sentry.model.Authorizable;
+import io.cdap.cdap.security.authorization.sentry.policy.ModelAuthorizables;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.sentry.binding.hive.SentryIniPolicyFileFormatter;

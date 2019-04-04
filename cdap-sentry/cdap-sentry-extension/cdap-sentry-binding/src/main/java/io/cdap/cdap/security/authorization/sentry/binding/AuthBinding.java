@@ -16,6 +16,14 @@
 
 package io.cdap.cdap.security.authorization.sentry.binding;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.proto.ProgramType;
 import io.cdap.cdap.proto.element.EntityType;
 import io.cdap.cdap.proto.id.EntityId;
@@ -36,21 +44,12 @@ import io.cdap.cdap.security.authorization.sentry.model.Instance;
 import io.cdap.cdap.security.authorization.sentry.model.Namespace;
 import io.cdap.cdap.security.authorization.sentry.model.Program;
 import io.cdap.cdap.security.authorization.sentry.model.SecureKey;
-import io.cdap.cdap.security.authorization.sentry.model.Stream;
 import io.cdap.cdap.security.authorization.sentry.policy.ModelAuthorizables;
 import io.cdap.cdap.security.authorization.sentry.policy.PrivilegeValidator;
 import io.cdap.cdap.security.spi.authorization.AlreadyExistsException;
 import io.cdap.cdap.security.spi.authorization.BadRequestException;
 import io.cdap.cdap.security.spi.authorization.NotFoundException;
 import io.cdap.cdap.security.spi.authorization.UnauthorizedException;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.collect.ImmutableSet;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.sentry.policy.common.PolicyEngine;
 import org.apache.sentry.provider.common.AuthorizationProvider;
@@ -680,13 +679,6 @@ class AuthBinding {
                                     datasetType, entityParts);
         entityParts.put(EntityType.DATASET_TYPE, datasetType.getName());
         return EntityType.DATASET_TYPE;
-      case STREAM:
-        Stream stream = (Stream) sentryAuthorizable;
-        Preconditions.checkArgument(entityParts.containsKey(EntityType.NAMESPACE),
-                                    "Stream %s must belong to a namespace. Currently known entity parts are %s",
-                                    stream, entityParts);
-        entityParts.put(EntityType.STREAM, stream.getName());
-        return EntityType.STREAM;
       case SECUREKEY:
         SecureKey secureKey = (SecureKey) sentryAuthorizable;
         Preconditions.checkArgument(entityParts.containsKey(EntityType.NAMESPACE),
@@ -742,10 +734,6 @@ class AuthBinding {
       case DATASET_TYPE:
         toSentryAuthorizables(EntityType.NAMESPACE, authorizable, sentryAuthorizables);
         sentryAuthorizables.add(new DatasetType(authorizable.getEntityParts().get(curType)));
-        break;
-      case STREAM:
-        toSentryAuthorizables(EntityType.NAMESPACE, authorizable, sentryAuthorizables);
-        sentryAuthorizables.add(new Stream(authorizable.getEntityParts().get(curType)));
         break;
       case PROGRAM:
         toSentryAuthorizables(EntityType.APPLICATION, authorizable, sentryAuthorizables);

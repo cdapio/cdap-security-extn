@@ -29,7 +29,7 @@ import org.junit.Test;
  */
 public class WildcardAuthorizableTest {
   @Test
-  public void testAuthorizable() throws Exception {
+  public void testAuthorizable() {
     WildcardAuthorizable dsAuth = new WildcardAuthorizable(toAuth("DATASET", "table"));
     Assert.assertTrue(dsAuth.matches(new Dataset("table")));
 
@@ -47,16 +47,16 @@ public class WildcardAuthorizableTest {
   }
 
   @Test
-  public void testProgramAuthorizable() throws Exception {
-    WildcardAuthorizable dsAuth = new WildcardAuthorizable(toAuth("program", "flow.flow1"));
-    Assert.assertTrue(dsAuth.matches(new Program("flow.flow1")));
-    Assert.assertTrue(dsAuth.matches(new Program("FLOW.flow1")));
+  public void testProgramAuthorizable() {
+    WildcardAuthorizable dsAuth = new WildcardAuthorizable(toAuth("program", "worker.worker1"));
+    Assert.assertTrue(dsAuth.matches(new Program("worker.worker1")));
+    Assert.assertTrue(dsAuth.matches(new Program("WORKER.worker1")));
 
-    Assert.assertFalse(dsAuth.matches(new Program("flow.Flow1")));
+    Assert.assertFalse(dsAuth.matches(new Program("worker.Worker1")));
   }
 
   @Test
-  public void testWildcardAuthorizable1() throws Exception {
+  public void testWildcardAuthorizable1() {
     WildcardAuthorizable dsAuth = new WildcardAuthorizable(toAuth("DATASET", "tab*"));
     Assert.assertTrue(dsAuth.matches(new Dataset("table")));
     Assert.assertTrue(dsAuth.matches(new Dataset("tabl*")));
@@ -76,7 +76,7 @@ public class WildcardAuthorizableTest {
   }
 
   @Test
-  public void testWildcardAuthorizable2() throws Exception {
+  public void testWildcardAuthorizable2() {
     WildcardAuthorizable dsAuth = new WildcardAuthorizable(toAuth("dataset", "ta?le"));
     Assert.assertTrue(dsAuth.matches(new Dataset("table")));
     Assert.assertTrue(dsAuth.matches(new Dataset("tamle")));
@@ -97,7 +97,7 @@ public class WildcardAuthorizableTest {
   }
 
   @Test
-  public void testWildcardAuthorizable3() throws Exception {
+  public void testWildcardAuthorizable3() {
     WildcardAuthorizable dsAuth = new WildcardAuthorizable(toAuth("dataset", "*"));
     Assert.assertTrue(dsAuth.matches(new Dataset("table")));
     Assert.assertTrue(dsAuth.matches(new Dataset("12345")));
@@ -107,7 +107,7 @@ public class WildcardAuthorizableTest {
   }
 
   @Test
-  public void testQuoting() throws Exception {
+  public void testQuoting() {
     // \d and . should not match literally
     WildcardAuthorizable dsAuth = new WildcardAuthorizable(toAuth("DATASET", "\\da?.*"));
     Assert.assertTrue(dsAuth.matches(new Dataset("\\dab.e")));

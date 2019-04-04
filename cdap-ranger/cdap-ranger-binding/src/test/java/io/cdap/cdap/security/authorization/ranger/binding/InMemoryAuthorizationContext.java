@@ -15,24 +15,24 @@
  */
 package io.cdap.cdap.security.authorization.ranger.binding;
 
+import io.cdap.cdap.api.NamespaceSummary;
 import io.cdap.cdap.api.TxRunnable;
 import io.cdap.cdap.api.data.DatasetInstantiationException;
 import io.cdap.cdap.api.dataset.Dataset;
 import io.cdap.cdap.api.dataset.DatasetManagementException;
 import io.cdap.cdap.api.dataset.DatasetProperties;
 import io.cdap.cdap.api.dataset.InstanceNotFoundException;
-import io.cdap.cdap.api.messaging.TopicAlreadyExistsException;
-import io.cdap.cdap.api.messaging.TopicNotFoundException;
 import io.cdap.cdap.api.security.store.SecureStoreData;
+import io.cdap.cdap.api.security.store.SecureStoreMetadata;
 import io.cdap.cdap.proto.security.Principal;
 import io.cdap.cdap.security.spi.authorization.AuthorizationContext;
-import org.apache.tephra.TransactionFailureException;
 
-import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Properties;
+import javax.annotation.Nullable;
 
 /**
  * Dummy implementation of AuthorizationContext for {@link RangerAuthorizerTest}
@@ -41,23 +41,22 @@ public class InMemoryAuthorizationContext implements AuthorizationContext {
   private final Properties properties = new Properties();
 
   @Override
-  public Map<String, String> listSecureData(String namespace) throws Exception {
-    return Collections.emptyMap();
+  public List<SecureStoreMetadata> list(String namespace) {
+    return Collections.emptyList();
   }
 
   @Override
-  public SecureStoreData getSecureData(String namespace, String name) throws Exception {
+  public SecureStoreData get(String namespace, String name) {
     throw new NoSuchElementException(namespace + ":" + name);
   }
 
   @Override
-  public void putSecureData(String namespace, String key, String data, String description,
-                            Map<String, String> properties) throws IOException {
+  public void put(String namespace, String key, String data, String description, Map<String, String> properties) {
     // no-op
   }
 
   @Override
-  public void deleteSecureData(String namespace, String key) throws IOException {
+  public void delete(String namespace, String key) {
     // no-op
   }
 
@@ -72,33 +71,33 @@ public class InMemoryAuthorizationContext implements AuthorizationContext {
   }
 
   @Override
-  public void createTopic(String topic) throws TopicAlreadyExistsException, IOException {
+  public void createTopic(String topic) {
     // no-op
   }
 
   @Override
   public void createTopic(String topic,
-                          Map<String, String> properties) throws TopicAlreadyExistsException, IOException {
+                          Map<String, String> properties) {
     // no-op
   }
 
   @Override
-  public Map<String, String> getTopicProperties(String topic) throws TopicNotFoundException, IOException {
+  public Map<String, String> getTopicProperties(String topic) {
     return Collections.emptyMap();
   }
 
   @Override
-  public void updateTopic(String topic, Map<String, String> properties) throws TopicNotFoundException, IOException {
+  public void updateTopic(String topic, Map<String, String> properties) {
     // no-op
   }
 
   @Override
-  public void deleteTopic(String topic) throws TopicNotFoundException, IOException {
+  public void deleteTopic(String topic) {
     // no-op
   }
 
   @Override
-  public boolean datasetExists(String name) throws DatasetManagementException {
+  public boolean datasetExists(String name) {
     return false;
   }
 
@@ -113,23 +112,22 @@ public class InMemoryAuthorizationContext implements AuthorizationContext {
   }
 
   @Override
-  public void createDataset(String name, String type, DatasetProperties datasetProperties)
-    throws DatasetManagementException {
+  public void createDataset(String name, String type, DatasetProperties datasetProperties) {
     // no-op
   }
 
   @Override
-  public void updateDataset(String name, DatasetProperties datasetProperties) throws DatasetManagementException {
+  public void updateDataset(String name, DatasetProperties datasetProperties) {
     // no-op
   }
 
   @Override
-  public void dropDataset(String name) throws DatasetManagementException {
+  public void dropDataset(String name) {
     // no-op
   }
 
   @Override
-  public void truncateDataset(String name) throws DatasetManagementException {
+  public void truncateDataset(String name) {
     // no-op
   }
 
@@ -166,12 +164,23 @@ public class InMemoryAuthorizationContext implements AuthorizationContext {
   }
 
   @Override
-  public void execute(TxRunnable txRunnable) throws TransactionFailureException {
+  public void execute(TxRunnable txRunnable) {
     // no-op
   }
 
   @Override
-  public void execute(int timeout, TxRunnable txRunnable) throws TransactionFailureException {
+  public void execute(int timeout, TxRunnable txRunnable) {
     // no-op
+  }
+
+  @Override
+  public boolean namespaceExists(String s) {
+    return false;
+  }
+
+  @Nullable
+  @Override
+  public NamespaceSummary getNamespaceSummary(String s) {
+    return null;
   }
 }

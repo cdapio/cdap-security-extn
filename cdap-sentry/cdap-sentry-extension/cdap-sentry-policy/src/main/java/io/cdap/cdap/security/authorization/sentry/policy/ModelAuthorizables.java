@@ -28,7 +28,6 @@ import io.cdap.cdap.security.authorization.sentry.model.Namespace;
 import io.cdap.cdap.security.authorization.sentry.model.Principal;
 import io.cdap.cdap.security.authorization.sentry.model.Program;
 import io.cdap.cdap.security.authorization.sentry.model.SecureKey;
-import io.cdap.cdap.security.authorization.sentry.model.Stream;
 import org.apache.sentry.policy.common.KeyValue;
 
 import java.util.NoSuchElementException;
@@ -88,8 +87,6 @@ public final class ModelAuthorizables {
         return new Application(name);
       case PROGRAM:
         return new Program(name);
-      case STREAM:
-        return new Stream(name);
       case DATASET:
         return new Dataset(name);
       case DATASET_MODULE:

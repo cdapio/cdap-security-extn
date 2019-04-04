@@ -16,9 +16,9 @@
 
 package io.cdap.cdap.security.authorization.sentry.policy;
 
+import com.google.common.collect.Lists;
 import io.cdap.cdap.security.authorization.sentry.model.ActionFactory;
 import io.cdap.cdap.security.authorization.sentry.model.Authorizable;
-import com.google.common.collect.Lists;
 import org.apache.sentry.policy.common.PolicyConstants;
 import org.apache.sentry.policy.common.PrivilegeValidatorContext;
 import org.apache.shiro.config.ConfigurationException;
@@ -33,7 +33,6 @@ import java.util.Set;
  * them. The ordering of expected privileges as of now is: <p/>
  * Namespace  : instance->instanceName->namespace=namespaceName->action=someValidAction
  * Artifact   : instance->instanceName->namespace=namespaceName->artifact->artifactName->action=someValidAction
- * Stream     : instance->instanceName->namespace=namespaceName->stream->streamName->action=someValidAction
  * Dataset    : instance->instanceName->namespace=namespaceName->dataset->datasetName->action=someValidAction
  * Application: instance->instanceName->namespace=namespaceName->application->applicationName->action=someValidAction
  * Program    : instance->instanceName->namespace=namespaceName->application->applicationName->program=programName->
@@ -100,14 +99,12 @@ public class PrivilegeValidator implements org.apache.sentry.policy.common.Privi
       case NAMESPACE:
         validTypes = EnumSet.of(Authorizable.AuthorizableType.APPLICATION,
                                 Authorizable.AuthorizableType.ARTIFACT,
-                                Authorizable.AuthorizableType.STREAM,
                                 Authorizable.AuthorizableType.DATASET);
         break;
       case APPLICATION:
         validTypes = EnumSet.of(Authorizable.AuthorizableType.PROGRAM);
         break;
       case ARTIFACT:
-      case STREAM:
       case DATASET:
       case PROGRAM:
       case PRINCIPAL:
