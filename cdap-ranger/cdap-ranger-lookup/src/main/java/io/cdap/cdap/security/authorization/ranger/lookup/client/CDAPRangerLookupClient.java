@@ -22,7 +22,6 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import io.cdap.cdap.api.artifact.ArtifactSummary;
 import io.cdap.cdap.api.security.store.SecureStoreMetadata;
-import io.cdap.cdap.cli.util.InstanceURIParser;
 import io.cdap.cdap.client.ApplicationClient;
 import io.cdap.cdap.client.ArtifactClient;
 import io.cdap.cdap.client.DatasetClient;
@@ -462,8 +461,21 @@ public class CDAPRangerLookupClient {
    */
   private ClientConfig getClientConfig() {
     ClientConfig.Builder builder = new ClientConfig.Builder();
-    builder.setConnectionConfig(InstanceURIParser.DEFAULT.parse(
-      URI.create(instanceURL).toString()));
+    URI uri = URI.create(instanceURL);
+    String host = uri.getHost();
+    int port = uri.getPort();
+    String scheme = uri.getScheme();
+
+    if (scheme == null) {
+      scheme = "http";
+    }
+    if (port == -1) {
+      port = scheme.equals("https") ? 443 : 80;
+    }
+
+    ConnectionConfig connectionConfig = new ConnectionConfig(host, port, scheme.equals("https"));
+
+    builder.setConnectionConfig(connectionConfig);
     builder.setAccessToken(fetchAccessToken());
     String verifySSL = System.getProperty("verifySSL");
     if (verifySSL != null) {
