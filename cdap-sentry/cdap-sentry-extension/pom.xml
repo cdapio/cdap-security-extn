@@ -22,7 +22,7 @@
   <parent>
     <groupId>io.cdap.cdap</groupId>
     <artifactId>cdap-sentry</artifactId>
-    <version>0.11.0-SNAPSHOT</version>
+    <version>0.11.0</version>
   </parent>
 
   <artifactId>cdap-sentry-extension</artifactId>
@@ -43,7 +43,7 @@
     <hadoop.version>2.3.0</hadoop.version>
     <sentry.version>1.7.0</sentry.version>
   </properties>
-  
+
   <dependencyManagement>
     <dependencies>
       <dependency>
