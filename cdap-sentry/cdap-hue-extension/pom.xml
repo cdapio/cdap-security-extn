@@ -22,7 +22,7 @@
   <parent>
     <groupId>io.cdap.cdap</groupId>
     <artifactId>cdap-sentry</artifactId>
-    <version>0.11.0</version>
+    <version>0.11.1-SNAPSHOT</version>
   </parent>
 
   <artifactId>cdap-hue-extension</artifactId>
