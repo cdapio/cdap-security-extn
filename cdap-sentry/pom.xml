@@ -22,7 +22,7 @@
   <parent>
     <groupId>io.cdap.cdap</groupId>
     <artifactId>cdap-security-extensions</artifactId>
-    <version>0.10.1</version>
+    <version>0.10.2</version>
   </parent>
 
   <artifactId>cdap-sentry</artifactId>
@@ -37,5 +37,5 @@
   <name>CDAP Sentry Authorization Extension</name>
   <description>A CDAP authorization extension using Apache Sentry as the backing store for ACLs.</description>
   <url>http://github.com/cdapio/cdap-security-extn/cdap-sentry</url>
-  
+
 </project>
