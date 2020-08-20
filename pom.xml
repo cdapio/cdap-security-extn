@@ -21,7 +21,7 @@
 
   <groupId>io.cdap.cdap</groupId>
   <artifactId>cdap-security-extensions</artifactId>
-  <version>0.10.3</version>
+  <version>0.10.4-SNAPSHOT</version>
 
   <modules>
     <module>cdap-ranger</module>
