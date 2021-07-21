@@ -27,6 +27,7 @@
     <module>cdap-ranger</module>
     <module>cdap-sentry</module>
     <module>cdap-security-extensions-dist</module>
+    <module>cdap-ldap-role</module>
   </modules>
 
   <packaging>pom</packaging>
