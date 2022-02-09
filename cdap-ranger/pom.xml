@@ -70,7 +70,7 @@
 
 
   <properties>
-    <hadoop.version>2.3.0</hadoop.version>
+    <hadoop.version>2.10.1</hadoop.version>
     <ranger.version>0.7.0</ranger.version>
   </properties>
 
