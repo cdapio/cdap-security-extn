@@ -17,7 +17,9 @@
 package io.cdap.cdap.security.authorization.ldap.role.permission;
 
 import io.cdap.cdap.proto.element.EntityType;
+import io.cdap.cdap.proto.id.NamespacedEntityId;
 import io.cdap.cdap.proto.security.ApplicationPermission;
+import io.cdap.cdap.proto.security.InstancePermission;
 import io.cdap.cdap.proto.security.Permission;
 import io.cdap.cdap.proto.security.StandardPermission;
 
@@ -67,8 +69,10 @@ public class RolePermissionConverter {
     List<String> nonSystemNamespaces = new ArrayList<>(namespaces);
     if (namespaces.contains(SYSTEM_NAMESPACE)) {
       nonSystemNamespaces.remove(SYSTEM_NAMESPACE);
-      result.put(SYSTEM_NAMESPACE, principalPermissions);
-    } else {
+      if (!principalPermissions.isEmpty()) {
+        result.put(SYSTEM_NAMESPACE, principalPermissions);
+      }
+    } else if (!systemPrincipalPermissions.isEmpty()) {
       result.put(SYSTEM_NAMESPACE, systemPrincipalPermissions);
     }
 
@@ -76,7 +80,9 @@ public class RolePermissionConverter {
     Set<EntityTypeWithPermission> nonSystemPrincipalPermission = new HashSet<>(principalPermissions);
     nonSystemPrincipalPermission.removeAll(systemPrincipalPermissions);
 
-    nonSystemNamespaces.forEach(namespace -> result.put(namespace, nonSystemPrincipalPermission));
+    if (!nonSystemPrincipalPermission.isEmpty()) {
+      nonSystemNamespaces.forEach(namespace -> result.put(namespace, nonSystemPrincipalPermission));
+    }
 
     return result;
   }
@@ -168,7 +174,8 @@ public class RolePermissionConverter {
     }
 
     // To work with studio it is necessary to have permissions to 'system' namespace
-    boolean isSystemNamespace = permission == RolePermission.USE_STUDIO;
+    boolean isSystemNamespace = !NamespacedEntityId.class.isAssignableFrom(entityType.getIdClass())
+      || permission == RolePermission.USE_STUDIO;;
 
     return Collections.singletonList(new EntityTypeWithPermission(entityType, cdapPermission, isSystemNamespace));
   }
@@ -296,6 +303,10 @@ public class RolePermissionConverter {
       case USE_STUDIO:
       case VIEW_COMPUTE_PROFILE:
         return StandardPermission.LIST;
+      case INITIATE_AND_ACCEPT_TETHER:
+        return InstancePermission.TETHER;
+      case PERFORM_HEALTH_CHECK:
+        return InstancePermission.HEALTH_CHECK;
     }
     return null;
   }
@@ -329,6 +340,9 @@ public class RolePermissionConverter {
       case MANAGE_SECURE_KEY:
       case VIEW_SECURE_KEY:
         return EntityType.SECUREKEY;
+      case INITIATE_AND_ACCEPT_TETHER:
+      case PERFORM_HEALTH_CHECK:
+        return EntityType.INSTANCE;
     }
     return null;
   }

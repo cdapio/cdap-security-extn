@@ -17,6 +17,7 @@
 package io.cdap.cdap.security.authorization.ldap.role.permission;
 
 import io.cdap.cdap.proto.element.EntityType;
+import io.cdap.cdap.proto.id.NamespaceId;
 import io.cdap.cdap.proto.security.StandardPermission;
 import org.junit.Assert;
 import org.junit.Test;
@@ -70,5 +71,16 @@ public class RolePermissionConverterTests {
     Assert.assertEquals(EntityType.SECUREKEY, entityTypeWithPermission.getEntityType());
     Assert.assertEquals(StandardPermission.GET, entityTypeWithPermission.getPermission());
     Assert.assertFalse(entityTypeWithPermission.isSystemNamespace());
+  }
+
+  @Test
+  public void testAllRolesConvertToNonEmptyEntityTypeWithPermissionSet() {
+    for (RolePermission rolePermission : RolePermission.values()) {
+      String errorMessage = String.format("RolePermission conversion '%s' to EntityTypeWithPermission unexpectedly " +
+                                            "returned empty list", rolePermission);
+      List<RolePermission> singleRolePermission = Collections.singletonList(rolePermission);
+      List<String> namespaces = Arrays.asList(NamespaceId.DEFAULT.getNamespace(), NamespaceId.SYSTEM.getNamespace());
+      Assert.assertTrue(errorMessage, RolePermissionConverter.convert(singleRolePermission, namespaces).size() > 0);
+    }
   }
 }
