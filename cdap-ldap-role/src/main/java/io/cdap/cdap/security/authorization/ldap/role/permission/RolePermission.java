@@ -108,4 +108,10 @@ public enum RolePermission {
   MANAGE_SYSTEM_PREFERENCES,
   @JsonProperty("View System Services")
   VIEW_SYSTEM_SERVICES,
+
+  // System Administration
+  @JsonProperty("Initiate And Accept Tether")
+  INITIATE_AND_ACCEPT_TETHER,
+  @JsonProperty("Perform Health Check")
+  PERFORM_HEALTH_CHECK,
 }
