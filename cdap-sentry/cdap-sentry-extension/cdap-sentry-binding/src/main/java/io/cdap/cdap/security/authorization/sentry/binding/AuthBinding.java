@@ -292,7 +292,7 @@ class AuthBinding {
       if (!entityType.equals(EntityType.INSTANCE)) {
         entityParts.remove(EntityType.INSTANCE);
       }
-      privileges.add(new Privilege(new io.cdap.cdap.proto.security.Authorizable(entityType, entityParts),
+      privileges.add(new Privilege(new io.cdap.cdap.proto.security.Authorizable(entityType, entityParts, null),
                                    Action.valueOf(sentryPrivilege.getAction().toUpperCase())));
     }
     return Collections.unmodifiableSet(privileges);
