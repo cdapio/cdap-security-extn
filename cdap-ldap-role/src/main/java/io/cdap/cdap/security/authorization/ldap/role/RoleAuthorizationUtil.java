@@ -82,7 +82,7 @@ public class RoleAuthorizationUtil {
    * @return {@link GroupWithRolesProvider}
    */
   public static GroupWithRolesProvider createLDAPGroupRoleProvider(Properties properties) {
-    String yamlPath = properties.getProperty(RoleAuthorizationConstants.ROLE_YAML_PATH);
+    String yamlPath = getProperty(RoleAuthorizationConstants.ROLE_YAML_PATH, properties);
     return new GroupWithRolesProvider(yamlPath);
   }
 
@@ -97,10 +97,10 @@ public class RoleAuthorizationUtil {
     String recursiveSearchString = properties.getProperty(RoleAuthorizationConstants.LDAP_RECURSIVE_SEARCH);
 
     return LDAPSearchConfig.builder()
-      .withUrl(properties.getProperty(RoleAuthorizationConstants.LDAP_URL))
-      .withSearchBaseDn(properties.getProperty(RoleAuthorizationConstants.LDAP_SEARCH_BASE_DN))
-      .withSearchFilter(properties.getProperty(RoleAuthorizationConstants.LDAP_SEARCH_FILTER))
-      .withMemberAttribute(properties.getProperty(RoleAuthorizationConstants.LDAP_MEMBER_ATTRIBUTE))
+      .withUrl(getProperty(RoleAuthorizationConstants.LDAP_URL, properties))
+      .withSearchBaseDn(getProperty(RoleAuthorizationConstants.LDAP_SEARCH_BASE_DN, properties))
+      .withSearchFilter(getProperty(RoleAuthorizationConstants.LDAP_SEARCH_FILTER, properties))
+      .withMemberAttribute(properties.getProperty((RoleAuthorizationConstants.LDAP_MEMBER_ATTRIBUTE)))
       .withLookUpBindDN(properties.getProperty(RoleAuthorizationConstants.LDAP_LOOKUP_BIND_DN))
       .withLookUpBindPassword(properties.getProperty(RoleAuthorizationConstants.LDAP_LOOKUP_BIND_PASSWORD))
       .withIgnoreSSLVerify(Boolean.parseBoolean(ignoreSSLVerifyString))
@@ -155,5 +155,25 @@ public class RoleAuthorizationUtil {
     }
 
     return principalPermissions.getPermissions(namespace, EntityType.NAMESPACE, permissions);
+  }
+
+  /**
+   * Returns property's value
+   *
+   * @param propertyName {@link EntityId}
+   * @param properties   Set of {@link Permission}
+   * @return property's value
+   * @throws RuntimeException - if property is empty or not set
+   */
+  public static String getProperty(String propertyName, Properties properties) throws RuntimeException {
+    String value = properties.getProperty(propertyName);
+
+    if (value == null || value.isEmpty()) {
+      String errorMsg = String.format("Value for property '%s' was not found, please check it",
+              propertyName);
+      throw new RuntimeException(errorMsg);
+    }
+
+    return value;
   }
 }
