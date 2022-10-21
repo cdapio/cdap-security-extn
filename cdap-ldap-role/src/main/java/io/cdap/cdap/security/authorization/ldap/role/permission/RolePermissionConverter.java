@@ -155,7 +155,13 @@ public class RolePermissionConverter {
       case USE_WRANGLER:
         return Arrays.asList(
           new EntityTypeWithPermission(EntityType.APPLICATION, StandardPermission.GET, true),
-          new EntityTypeWithPermission(EntityType.DATASET, StandardPermission.LIST, true)
+          new EntityTypeWithPermission(EntityType.DATASET, StandardPermission.LIST, true),
+          new EntityTypeWithPermission(EntityType.SYSTEM_APP_ENTITY, StandardPermission.LIST),
+          new EntityTypeWithPermission(EntityType.SYSTEM_APP_ENTITY, StandardPermission.USE),
+          new EntityTypeWithPermission(EntityType.SYSTEM_APP_ENTITY, StandardPermission.GET),
+          new EntityTypeWithPermission(EntityType.SYSTEM_APP_ENTITY, StandardPermission.CREATE),
+          new EntityTypeWithPermission(EntityType.SYSTEM_APP_ENTITY, StandardPermission.DELETE),
+          new EntityTypeWithPermission(EntityType.SYSTEM_APP_ENTITY, StandardPermission.UPDATE)
         );
       case MANAGE_SECURE_KEY:
         return Arrays.asList(
