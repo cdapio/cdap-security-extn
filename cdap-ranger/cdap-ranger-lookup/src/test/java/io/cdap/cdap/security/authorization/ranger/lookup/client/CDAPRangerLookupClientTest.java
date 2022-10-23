@@ -84,8 +84,9 @@ public class CDAPRangerLookupClientTest {
       new ProgramRecord(ProgramType.WORKER, "dummyApp", "prog1", ""),
       new ProgramRecord(ProgramType.MAPREDUCE, "dummyApp", "prog2", ""),
       new ProgramRecord(ProgramType.MAPREDUCE, "dummyApp", "anotherProgram", ""));
-    ApplicationDetail applicationDetail = new ApplicationDetail("name", ApplicationId.DEFAULT_VERSION, "desc", null, "config", null, programRecords,
-                                                                null, new ArtifactSummary("art", "1"), null);
+    ApplicationDetail applicationDetail = new ApplicationDetail("name", ApplicationId.DEFAULT_VERSION, "desc", null,
+                                                                "config", null, programRecords, null,
+                                                                new ArtifactSummary("art", "1"), null);
     when(applicationClient.get(new ApplicationId("dummyNs", "dummyApp"))).thenReturn(applicationDetail);
 
     ResourceLookupContext resourceLookupContext = new ResourceLookupContext();
