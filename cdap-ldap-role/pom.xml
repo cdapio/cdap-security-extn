@@ -21,7 +21,7 @@
 
   <properties>
     <security.authorizer.class>io.cdap.cdap.security.authorization.ldap.role.LDAPRoleAccessController</security.authorizer.class>
-    <jackson.version>2.8.8</jackson.version>
+    <jackson.version>2.12.7.1</jackson.version>
     <maven.build.timestamp.format>HH:mm:ss dd-MM-yyyy</maven.build.timestamp.format>
   </properties>
 
