@@ -21,7 +21,7 @@
 
   <groupId>io.cdap.cdap</groupId>
   <artifactId>cdap-security-extensions</artifactId>
-  <version>0.18.0-SNAPSHOT</version>
+  <version>0.18.0</version>
 
   <modules>
     <module>cdap-ranger</module>
@@ -66,7 +66,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <cdap.version>6.9.0-SNAPSHOT</cdap.version>
+    <cdap.version>6.9.0</cdap.version>
     <commons.collections.version>3.2.2</commons.collections.version>
     <slf4j.version>1.7.15</slf4j.version>
     <junit.version>4.11</junit.version>
