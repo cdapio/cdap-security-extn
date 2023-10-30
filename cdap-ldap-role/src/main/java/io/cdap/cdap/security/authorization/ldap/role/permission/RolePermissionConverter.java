@@ -20,6 +20,7 @@ import io.cdap.cdap.proto.element.EntityType;
 import io.cdap.cdap.proto.id.NamespacedEntityId;
 import io.cdap.cdap.proto.security.ApplicationPermission;
 import io.cdap.cdap.proto.security.InstancePermission;
+import io.cdap.cdap.proto.security.NamespacePermission;
 import io.cdap.cdap.proto.security.Permission;
 import io.cdap.cdap.proto.security.StandardPermission;
 
@@ -163,6 +164,12 @@ public class RolePermissionConverter {
           new EntityTypeWithPermission(EntityType.SECUREKEY, StandardPermission.UPDATE),
           new EntityTypeWithPermission(EntityType.SECUREKEY, StandardPermission.LIST),
           new EntityTypeWithPermission(EntityType.SECUREKEY, StandardPermission.DELETE)
+        );
+      case MANAGE_SCM:
+        return Arrays.asList(
+          new EntityTypeWithPermission(EntityType.NAMESPACE, NamespacePermission.READ_REPOSITORY),
+          new EntityTypeWithPermission(EntityType.NAMESPACE, NamespacePermission.WRITE_REPOSITORY),
+          new EntityTypeWithPermission(EntityType.NAMESPACE, NamespacePermission.UPDATE_REPOSITORY_METADATA)
         );
     }
 
