@@ -114,4 +114,8 @@ public enum RolePermission {
   INITIATE_AND_ACCEPT_TETHER,
   @JsonProperty("Perform Health Check")
   PERFORM_HEALTH_CHECK,
+
+  // Source Control Management
+  @JsonProperty("Manage Source Control")
+  MANAGE_SCM,
 }
