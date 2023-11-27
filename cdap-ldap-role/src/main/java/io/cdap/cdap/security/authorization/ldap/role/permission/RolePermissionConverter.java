@@ -113,6 +113,7 @@ public class RolePermissionConverter {
         return Arrays.asList(
           new EntityTypeWithPermission(EntityType.PROGRAM, StandardPermission.GET),
           new EntityTypeWithPermission(EntityType.PROGRAM_RUN, StandardPermission.GET),
+          new EntityTypeWithPermission(EntityType.PROGRAMREFERENCE, StandardPermission.GET),
           new EntityTypeWithPermission(EntityType.APPLICATION, StandardPermission.GET),
           new EntityTypeWithPermission(EntityType.DATASET, StandardPermission.LIST),
           new EntityTypeWithPermission(EntityType.DATASET, StandardPermission.GET)
