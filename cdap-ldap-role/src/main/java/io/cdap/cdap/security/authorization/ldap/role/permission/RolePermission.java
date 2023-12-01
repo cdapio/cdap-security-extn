@@ -118,4 +118,7 @@ public enum RolePermission {
   // Source Control Management
   @JsonProperty("Manage Source Control")
   MANAGE_SCM,
+
+  @JsonProperty("Manage Connections")
+  MANAGE_SYSTEM_APP_ENTITIES
 }
