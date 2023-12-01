@@ -102,7 +102,8 @@ public class RolePermissionConverter {
           new EntityTypeWithPermission(EntityType.APPLICATION, StandardPermission.CREATE),
           new EntityTypeWithPermission(EntityType.DATASET, StandardPermission.CREATE),
           new EntityTypeWithPermission(EntityType.APPLICATION, StandardPermission.GET),
-          new EntityTypeWithPermission(EntityType.ARTIFACT, StandardPermission.GET)
+          new EntityTypeWithPermission(EntityType.ARTIFACT, StandardPermission.GET),
+          new EntityTypeWithPermission(EntityType.SYSTEM_APP_ENTITY, StandardPermission.USE)
         );
       case DELETE_PIPELINE:
         return Arrays.asList(
@@ -157,7 +158,8 @@ public class RolePermissionConverter {
       case USE_WRANGLER:
         return Arrays.asList(
           new EntityTypeWithPermission(EntityType.APPLICATION, StandardPermission.GET, true),
-          new EntityTypeWithPermission(EntityType.DATASET, StandardPermission.LIST, true)
+          new EntityTypeWithPermission(EntityType.DATASET, StandardPermission.LIST, true),
+          new EntityTypeWithPermission(EntityType.SYSTEM_APP_ENTITY, StandardPermission.USE)
         );
       case MANAGE_SECURE_KEY:
         return Arrays.asList(
@@ -171,6 +173,12 @@ public class RolePermissionConverter {
           new EntityTypeWithPermission(EntityType.NAMESPACE, NamespacePermission.READ_REPOSITORY),
           new EntityTypeWithPermission(EntityType.NAMESPACE, NamespacePermission.WRITE_REPOSITORY),
           new EntityTypeWithPermission(EntityType.NAMESPACE, NamespacePermission.UPDATE_REPOSITORY_METADATA)
+        );
+      case MANAGE_SYSTEM_APP_ENTITIES:
+        return Arrays.asList(
+          new EntityTypeWithPermission(EntityType.SYSTEM_APP_ENTITY, StandardPermission.CREATE),
+          new EntityTypeWithPermission(EntityType.SYSTEM_APP_ENTITY, StandardPermission.UPDATE),
+          new EntityTypeWithPermission(EntityType.SYSTEM_APP_ENTITY, StandardPermission.DELETE)
         );
     }
 
