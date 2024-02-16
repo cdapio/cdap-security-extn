@@ -46,7 +46,7 @@ public class LDAPClientImpl implements LDAPClient {
             try {
                 return new InitialDirContext(properties);
             } catch (NamingException e) {
-                LOG.warn("Failed connect to '{}' on attempt '{}'", config.getUrl(), i);
+                LOG.warn("Failed connect to '{}' on attempt '{}'", config.getUrl(), i, e);
 
                 // Throw error if maximum of attempts is reached
                 if (i == LDAPConstants.MAX_CONNECTION_RETRIES) {

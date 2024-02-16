@@ -83,24 +83,14 @@ public class LDAPSearcher {
           context.close();
         }
       } catch (NamingException e) {
-        Throwable cause = e.getCause();
-
-        // Getting informative error message
-        String exceptionMessage;
-        if (cause == null) {
-          exceptionMessage = e.getMessage();
-        } else {
-          exceptionMessage = cause.getMessage();
-        }
-
-        String errorMsg = String.format("Failed to find groups for user '%s': %s", username, exceptionMessage);
+        String errorMsg = String.format("Failed to find groups for user '%s'", username);
 
         // Throw error if maximum of attempts is reached
         if (i == LDAPConstants.MAX_SEARCH_RETRIES) {
           throw new RuntimeException(errorMsg, e);
         }
 
-        LOG.warn(errorMsg);
+        LOG.warn(errorMsg, e);
         sleep(i * LDAPConstants.DEFAULT_RETRY_INTERVAL);
       }
     }
