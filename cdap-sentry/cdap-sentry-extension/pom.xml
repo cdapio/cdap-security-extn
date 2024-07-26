@@ -40,7 +40,7 @@
   <url>http://github.com/cdapio/cdap-security-extn/cdap-sentry</url>
 
   <properties>
-    <hadoop.version>2.3.0</hadoop.version>
+    <hadoop.version>3.3.6</hadoop.version>
     <sentry.version>1.7.0</sentry.version>
   </properties>
   
@@ -116,6 +116,29 @@
           <exclusion>
             <groupId>org.apache.sentry</groupId>
             <artifactId>sentry-core-model-sqoop</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.codehaus.jackson</groupId>
+            <artifactId>jackson-mapper-asl</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-common</artifactId>
+        <version>${hadoop.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.codehaus.jackson</groupId>
+            <artifactId>jackson-core-asl</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.codehaus.jackson</groupId>
+            <artifactId>jackson-mapper-asl</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
