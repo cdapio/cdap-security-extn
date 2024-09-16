@@ -42,31 +42,10 @@
   <properties>
     <package.build.year>2016</package.build.year>
     <package.cdap.libs>${project.build.directory}/cdap</package.cdap.libs>
-    <package.sentry.libs>${project.build.directory}/sentry</package.sentry.libs>
     <package.cdap.name>cdap-security-extensions</package.cdap.name>
-    <package.sentry.name>cdap-sentry</package.sentry.name>
     <package.cdap.ext.dir>security</package.cdap.ext.dir>
     <package.cdap.dirs>${package.cdap.libs}/=/opt/cdap/master/ext/${package.cdap.ext.dir}/</package.cdap.dirs>
-    <package.sentry.dirs>${package.sentry.libs}/=/opt/${package.sentry.name}/</package.sentry.dirs>
   </properties>
-
-  <dependencies>
-    <dependency>
-      <groupId>io.cdap.cdap</groupId>
-      <artifactId>cdap-sentry-binding</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.cdap.cdap</groupId>
-      <artifactId>cdap-sentry-model</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.cdap.cdap</groupId>
-      <artifactId>cdap-sentry-policy</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-  </dependencies>
 
   <profiles>
     <profile>
@@ -129,51 +108,7 @@
             </executions>
           </plugin>
 
-          <!-- Use the maven-dependency-plugin to copy dependencies to use while generating packages -->
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-dependency-plugin</artifactId>
-            <version>2.10</version>
-            <executions>
-              <execution>
-                <id>copy</id>
-                <phase>validate</phase>
-                <goals>
-                  <goal>copy</goal>
-                </goals>
-                <configuration>
-                  <artifactItems>
-                    <artifactItem>
-                      <groupId>io.cdap.cdap</groupId>
-                      <artifactId>cdap-sentry-binding</artifactId>
-                      <version>${project.version}</version>
-                      <type>jar</type>
-                      <overWrite>true</overWrite>
-                      <outputDirectory>${package.cdap.libs}</outputDirectory>
-                    </artifactItem>
-                    <artifactItem>
-                      <groupId>io.cdap.cdap</groupId>
-                      <artifactId>cdap-sentry-model</artifactId>
-                      <version>${project.version}</version>
-                      <type>jar</type>
-                      <overWrite>true</overWrite>
-                      <outputDirectory>${package.sentry.libs}</outputDirectory>
-                    </artifactItem>
-                    <artifactItem>
-                      <groupId>io.cdap.cdap</groupId>
-                      <artifactId>cdap-sentry-policy</artifactId>
-                      <version>${project.version}</version>
-                      <type>jar</type>
-                      <overWrite>true</overWrite>
-                      <outputDirectory>${package.sentry.libs}</outputDirectory>
-                    </artifactItem>
-                  </artifactItems>
-                  <overWriteReleases>true</overWriteReleases>
-                  <overWriteSnapshots>true</overWriteSnapshots>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
+          <!-- TODO :  cdap-sentry dependencies removed. TO EVALUATE https://cdap.atlassian.net/browse/CDAP-21050  -->
         </plugins>
       </build>
     </profile>
