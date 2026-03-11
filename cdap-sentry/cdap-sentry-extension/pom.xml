@@ -40,7 +40,7 @@
   <url>http://github.com/cdapio/cdap-security-extn/cdap-sentry</url>
 
   <properties>
-    <hadoop.version>3.3.6</hadoop.version>
+    <hadoop.version>3.4.0</hadoop.version>
     <sentry.version>1.7.0</sentry.version>
   </properties>
   
