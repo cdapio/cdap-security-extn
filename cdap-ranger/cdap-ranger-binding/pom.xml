@@ -72,7 +72,7 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>13.0.1</version>
+      <version>${guava.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.ranger</groupId>
