@@ -16,6 +16,14 @@
 
 package io.cdap.cdap.security.authorization;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.Scopes;
+import com.google.inject.assistedinject.FactoryModuleBuilder;
+import com.google.inject.multibindings.MapBinder;
+import com.google.inject.name.Names;
 import io.cdap.cdap.api.Admin;
 import io.cdap.cdap.api.Transactional;
 import io.cdap.cdap.api.TxRunnable;
@@ -23,7 +31,9 @@ import io.cdap.cdap.api.dataset.module.DatasetDefinitionRegistry;
 import io.cdap.cdap.api.dataset.module.DatasetModule;
 import io.cdap.cdap.api.metrics.MetricsCollectionService;
 import io.cdap.cdap.api.security.store.SecureStore;
+import io.cdap.cdap.api.security.store.SecureStoreData;
 import io.cdap.cdap.api.security.store.SecureStoreManager;
+import io.cdap.cdap.api.security.store.SecureStoreMetadata;
 import io.cdap.cdap.common.guice.ConfigModule;
 import io.cdap.cdap.common.metrics.NoOpMetricsCollectionService;
 import io.cdap.cdap.data.dataset.SystemDatasetInstantiator;
@@ -38,18 +48,9 @@ import io.cdap.cdap.internal.app.runtime.DefaultAdmin;
 import io.cdap.cdap.proto.id.NamespaceId;
 import io.cdap.cdap.security.auth.context.AuthenticationContextModules;
 import io.cdap.cdap.security.spi.authentication.AuthenticationContext;
+import io.cdap.cdap.security.spi.authorization.AccessController;
+import io.cdap.cdap.security.spi.authorization.AccessControllerTest;
 import io.cdap.cdap.security.spi.authorization.AuthorizationContext;
-import io.cdap.cdap.security.spi.authorization.Authorizer;
-import io.cdap.cdap.security.spi.authorization.AuthorizerTest;
-import io.cdap.cdap.security.store.DummySecureStore;
-import com.google.common.collect.ImmutableMap;
-import com.google.inject.AbstractModule;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-import com.google.inject.Scopes;
-import com.google.inject.assistedinject.FactoryModuleBuilder;
-import com.google.inject.multibindings.MapBinder;
-import com.google.inject.name.Names;
 import org.apache.tephra.TransactionContext;
 import org.apache.tephra.TransactionFailureException;
 import org.apache.tephra.TransactionManager;
@@ -59,13 +60,17 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+
 /**
  * Tests for {@link DatasetBasedAuthorizer}.
  */
-public class DatasetBasedAuthorizerTest extends AuthorizerTest {
+public class DatasetBasedAuthorizerTest extends AccessControllerTest {
 
-  private static final DatasetBasedAuthorizer datasetAuthorizer = new DatasetBasedAuthorizer();
+  private static final DatasetBasedAuthorizer DATASET_AUTHORIZER = new DatasetBasedAuthorizer();
   private static TransactionManager txManager;
 
   @BeforeClass
@@ -88,26 +93,27 @@ public class DatasetBasedAuthorizerTest extends AuthorizerTest {
           bind(DatasetFramework.class).to(InMemoryDatasetFramework.class).in(Scopes.SINGLETON);
           bind(MetricsCollectionService.class).to(NoOpMetricsCollectionService.class);
 
-          DummySecureStore dummySecureStore = new DummySecureStore();
-          bind(SecureStore.class).toInstance(dummySecureStore);
-          bind(SecureStoreManager.class).toInstance(dummySecureStore);
+          NoOpSecureStore noOpSecureStore = new NoOpSecureStore();
+          bind(SecureStore.class).toInstance(noOpSecureStore);
+          bind(SecureStoreManager.class).toInstance(noOpSecureStore);
         }
       }
     );
 
     txManager = injector.getInstance(TransactionManager.class);
-    txManager.startAndWait();
+    txManager.startAsync().awaitRunning();
 
     DatasetFramework dsFramework = injector.getInstance(DatasetFramework.class);
     SystemDatasetInstantiator instantiator = new SystemDatasetInstantiator(dsFramework, null, null);
     TransactionSystemClient txClient = injector.getInstance(TransactionSystemClient.class);
     final DynamicDatasetCache dsCache = new SingleThreadDatasetCache(instantiator, txClient, NamespaceId.DEFAULT,
                                                                      ImmutableMap.<String, String>of(), null, null);
-    Admin admin = new DefaultAdmin(dsFramework, NamespaceId.DEFAULT, injector.getInstance(SecureStoreManager.class));
+    Admin admin = new DefaultAdmin(dsFramework, NamespaceId.DEFAULT,
+                                   injector.getInstance(SecureStoreManager.class), null);
     Transactional txnl = new Transactional() {
       @Override
       public void execute(int timeoutInSeconds, TxRunnable runnable) throws TransactionFailureException {
-        TransactionContext transactionContext = dsCache.get();
+        TransactionContext transactionContext = dsCache.newTransactionContext();
         transactionContext.start();
         try {
           runnable.run(dsCache);
@@ -129,18 +135,18 @@ public class DatasetBasedAuthorizerTest extends AuthorizerTest {
       new Properties(), dsCache, admin, txnl, injector.getInstance(AuthenticationContext.class),
       injector.getInstance(SecureStore.class)
     );
-    datasetAuthorizer.initialize(authContext);
+    DATASET_AUTHORIZER.initialize(authContext);
   }
 
   @AfterClass
   public static void tearDownClass() throws Exception {
-    datasetAuthorizer.destroy();
-    txManager.stopAndWait();
+    DATASET_AUTHORIZER.destroy();
+    txManager.stopAsync().awaitTerminated();
   }
 
   @Override
-  protected Authorizer get() {
-    return datasetAuthorizer;
+  protected AccessController get() {
+    return new AuthorizerWrapper(DATASET_AUTHORIZER);
   }
 
   @Override
@@ -148,5 +154,27 @@ public class DatasetBasedAuthorizerTest extends AuthorizerTest {
   public void testRBAC() throws Exception {
     // DatasetBasedAuthorizer currently does not support role based access control
     super.testRBAC();
+  }
+
+  private static final class NoOpSecureStore implements SecureStore, SecureStoreManager {
+    @Override
+    public List<SecureStoreMetadata> list(String namespace) {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public SecureStoreData get(String namespace, String name) {
+      throw new UnsupportedOperationException("SecureStore is not supported in test.");
+    }
+
+    @Override
+    public void put(String namespace, String name, String data, String description, Map<String, String> properties) {
+      throw new UnsupportedOperationException("SecureStore is not supported in test.");
+    }
+
+    @Override
+    public void delete(String namespace, String name) {
+      throw new UnsupportedOperationException("SecureStore is not supported in test.");
+    }
   }
 }

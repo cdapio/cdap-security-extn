@@ -16,32 +16,33 @@
 
 package io.cdap.cdap.security.authorization;
 
-import io.cdap.cdap.api.Predicate;
+import com.google.common.base.Splitter;
+import com.google.common.base.Supplier;
+import com.google.common.base.Throwables;
 import io.cdap.cdap.api.TxRunnable;
 import io.cdap.cdap.api.data.DatasetContext;
 import io.cdap.cdap.api.dataset.DatasetManagementException;
 import io.cdap.cdap.api.dataset.DatasetProperties;
 import io.cdap.cdap.api.dataset.InstanceConflictException;
 import io.cdap.cdap.api.dataset.table.Table;
+import io.cdap.cdap.proto.element.EntityType;
 import io.cdap.cdap.proto.id.EntityId;
 import io.cdap.cdap.proto.security.Action;
+import io.cdap.cdap.proto.security.Authorizable;
 import io.cdap.cdap.proto.security.Principal;
 import io.cdap.cdap.proto.security.Privilege;
 import io.cdap.cdap.proto.security.Role;
 import io.cdap.cdap.security.spi.authorization.AbstractAuthorizer;
 import io.cdap.cdap.security.spi.authorization.AuthorizationContext;
 import io.cdap.cdap.security.spi.authorization.Authorizer;
-import io.cdap.cdap.security.spi.authorization.RoleAlreadyExistsException;
-import io.cdap.cdap.security.spi.authorization.RoleNotFoundException;
 import io.cdap.cdap.security.spi.authorization.UnauthorizedException;
-import com.google.common.base.Splitter;
-import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
 import org.apache.tephra.TransactionFailureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
@@ -66,7 +67,8 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
         } catch (InstanceConflictException e) {
           LOG.info("Dataset {} already exists. Not creating again.", AuthorizationDataset.TABLE_NAME);
         } catch (DatasetManagementException e) {
-          throw Throwables.propagate(e);
+          Throwables.throwIfUnchecked(e);
+          throw new RuntimeException(e);
         }
         Table table = context.getDataset(AuthorizationDataset.TABLE_NAME);
         return new AuthorizationDataset(table);
@@ -112,49 +114,67 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public Predicate<EntityId> createFilter(Principal principal) throws Exception {
-    // no filtering for superusers
+  public Set<? extends EntityId> isVisible(final Set<? extends EntityId> entityIds,
+                                           final Principal principal) throws Exception {
     if (superUsers.contains(principal)) {
-      return ALLOW_ALL;
+      return entityIds;
     }
-    return super.createFilter(principal);
+    final AtomicReference<Set<EntityId>> visibleEntities = new AtomicReference<>(Collections.<EntityId>emptySet());
+    context.execute(new TxRunnable() {
+      @Override
+      public void run(DatasetContext context) throws Exception {
+        AuthorizationDataset dataset = dsSupplier.get();
+        Set<Privilege> privileges = dataset.listPrivileges(principal);
+        if (privileges.isEmpty()) {
+          return;
+        }
+        Set<EntityId> results = new HashSet<>();
+        for (EntityId entityId : entityIds) {
+          if (isEntityVisible(entityId, privileges)) {
+            results.add(entityId);
+          }
+        }
+        visibleEntities.set(results);
+      }
+    });
+    return visibleEntities.get();
   }
 
   @Override
-  public void grant(final EntityId entity, final Principal principal,
+  public void grant(final Authorizable authorizable, final Principal principal,
                     final Set<Action> actions) throws TransactionFailureException {
     context.execute(new TxRunnable() {
       @Override
       public void run(DatasetContext context) throws Exception {
         AuthorizationDataset dataset = dsSupplier.get();
         for (Action action : actions) {
-          dataset.add(entity, principal, action);
+          dataset.add(authorizable, principal, action);
         }
       }
     });
   }
 
   @Override
-  public void revoke(final EntityId entity, final Principal principal,
+  public void revoke(final Authorizable authorizable, final Principal principal,
                      final Set<Action> actions) throws TransactionFailureException {
     context.execute(new TxRunnable() {
       @Override
       public void run(DatasetContext context) throws Exception {
         AuthorizationDataset dataset = dsSupplier.get();
         for (Action action : actions) {
-          dataset.remove(entity, principal, action);
+          dataset.remove(authorizable, principal, action);
         }
       }
     });
   }
 
   @Override
-  public void revoke(final EntityId entity) throws TransactionFailureException {
+  public void revoke(final Authorizable authorizable) throws TransactionFailureException {
     context.execute(new TxRunnable() {
       @Override
       public void run(DatasetContext context) throws Exception {
         AuthorizationDataset dataset = dsSupplier.get();
-        dataset.remove(entity);
+        dataset.remove(authorizable);
       }
     });
   }
@@ -173,22 +193,22 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
   }
 
   @Override
-  public void createRole(Role role) throws RoleAlreadyExistsException {
+  public void createRole(Role role) {
     throw new UnsupportedOperationException("Role based operation is not supported.");
   }
 
   @Override
-  public void dropRole(Role role) throws RoleNotFoundException {
+  public void dropRole(Role role) {
     throw new UnsupportedOperationException("Role based operation is not supported.");
   }
 
   @Override
-  public void addRoleToPrincipal(Role role, Principal principal) throws RoleNotFoundException {
+  public void addRoleToPrincipal(Role role, Principal principal) {
     throw new UnsupportedOperationException("Role based operation is not supported.");
   }
 
   @Override
-  public void removeRoleFromPrincipal(Role role, Principal principal) throws RoleNotFoundException {
+  public void removeRoleFromPrincipal(Role role, Principal principal) {
     throw new UnsupportedOperationException("Role based operation is not supported.");
   }
 
@@ -200,5 +220,32 @@ public class DatasetBasedAuthorizer extends AbstractAuthorizer {
   @Override
   public Set<Role> listAllRoles() {
     throw new UnsupportedOperationException("Role based operation is not supported.");
+  }
+
+  private boolean isEntityVisible(EntityId entityId, Set<Privilege> privileges) {
+    for (EntityId current : entityId.getHierarchy()) {
+      Authorizable currentAuthorizable = Authorizable.fromEntityId(current);
+      for (Privilege privilege : privileges) {
+        if (currentAuthorizable.equals(privilege.getAuthorizable())) {
+          return true;
+        }
+      }
+    }
+    Map<EntityType, String> entityParts = Authorizable.fromEntityId(entityId).getEntityParts();
+    for (Privilege privilege : privileges) {
+      if (isParent(entityParts, privilege.getAuthorizable().getEntityParts())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean isParent(Map<EntityType, String> parentParts, Map<EntityType, String> childParts) {
+    for (Map.Entry<EntityType, String> entry : parentParts.entrySet()) {
+      if (!entry.getValue().equals(childParts.get(entry.getKey()))) {
+        return false;
+      }
+    }
+    return true;
   }
 }
