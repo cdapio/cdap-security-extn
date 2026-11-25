@@ -121,4 +121,41 @@ public class RangerSslHelperTest {
       Thread.currentThread().setContextClassLoader(originalCl);
     }
   }
+
+  @Test
+  public void testOneWayTlsWithTrustStoreOnly() throws Exception {
+    File resourceDir = tempFolder.newFolder("one-way-ssl-resources");
+    char[] storePassword = "changeit".toCharArray();
+
+    File trustStoreFile = new File(resourceDir, "one-way-truststore.jks");
+    KeyStore ts = KeyStore.getInstance("JKS");
+    ts.load(null, storePassword);
+    try (FileOutputStream out = new FileOutputStream(trustStoreFile)) {
+      ts.store(out, storePassword);
+    }
+
+    File jceksFile = new File(resourceDir, "one-way-creds.jceks");
+    String credUrl = "jceks://file" + jceksFile.getAbsolutePath();
+    Configuration credConf = new Configuration(false);
+    credConf.set(CredentialProviderFactory.CREDENTIAL_PROVIDER_PATH, credUrl);
+    CredentialProvider provider = CredentialProviderFactory.getProviders(credConf).get(0);
+    provider.createCredentialEntry(RangerSslHelper.RANGER_POLICYMGR_TRUSTSTORE_FILE_CREDENTIAL_ALIAS, storePassword);
+    provider.flush();
+
+    File sslConfigFile = new File(resourceDir, "one-way-ranger-ssl.xml");
+    Configuration sslConf = new Configuration(false);
+    sslConf.set(RangerSslHelper.RANGER_POLICYMGR_TRUSTSTORE_FILE, trustStoreFile.getAbsolutePath());
+    sslConf.set(RangerSslHelper.RANGER_POLICYMGR_TRUSTSTORE_FILE_CREDENTIAL, credUrl);
+    try (Writer writer = Files.newBufferedWriter(sslConfigFile.toPath(), StandardCharsets.UTF_8)) {
+      sslConf.writeXml(writer);
+    }
+
+    RangerSslHelper oneWayHelper = new RangerSslHelper(sslConfigFile.getAbsolutePath());
+    SSLContext sslContext = oneWayHelper.createContext();
+    Assert.assertNotNull(sslContext);
+    Assert.assertEquals("TLS", sslContext.getProtocol());
+
+    RangerSslHelper unconfiguredHelper = new RangerSslHelper("non-existent-ssl-config.xml");
+    Assert.assertNull(unconfiguredHelper.createContext());
+  }
 }
