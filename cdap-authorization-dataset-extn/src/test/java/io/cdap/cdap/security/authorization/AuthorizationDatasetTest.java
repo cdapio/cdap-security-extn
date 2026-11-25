@@ -16,6 +16,7 @@
 
 package io.cdap.cdap.security.authorization;
 
+import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.dataset.DatasetProperties;
 import io.cdap.cdap.api.dataset.table.Table;
 import io.cdap.cdap.data2.dataset2.DatasetFrameworkTestUtil;
@@ -25,7 +26,6 @@ import io.cdap.cdap.proto.id.NamespaceId;
 import io.cdap.cdap.proto.security.Action;
 import io.cdap.cdap.proto.security.Principal;
 import io.cdap.cdap.proto.security.Privilege;
-import com.google.common.collect.ImmutableSet;
 import org.apache.tephra.TransactionExecutor;
 import org.apache.tephra.TransactionFailureException;
 import org.junit.AfterClass;
