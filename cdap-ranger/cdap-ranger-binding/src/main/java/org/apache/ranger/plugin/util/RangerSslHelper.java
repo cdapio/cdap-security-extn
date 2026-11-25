@@ -248,7 +248,7 @@ public class RangerSslHelper {
 	
 	private SSLContext getSSLContext(KeyManager[] kmList, TrustManager[] tmList) {
 		try {
-			if(kmList != null && tmList != null) {
+			if (kmList != null || tmList != null) {
 				SSLContext sslContext = SSLContext.getInstance(RANGER_SSL_CONTEXT_ALGO_TYPE);
 	
 				sslContext.init(kmList, tmList, new SecureRandom());
