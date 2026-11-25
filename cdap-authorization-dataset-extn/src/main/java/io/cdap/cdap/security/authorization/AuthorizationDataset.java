@@ -22,6 +22,7 @@ import io.cdap.cdap.api.dataset.table.Scanner;
 import io.cdap.cdap.api.dataset.table.Table;
 import io.cdap.cdap.proto.id.EntityId;
 import io.cdap.cdap.proto.security.Action;
+import io.cdap.cdap.proto.security.Authorizable;
 import io.cdap.cdap.proto.security.Principal;
 import io.cdap.cdap.proto.security.Privilege;
 
@@ -58,9 +59,21 @@ class AuthorizationDataset extends AbstractDataset {
    * @return the set of actions allowed for the user on the entity
    */
   public Set<Action> search(EntityId entity, Principal principal) {
+    return search(Authorizable.fromEntityId(entity), principal);
+  }
+
+  /**
+   * Search the dataset to retrieve the set of allowed {@link Action} for the given {@link Authorizable} and
+   * {@link Principal}.
+   *
+   * @param authorizable the authorizable
+   * @param principal the principal
+   * @return the set of actions allowed for the user on the authorizable
+   */
+  public Set<Action> search(Authorizable authorizable, Principal principal) {
     Set<Action> result = new HashSet<>();
 
-    AuthorizationDatasetKey mdsKey = getKey(entity, principal);
+    AuthorizationDatasetKey mdsKey = getKey(authorizable, principal);
     byte[] startKey = mdsKey.getKey();
     byte[] stopKey = Bytes.stopKeyForPrefix(startKey);
     Scanner scan = table.scan(startKey, stopKey);
@@ -85,21 +98,42 @@ class AuthorizationDataset extends AbstractDataset {
    * Add an {@link Action} on the specified {@link EntityId} for the given {@link Principal}.
    */
   public void add(EntityId entity, Principal principal, Action action) {
-    table.put(getKey(entity, principal, action).getKey(), VALUE_COLUMN, Bytes.toBytes(action.name()));
+    add(Authorizable.fromEntityId(entity), principal, action);
+  }
+
+  /**
+   * Add an {@link Action} on the specified {@link Authorizable} for the given {@link Principal}.
+   */
+  public void add(Authorizable authorizable, Principal principal, Action action) {
+    table.put(getKey(authorizable, principal, action).getKey(), VALUE_COLUMN, Bytes.toBytes(action.name()));
   }
 
   /**
    * Remove an {@link Action} on the specified {@link EntityId} from the given {@link Principal}.
    */
   public void remove(EntityId entity, Principal principal, Action action) {
-    table.delete(getKey(entity, principal, action).getKey());
+    remove(Authorizable.fromEntityId(entity), principal, action);
+  }
+
+  /**
+   * Remove an {@link Action} on the specified {@link Authorizable} from the given {@link Principal}.
+   */
+  public void remove(Authorizable authorizable, Principal principal, Action action) {
+    table.delete(getKey(authorizable, principal, action).getKey());
   }
 
   /**
    * Remove all {@link Action actions} on the specified {@link EntityId} for the given {@link Principal}.
    */
   public void remove(EntityId entity, Principal principal) {
-    AuthorizationDatasetKey authorizationDatasetKey = getKey(entity, principal);
+    remove(Authorizable.fromEntityId(entity), principal);
+  }
+
+  /**
+   * Remove all {@link Action actions} on the specified {@link Authorizable} for the given {@link Principal}.
+   */
+  public void remove(Authorizable authorizable, Principal principal) {
+    AuthorizationDatasetKey authorizationDatasetKey = getKey(authorizable, principal);
     byte[] startKey = authorizationDatasetKey.getKey();
     byte[] stopKey = Bytes.stopKeyForPrefix(startKey);
     Scanner scan = table.scan(startKey, stopKey);
@@ -118,7 +152,14 @@ class AuthorizationDataset extends AbstractDataset {
    * Remove all {@link Action actions} for all {@link Principal principals} on the specified {@link EntityId}.
    */
   public void remove(EntityId entity) {
-    AuthorizationDatasetKey authorizationDatasetKey = getKey(entity);
+    remove(Authorizable.fromEntityId(entity));
+  }
+
+  /**
+   * Remove all {@link Action actions} for all {@link Principal principals} on the specified {@link Authorizable}.
+   */
+  public void remove(Authorizable authorizable) {
+    AuthorizationDatasetKey authorizationDatasetKey = getKey(authorizable);
     byte[] startKey = authorizationDatasetKey.getKey();
     byte[] stopKey = Bytes.stopKeyForPrefix(startKey);
     Scanner scan = table.scan(startKey, stopKey);
@@ -149,7 +190,7 @@ class AuthorizationDataset extends AbstractDataset {
           if (value == null) {
             continue;
           }
-          privileges.add(new Privilege(getEntity(next.getRow()), Action.valueOf(Bytes.toString(value))));
+          privileges.add(new Privilege(getAuthorizable(next.getRow()), Action.valueOf(Bytes.toString(value))));
         }
       }
     } finally {
@@ -158,34 +199,34 @@ class AuthorizationDataset extends AbstractDataset {
     return privileges;
   }
 
-  private AuthorizationDatasetKey getKey(EntityId entity) {
-    return getKeyBuilder(entity).build();
+  private AuthorizationDatasetKey getKey(Authorizable authorizable) {
+    return getKeyBuilder(authorizable).build();
   }
 
-  private AuthorizationDatasetKey getKey(EntityId entity, Principal principal) {
-    return getKeyBuilder(entity, principal).build();
+  private AuthorizationDatasetKey getKey(Authorizable authorizable, Principal principal) {
+    return getKeyBuilder(authorizable, principal).build();
   }
 
-  private AuthorizationDatasetKey getKey(EntityId entity, Principal principal, Action action) {
-    return getKeyBuilder(entity, principal, action).build();
+  private AuthorizationDatasetKey getKey(Authorizable authorizable, Principal principal, Action action) {
+    return getKeyBuilder(authorizable, principal, action).build();
   }
 
-  private AuthorizationDatasetKey.Builder getKeyBuilder(EntityId entity, Principal principal, Action action) {
-    return getKeyBuilder(entity, principal).add(action.name());
+  private AuthorizationDatasetKey.Builder getKeyBuilder(Authorizable authorizable, Principal principal, Action action) {
+    return getKeyBuilder(authorizable, principal).add(action.name());
   }
 
-  private AuthorizationDatasetKey.Builder getKeyBuilder(EntityId entity, Principal principal) {
-    return getKeyBuilder(entity).add(principal.getType().name()).add(principal.getName());
+  private AuthorizationDatasetKey.Builder getKeyBuilder(Authorizable authorizable, Principal principal) {
+    return getKeyBuilder(authorizable).add(principal.getType().name()).add(principal.getName());
   }
 
-  private AuthorizationDatasetKey.Builder getKeyBuilder(EntityId entity) {
-    return new AuthorizationDatasetKey.Builder().add(entity.toString());
+  private AuthorizationDatasetKey.Builder getKeyBuilder(Authorizable authorizable) {
+    return new AuthorizationDatasetKey.Builder().add(authorizable.toString());
   }
 
-  private EntityId getEntity(byte[] rowKey) {
+  private Authorizable getAuthorizable(byte[] rowKey) {
     AuthorizationDatasetKey.Splitter keySplitter = new AuthorizationDatasetKey(rowKey).split();
     // The rowkey is [entity][principal-type][principal-name][action-name]
-    return EntityId.fromString(keySplitter.getString());
+    return Authorizable.fromString(keySplitter.getString());
   }
 
   private Principal getPrincipal(byte[] rowKey) {
